@@ -1,7 +1,14 @@
 import { Pool } from "pg";
-import { Organization, Warehouse } from "../models";
+import { Organization } from "../models";
 import { CreateOrganizationDTO, UpdateOrganizationDTO } from "../dto";
 import Fuse, { IFuseOptions } from "fuse.js";
+import {
+  DatabaseError,
+  NotFoundError,
+  ServiceError,
+  ValidationError,
+} from "../errors/service";
+import { executeQuery, getSingleResult } from "../utils/query.utils";
 
 export class OrganizationService {
   private _db: Pool;
@@ -11,20 +18,48 @@ export class OrganizationService {
   }
 
   async findAll(): Promise<Organization[]> {
-    const result = await this._db.query<Organization>(
-      `SELECT * FROM organizations`,
-    );
-
-    return result.rows;
+    try {
+      const rows = await executeQuery<Organization>(
+        this._db,
+        "findAll",
+        `SELECT * FROM organizations ORDER BY id`,
+      );
+      return rows;
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve organizations",
+        "OrganizationService",
+        "findAll",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 
   async findById(id: number): Promise<Organization> {
-    const result = await this._db.query<Organization>(
-      `SELECT * FROM organizations WHERE id=$1`,
-      [id],
-    );
-
-    return result.rows[0];
+    try {
+      const organization = await getSingleResult<Organization>(
+        this._db,
+        "findById",
+        `SELECT * FROM organizations WHERE id=$1`,
+        [id],
+        "Organization",
+        id,
+      );
+      return organization;
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to find organization with id ${id}`,
+        "OrganizationService",
+        "findById",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 
   async update({
@@ -33,64 +68,126 @@ export class OrganizationService {
     latitude,
     longitude,
   }: UpdateOrganizationDTO): Promise<Organization> {
-    // Проверяем существование организации
-    const existingOrganization = await this.findById(id);
-    if (!existingOrganization) {
-      throw new Error(`Organization with id ${id} not found`);
-    }
+    try {
+      // Проверяем существование организации
+      await this.findById(id);
 
-    // Одна проверка на корректность координат
-    if (
-      (latitude !== undefined && (latitude < -90 || latitude > 90)) ||
-      (longitude !== undefined && (longitude < -180 || longitude > 180))
-    ) {
-      throw new Error(
-        `Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.`,
+      // Валидация входных данных
+      if (name !== undefined && (!name || name.trim().length === 0)) {
+        throw new ValidationError(
+          "Organization name cannot be empty",
+          "update",
+          "name",
+          name,
+        );
+      }
+
+      // Валидация координат
+      if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
+        throw new ValidationError(
+          "Latitude must be between -90 and 90",
+          "update",
+          "latitude",
+          latitude.toString(),
+        );
+      }
+
+      if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
+        throw new ValidationError(
+          "Longitude must be between -180 and 180",
+          "update",
+          "longitude",
+          longitude.toString(),
+        );
+      }
+
+      // Проверка уникальности имени, если оно меняется
+      if (name !== undefined && name.trim().length > 0) {
+        const existingOrgs = await executeQuery<Organization>(
+          this._db,
+          "checkUniqueNameUpdate",
+          "SELECT * FROM organizations WHERE LOWER(name) = LOWER($1) AND id != $2",
+          [name.trim(), id],
+        );
+
+        if (existingOrgs.length > 0) {
+          throw new ValidationError(
+            `Organization with name "${name}" already exists`,
+            "update",
+            "name",
+            name,
+          );
+        }
+      }
+
+      const fields: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (name !== undefined) {
+        fields.push(`name = $${paramIndex}`);
+        values.push(name.trim());
+        paramIndex++;
+      }
+
+      if (latitude !== undefined) {
+        fields.push(`latitude = $${paramIndex}`);
+        values.push(latitude);
+        paramIndex++;
+      }
+
+      if (longitude !== undefined) {
+        fields.push(`longitude = $${paramIndex}`);
+        values.push(longitude);
+        paramIndex++;
+      }
+
+      // Если нет полей для обновления, возвращаем существующую организацию
+      if (fields.length === 0) {
+        return await this.findById(id);
+      }
+
+      values.push(id);
+      const query = `
+        UPDATE organizations 
+        SET ${fields.join(", ")}
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const rows = await executeQuery<Organization>(
+        this._db,
+        "update",
+        query,
+        values,
+      );
+
+      if (rows.length === 0) {
+        throw new ServiceError(
+          `Failed to update organization with id ${id} - no data returned`,
+          "OrganizationService",
+          "update",
+          new Error("No data returned from UPDATE query"),
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to update organization with id ${id}`,
+        "OrganizationService",
+        "update",
+        error instanceof Error ? error : new Error(String(error)),
       );
     }
-
-    const fields: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
-
-    if (name !== undefined) {
-      fields.push(`name = $${paramIndex}`);
-      values.push(name);
-      paramIndex++;
-    }
-
-    if (latitude !== undefined) {
-      fields.push(`latitude = $${paramIndex}`);
-      values.push(latitude);
-      paramIndex++;
-    }
-
-    if (longitude !== undefined) {
-      fields.push(`longitude = $${paramIndex}`);
-      values.push(longitude);
-      paramIndex++;
-    }
-
-    if (fields.length === 0) {
-      return existingOrganization;
-    }
-
-    values.push(id);
-
-    const query = `
-    UPDATE organizations 
-    SET ${fields.join(", ")}
-    WHERE id = $${paramIndex}
-    RETURNING *
-  `;
-
-    const result = await this._db.query<Organization>(query, values);
-
-    if (result.rows.length === 0) {
-      throw new Error(`Failed to update organization with id ${id}`);
-    }
-
-    return result.rows[0];
   }
 
   async create({
@@ -98,62 +195,193 @@ export class OrganizationService {
     latitude,
     longitude,
   }: CreateOrganizationDTO): Promise<Organization> {
-    if (
-      (latitude !== undefined && (latitude < -90 || latitude > 90)) ||
-      (longitude !== undefined && (longitude < -180 || longitude > 180))
-    ) {
-      throw new Error(
-        `Invalid coordinates. Latitude must be between -90 and 90, longitude between -180 and 180.`,
+    try {
+      // Валидация обязательных полей
+      if (!name || name.trim().length === 0) {
+        throw new ValidationError(
+          "Organization name is required",
+          "create",
+          "name",
+          name,
+        );
+      }
+
+      // Валидация координат
+      if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
+        throw new ValidationError(
+          "Latitude must be between -90 and 90",
+          "create",
+          "latitude",
+          latitude.toString(),
+        );
+      }
+
+      if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
+        throw new ValidationError(
+          "Longitude must be between -180 and 180",
+          "create",
+          "longitude",
+          longitude.toString(),
+        );
+      }
+
+      // Проверка уникальности имени
+      const existingOrgs = await executeQuery<Organization>(
+        this._db,
+        "checkUniqueNameCreate",
+        "SELECT * FROM organizations WHERE LOWER(name) = LOWER($1)",
+        [name.trim()],
+      );
+
+      if (existingOrgs.length > 0) {
+        throw new ValidationError(
+          `Organization with name "${name}" already exists`,
+          "create",
+          "name",
+          name,
+        );
+      }
+
+      const rows = await executeQuery<Organization>(
+        this._db,
+        "create",
+        `INSERT INTO organizations (name, latitude, longitude) 
+         VALUES ($1, $2, $3) 
+         RETURNING *`,
+        [name.trim(), latitude || null, longitude || null],
+      );
+
+      if (rows.length === 0) {
+        throw new ServiceError(
+          "Failed to create organization - no data returned",
+          "OrganizationService",
+          "create",
+          new Error("No data returned from INSERT query"),
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to create organization",
+        "OrganizationService",
+        "create",
+        error instanceof Error ? error : new Error(String(error)),
       );
     }
-
-    // Правильный SQL запрос:
-    const query = `
-    INSERT INTO organizations (name, latitude, longitude) 
-    VALUES ($1, $2, $3) 
-    RETURNING *
-  `;
-
-    const result = await this._db.query<Organization>(query, [
-      name,
-      latitude,
-      longitude,
-    ]);
-
-    return result.rows[0];
   }
 
   async delete(id: number): Promise<Organization> {
-    const result = await this._db.query<Organization>(
-      `DELETE FROM organizations WHERE id=$1 RETURNING *`,
-      [id],
-    );
+    try {
+      // Проверяем существование организации
+      await this.findById(id);
 
-    if (result.rowCount === 0) {
-      throw Error(
-        `Organization with id = ${id} not found, deletion incomplete`,
+      // Проверяем, есть ли связанные пользователи
+      const usersCheck = await executeQuery<{ count: number }>(
+        this._db,
+        "checkUsers",
+        "SELECT COUNT(*) as count FROM app_user WHERE organization_id = $1",
+        [id],
+      );
+
+      if (usersCheck[0].count > 0) {
+        throw new ValidationError(
+          `Cannot delete organization with id ${id} because it has associated users`,
+          "delete",
+          "organization_id",
+          id.toString(),
+        );
+      }
+
+      // Проверяем, есть ли связанные склады
+      const warehousesCheck = await executeQuery<{ count: number }>(
+        this._db,
+        "checkWarehouses",
+        "SELECT COUNT(*) as count FROM warehouses WHERE organization_id = $1",
+        [id],
+      );
+
+      if (warehousesCheck[0].count > 0) {
+        throw new ValidationError(
+          `Cannot delete organization with id ${id} because it has associated warehouses`,
+          "delete",
+          "organization_id",
+          id.toString(),
+        );
+      }
+
+      const rows = await executeQuery<Organization>(
+        this._db,
+        "delete",
+        `DELETE FROM organizations WHERE id=$1 RETURNING *`,
+        [id],
+      );
+
+      if (rows.length === 0) {
+        throw new ServiceError(
+          `Failed to delete organization with id ${id} - no data returned`,
+          "OrganizationService",
+          "delete",
+          new Error("No data returned from DELETE query"),
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to delete organization with id ${id}`,
+        "OrganizationService",
+        "delete",
+        error instanceof Error ? error : new Error(String(error)),
       );
     }
-
-    return result.rows[0];
   }
 
   async search(input: string): Promise<Organization[]> {
-    const organizations = await this.findAll();
+    try {
+      const organizations = await this.findAll();
 
-    const fuseOptions: IFuseOptions<Organization> = {
-      keys: [{ name: "name", weight: 0.8 }],
-      isCaseSensitive: false,
-      ignoreDiacritics: true,
-      threshold: 0.4,
-      ignoreLocation: true,
-      minMatchCharLength: 2,
-      useExtendedSearch: true,
-    };
+      const fuseOptions: IFuseOptions<Organization> = {
+        keys: [{ name: "name", weight: 1 }],
+        isCaseSensitive: false,
+        ignoreDiacritics: true,
+        threshold: 0.4,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+        useExtendedSearch: true,
+        includeScore: true,
+        findAllMatches: true,
+      };
 
-    const fuse = new Fuse(organizations, fuseOptions);
-    const searchResult = fuse.search(input);
+      const fuse = new Fuse(organizations, fuseOptions);
+      const searchResult = fuse.search(input);
 
-    return searchResult.map((i) => i.item);
+      return searchResult.map((i) => i.item);
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof ServiceError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to search organizations",
+        "OrganizationService",
+        "search",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 }
