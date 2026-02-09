@@ -12,7 +12,7 @@ export class AgreementController {
 
   async findAll(req: Request, res: Response) {
     try {
-      const agreements = this._agreementService.findAll();
+      const agreements = await this._agreementService.findAll();
 
       res.status(200).json({
         data: agreements,
@@ -22,9 +22,10 @@ export class AgreementController {
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: Request<{id: string}, {}, {}>, res: Response) {
     try {
-      const agreement = this._agreementService.findById(Number(req.params.id));
+      const id = Number(req.params.id)
+      const agreement = await this._agreementService.findById(id);
 
       res.status(200).json({
         data: agreement,
@@ -36,7 +37,7 @@ export class AgreementController {
 
   async delete(req: Request, res: Response) {
     try {
-      const deletedAgreement = this._agreementService.delete(
+      const deletedAgreement = await this._agreementService.delete(
         Number(req.params.id),
       );
 
@@ -52,7 +53,7 @@ export class AgreementController {
     try {
       const { id, updateData, materials } = req.body;
 
-      const updatedAgreement = this._agreementService.update({
+      const updatedAgreement = await this._agreementService.update({
         id,
         updateData,
         materials,
@@ -70,7 +71,7 @@ export class AgreementController {
     try {
       const { search } = req.params;
 
-      const searchedAgreements = this._agreementService.search(search);
+      const searchedAgreements = await this._agreementService.search(search);
 
       res.send(200).json({
         data: searchedAgreements,
