@@ -16,7 +16,10 @@ import {
   ValidationError,
 } from "../errors/service"; // Импортируем классы ошибок
 import { executeQuery, getSingleResult } from "../utils/query.utils";
-import { AgreementUpdateParams } from "../types/services";
+import {
+  AgreementCreateParams,
+  AgreementUpdateParams,
+} from "../types/services";
 
 export class AgreementService {
   private _db: Pool;
@@ -176,32 +179,156 @@ export class AgreementService {
     }
   }
 
-  async delete(id: number): Promise<Agreement> {
-    try {
-      const rows = await executeQuery<Agreement>(
-        this._db,
-        "delete",
-        `DELETE FROM agreements WHERE id=$1 RETURNING *`,
-        [id],
-      );
+  async create({
+    id,
+    createData,
+    materials,
+  }: AgreementCreateParams): Promise<AgreementWithDetails> {
+    const {
+      supplier_id,
+      supplier_warehouse_id,
+      customer_id,
+      customer_warehouse_id,
+    } = createData;
 
-      if (rows.length === 0) {
-        throw new NotFoundError(
-          `Agreement with id = ${id} not found`,
-          "Agreement",
-          id,
+    try {
+      if (supplier_id !== undefined) {
+        const supplierCheck = await executeQuery(
+          this._db,
+          "checkSupplier",
+          "SELECT id FROM app_user WHERE id = $1",
+          [supplier_id],
         );
+        if (supplierCheck.length === 0) {
+          throw new NotFoundError(
+            `Supplier with id ${supplier_id} not found`,
+            "Supplier",
+            supplier_id,
+          );
+        }
       }
 
-      return rows[0];
+      if (customer_id !== undefined) {
+        const customerCheck = await executeQuery(
+          this._db,
+          "checkCustomer",
+          "SELECT id FROM app_user WHERE id = $1",
+          [customer_id],
+        );
+        if (customerCheck.length === 0) {
+          throw new NotFoundError(
+            `Customer with id ${customer_id} not found`,
+            "Customer",
+            customer_id,
+          );
+        }
+      }
+
+      if (supplier_warehouse_id !== undefined) {
+        const supplierWarehouseCheck = await executeQuery(
+          this._db,
+          "checkSupplierWarehouse",
+          "SELECT id FROM warehouses WHERE id = $1",
+          [supplier_warehouse_id],
+        );
+        if (supplierWarehouseCheck.length === 0) {
+          throw new NotFoundError(
+            `Supplier warehouse with id ${supplier_warehouse_id} not found`,
+            "Warehouse",
+            supplier_warehouse_id,
+          );
+        }
+      }
+
+      if (customer_warehouse_id !== undefined) {
+        const customerWarehouseCheck = await executeQuery(
+          this._db,
+          "checkCustomerWarehouse",
+          "SELECT id FROM warehouses WHERE id = $1",
+          [customer_warehouse_id],
+        );
+        if (customerWarehouseCheck.length === 0) {
+          throw new NotFoundError(
+            `Customer warehouse with id ${customer_warehouse_id} not found`,
+            "Warehouse",
+            customer_warehouse_id,
+          );
+        }
+      }
+
+      const client = await this._db.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        const createQuery = `INSERT INTO agreements(supplier_id, customer_id, supplier_warehouse_id, customer_warehouse_id) VALUES ($1, $2, $3, $4) RETURNING id`;
+
+        // Исправлено: значения должны быть переданы как массив
+        const result = await client.query(createQuery, [
+          supplier_id,
+          customer_id,
+          supplier_warehouse_id,
+          customer_warehouse_id,
+        ]);
+
+        // Получаем ID созданного agreement
+        const agreementId = result.rows[0].id;
+
+        // Если переданы материалы, обновляем agreement_material
+        if (materials !== undefined) {
+          // Добавляем новые материалы
+          for (const material of materials) {
+            // Проверяем существование материала
+            const materialCheck = await client.query(
+              "SELECT id FROM materials WHERE id = $1",
+              [material.material_id],
+            );
+            if (materialCheck.rows.length === 0) {
+              throw new NotFoundError(
+                `Material with id ${material.material_id} not found`,
+                "Material",
+                material.material_id,
+              );
+            }
+
+            // Проверяем, что amount положительный
+            if (material.amount <= 0) {
+              throw new ValidationError(
+                `Amount for material ${material.material_id} must be positive`,
+                "update",
+                "amount",
+                material.amount,
+              );
+            }
+
+            await client.query(
+              `INSERT INTO agreement_material (agreement_id, material_id, amount) 
+                 VALUES ($1, $2, $3)`,
+              [agreementId, material.material_id, material.amount],
+            );
+          }
+        }
+
+        await client.query("COMMIT");
+        return await this.findById(agreementId);
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ValidationError
+      ) {
         throw error;
       }
       throw new ServiceError(
-        `Failed to delete agreement with id ${id}`,
+        `Failed to update agreement with id ${id}`,
         "AgreementService",
-        "delete",
+        "update",
         error instanceof Error ? error : new Error(String(error)),
       );
     }
@@ -401,6 +528,37 @@ export class AgreementService {
         `Failed to update agreement with id ${id}`,
         "AgreementService",
         "update",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async delete(id: number): Promise<Agreement> {
+    try {
+      const rows = await executeQuery<Agreement>(
+        this._db,
+        "delete",
+        `DELETE FROM agreements WHERE id=$1 RETURNING *`,
+        [id],
+      );
+
+      if (rows.length === 0) {
+        throw new NotFoundError(
+          `Agreement with id = ${id} not found`,
+          "Agreement",
+          id,
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to delete agreement with id ${id}`,
+        "AgreementService",
+        "delete",
         error instanceof Error ? error : new Error(String(error)),
       );
     }
