@@ -23,6 +23,93 @@ export class WarehouseService {
     this._db = dbConnection;
   }
 
+  async findAll(): Promise<WarehouseWithMaterialsAndOrganization[]> {
+    try {
+      const query = `
+        SELECT 
+          row_to_json(w.*) as warehouse,
+          COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
+          row_to_json(o.*) as organization,
+          row_to_json(u.*) as manager
+        FROM warehouses w 
+        INNER JOIN organizations o ON w.organization_id = o.id
+        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
+        LEFT JOIN materials m ON wm.material_id = m.id 
+        GROUP BY w.id, o.id, u.id
+        ORDER BY w.id
+      `;
+
+      const rows = await executeQuery<{
+        warehouse: Warehouse;
+        materials: Material[] | null;
+        organization: Organization;
+        manager: User | null;
+      }>(this._db, "findAll", query);
+
+      return rows.map((row) => ({
+        ...row.warehouse,
+        materials: row.materials || [],
+        organization: row.organization,
+        manager: row.manager,
+        materials_count: row.materials?.length || 0,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve warehouses",
+        "WarehouseService",
+        "findAll",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async findById(id: number): Promise<WarehouseWithMaterialsAndOrganization> {
+    try {
+      const query = `
+        SELECT 
+          row_to_json(w.*) as warehouse,
+          COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
+          row_to_json(o.*) as organization,
+          row_to_json(u.*) as manager
+        FROM warehouses w 
+        INNER JOIN organizations o ON w.organization_id = o.id
+        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
+        LEFT JOIN materials m ON wm.material_id = m.id 
+        WHERE w.id = $1
+        GROUP BY w.id, o.id, u.id
+      `;
+
+      const warehouseData = await getSingleResult<{
+        warehouse: Warehouse;
+        materials: Material[] | null;
+        organization: Organization;
+        manager: User | null;
+      }>(this._db, "findById", query, [id], "Warehouse", id);
+
+      return {
+        ...warehouseData.warehouse,
+        materials: warehouseData.materials || [],
+        organization: warehouseData.organization,
+        manager: warehouseData.manager,
+      };
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to find warehouse with id ${id}`,
+        "WarehouseService",
+        "findById",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
   async createWarehouse(
     createData: CreateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
@@ -183,93 +270,6 @@ export class WarehouseService {
         "Failed to create warehouse",
         "WarehouseService",
         "createWarehouse",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  async findAll(): Promise<WarehouseWithMaterialsAndOrganization[]> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(w.*) as warehouse,
-          COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
-          row_to_json(o.*) as organization,
-          row_to_json(u.*) as manager
-        FROM warehouses w 
-        INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
-        LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
-        LEFT JOIN materials m ON wm.material_id = m.id 
-        GROUP BY w.id, o.id, u.id
-        ORDER BY w.id
-      `;
-
-      const rows = await executeQuery<{
-        warehouse: Warehouse;
-        materials: Material[] | null;
-        organization: Organization;
-        manager: User | null;
-      }>(this._db, "findAll", query);
-
-      return rows.map((row) => ({
-        ...row.warehouse,
-        materials: row.materials || [],
-        organization: row.organization,
-        manager: row.manager,
-        materials_count: row.materials?.length || 0,
-      }));
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve warehouses",
-        "WarehouseService",
-        "findAll",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  async findById(id: number): Promise<WarehouseWithMaterialsAndOrganization> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(w.*) as warehouse,
-          COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
-          row_to_json(o.*) as organization,
-          row_to_json(u.*) as manager
-        FROM warehouses w 
-        INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
-        LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
-        LEFT JOIN materials m ON wm.material_id = m.id 
-        WHERE w.id = $1
-        GROUP BY w.id, o.id, u.id
-      `;
-
-      const warehouseData = await getSingleResult<{
-        warehouse: Warehouse;
-        materials: Material[] | null;
-        organization: Organization;
-        manager: User | null;
-      }>(this._db, "findById", query, [id], "Warehouse", id);
-
-      return {
-        ...warehouseData.warehouse,
-        materials: warehouseData.materials || [],
-        organization: warehouseData.organization,
-        manager: warehouseData.manager,
-      };
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to find warehouse with id ${id}`,
-        "WarehouseService",
-        "findById",
         error instanceof Error ? error : new Error(String(error)),
       );
     }
@@ -459,7 +459,6 @@ export class WarehouseService {
           { name: "name", weight: 0.6 },
           { name: "organization.name", weight: 0.4 },
           { name: "manager.name", weight: 0.3 },
-          { name: "materials.name", weight: 0.1 },
         ],
         includeScore: true,
         threshold: 0.4,

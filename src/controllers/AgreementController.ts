@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 import { AgreementService } from "../services";
 import { baseErrorHandling } from "../utils/errors.utils";
 import { AgreementUpdateParams } from "../types/services";
+import { Pool } from "pg";
 
 export class AgreementController {
   private _agreementService: AgreementService;
 
-  constructor(service: AgreementService) {
-    this._agreementService = service;
+  constructor(dbConnection: Pool) {
+    this._agreementService = new AgreementService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {
