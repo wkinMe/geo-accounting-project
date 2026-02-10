@@ -59,7 +59,7 @@ export class UserService {
     };
   }
 
-  async createUser({
+  async create({
     name,
     organization_id,
     password,
@@ -88,7 +88,7 @@ export class UserService {
     return createResult.rows[0];
   }
 
-  async updateUser({
+  async update({
     id,
     name,
     organization_id,
@@ -163,7 +163,7 @@ export class UserService {
     return updateResult.rows[0];
   }
 
-  async deleteUser(id: number): Promise<User> {
+  async delete(id: number): Promise<User> {
     const deleteResult = await this._db.query<User>(
       "DELETE FROM app_users WHERE id = $1 RETURNING *",
       [id],
@@ -242,7 +242,7 @@ export class UserService {
     return result.rows;
   }
 
-  async searchUsers(input: string): Promise<User[]> {
+  async search(input: string): Promise<User[]> {
     // Сначала получаем всех пользователей
     const query = `
       SELECT 
