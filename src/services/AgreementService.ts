@@ -180,7 +180,6 @@ export class AgreementService {
   }
 
   async create({
-    id,
     createData,
     materials,
   }: AgreementCreateParams): Promise<AgreementWithDetails> {
@@ -326,9 +325,9 @@ export class AgreementService {
         throw error;
       }
       throw new ServiceError(
-        `Failed to update agreement with id ${id}`,
+        `Failed to create agreement`,
         "AgreementService",
-        "update",
+        "create",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

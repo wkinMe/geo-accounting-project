@@ -2,12 +2,13 @@ import { Request, Response } from "express";
 import { baseErrorHandling } from "../utils/errors.utils";
 import { MaterialService } from "../services";
 import { UpdateMaterialDTO } from "../dto";
+import { Pool } from "pg";
 
 export class MaterialController {
   private _materialService: MaterialService;
 
-  constructor(service: MaterialService) {
-    this._materialService = service;
+  constructor(dbConnection: Pool) {
+    this._materialService = new MaterialService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {

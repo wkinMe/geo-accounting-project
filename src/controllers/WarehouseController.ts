@@ -25,11 +25,6 @@ export class WarehouseController {
   async findById(req: Request<{ id: string }, {}, {}>, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({
-          error: "Invalid warehouse ID",
-        });
-      }
 
       const warehouse = await this._warehouseService.findById(id);
       res.status(200).json({
@@ -60,11 +55,6 @@ export class WarehouseController {
   async updateWarehouse(req: Request<{ id: string }>, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({
-          error: "Invalid warehouse ID",
-        });
-      }
 
       const updateData = req.body;
       const warehouse = await this._warehouseService.updateWarehouse(
@@ -83,11 +73,6 @@ export class WarehouseController {
   async deleteWarehouse(req: Request<{ id: string }, {}, {}>, res: Response) {
     try {
       const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({
-          error: "Invalid warehouse ID",
-        });
-      }
 
       const deletedWarehouse = await this._warehouseService.deleteWarehouse(id);
       res.status(200).json({
@@ -102,11 +87,6 @@ export class WarehouseController {
   async searchWarehouses(req: Request, res: Response) {
     try {
       const query = req.query.q as string;
-      if (!query || query.trim().length === 0) {
-        return res.status(400).json({
-          error: "Search query parameter 'q' is required",
-        });
-      }
 
       const warehouses = await this._warehouseService.searchWarehouses(
         query.trim(),
@@ -123,11 +103,6 @@ export class WarehouseController {
   async findByManagerId(req: Request<{ managerId: string }>, res: Response) {
     try {
       const managerId = parseInt(req.params.managerId);
-      if (isNaN(managerId)) {
-        return res.status(400).json({
-          error: "Invalid manager ID",
-        });
-      }
 
       const warehouses =
         await this._warehouseService.findByManagerId(managerId);
