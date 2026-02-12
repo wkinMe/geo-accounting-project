@@ -1,22 +1,42 @@
 {
   "compilerOptions": {
+    /* Базовые опции для ESM */
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": "./src",
-    "strict": true,
+    "rootDir": "./",
+    "baseUrl": "./",
+
+    /* Настройки модулей */
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "types": ["jest", "node"]
+
+    /* Пути для импортов */
+    "paths": {
+      "@src/*": ["src/*"],
+      "@types/*": ["types/*"],
+      "@tests/*": ["tests/*"]
+    },
+
+    /* Настройки для работы с типами */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Настройки для Jest */
+    "types": ["node", "jest"],
+
+    /* Настройки для компиляции */
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": false
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "ts-node": {
-    "esm": true,
-    "experimentalSpecifierResolution": "node"
-  }
+  "include": ["src/**/*", "types/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

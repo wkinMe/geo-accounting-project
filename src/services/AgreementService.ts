@@ -7,7 +7,6 @@ import {
   User,
   Warehouse,
 } from "../models";
-import { UpdateAgreementDTO } from "../dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
   DatabaseError,
@@ -19,7 +18,7 @@ import { executeQuery, getSingleResult } from "../utils/query.utils";
 import {
   AgreementCreateParams,
   AgreementUpdateParams,
-} from "../types/services";
+} from "../../types/services";
 
 export class AgreementService {
   private _db: Pool;

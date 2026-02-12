@@ -1,24 +1,9 @@
 export default {
-  preset: "ts-jest/presets/default-esm",
+  preset: "ts-jest/presets/js-with-ts",
   testEnvironment: "node",
-  roots: ["<rootDir>/tests"],
-  testMatch: ["**/?(*.)+(test).ts"],
-  moduleFileExtensions: ["ts", "js", "json"],
-  verbose: true,
-  extensionsToTreatAsEsm: [".ts"],
   moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
-  },
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest",
-      {
-        useESM: true,
-        tsconfig: "tsconfig.test.json",
-        diagnostics: {
-          ignoreCodes: [151002],
-        },
-      },
-    ],
+    "^@src/(.*)$": "<rootDir>/src/$1",
+    "^@types/(.*)$": "<rootDir>/types/$1",
+    "^@tests/(.*)$": "<rootDir>/tests/$1",
   },
 };
