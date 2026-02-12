@@ -50,6 +50,7 @@ describe("Material controller test", () => {
     expect(createRes.status).toHaveBeenCalledWith(201);
     expect(createData.name).toEqual("Test material");
 
+    let updateData = {} as Material;
     // UPDATE
     const updateReq = {
       params: { id: String(createData.id) },
@@ -58,7 +59,19 @@ describe("Material controller test", () => {
 
     const updateRes = {
       status: jest.fn().mockReturnThis(),
-      json: jest.fn(), // 👇 ЯВНЫЙ ТИП
+      json: jest.fn().mockImplementation((data) => {
+        if (isSuccessResponse(data)) {
+          updateData = data.data;
+        }
+      }), // 👇 ЯВНЫЙ ТИП
     } as unknown as Response;
+
+    await materialController.update(updateReq, updateRes);
+
+    expect(updateRes.status).toHaveBeenCalledWith(200);
+    expect(updateData.name).toBe("Update name");
+    expect(updateData.updated_at).not.toEqual(createData.updated_at);
+    expect(updateData.created_at).toEqual(createData.created_at);
+    expect(updateData.id).toBe(createData.id);
   });
 });

@@ -6,4 +6,15 @@ export default {
     "^@types/(.*)$": "<rootDir>/types/$1",
     "^@tests/(.*)$": "<rootDir>/tests/$1",
   },
+  moduleFileExtensions: [
+    "js",
+    "mjs",
+    "cjs",
+    "jsx",
+    "ts",
+    "tsx",
+    "json",
+    "node",
+    "d.ts",
+  ],
 };
