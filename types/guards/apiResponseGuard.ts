@@ -1,6 +1,6 @@
 import { SuccessResponse } from "../api/response";
 
-export function isSuccessResponse(obj: any): obj is SuccessResponse {
+export function isSuccessResponse<T>(obj: any): obj is SuccessResponse<T> {
   return (
     obj !== null &&
     typeof obj === "object" &&

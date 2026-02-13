@@ -16,7 +16,11 @@ export class MaterialController {
       const materials = await this._materialService.findAll();
       res.status(200).json({
         data: materials,
+        message: "Materials has been got successfully"
       });
+      return {
+        data: materials,
+      }
     } catch (e) {
       baseErrorHandling(e, res);
     }
@@ -34,6 +38,7 @@ export class MaterialController {
       const material = await this._materialService.findById(id);
       res.status(200).json({
         data: material,
+        message: `Material with id=${id} has been got successfully`
       });
     } catch (e) {
       baseErrorHandling(e, res);

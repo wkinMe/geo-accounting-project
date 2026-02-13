@@ -39,7 +39,7 @@ describe("Material controller test", () => {
     const createRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockImplementation((data) => {
-        if (isSuccessResponse(data)) {
+        if (isSuccessResponse<Material>(data)) {
           createData = data.data;
         }
       }),
@@ -60,7 +60,7 @@ describe("Material controller test", () => {
     const updateRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockImplementation((data) => {
-        if (isSuccessResponse(data)) {
+        if (isSuccessResponse<Material>(data)) {
           updateData = data.data;
         }
       }), // 👇 ЯВНЫЙ ТИП
@@ -73,5 +73,39 @@ describe("Material controller test", () => {
     expect(updateData.updated_at).not.toEqual(createData.updated_at);
     expect(updateData.created_at).toEqual(createData.created_at);
     expect(updateData.id).toBe(createData.id);
+
+    const deleteReq = {
+      params: { id: String(updateData.id) },
+    } as Request<{ id: string }, {}, {}>;
+
+    let deleteData = {} as Material;
+
+    const deleteRes = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockImplementation((data) => {
+        if (isSuccessResponse<Material>(data)) {
+          deleteData = data.data;
+        }
+      }),
+    } as unknown as Response;
+
+    await materialController.delete(deleteReq, deleteRes);
+
+    expect(deleteRes.status).toHaveBeenCalledWith(200);
+    expect(deleteData.name).toBe("Update name");
+
+    let allMaterials = [] as Material[];
+
+    const req = {} as Request;
+    const res = {
+      status: jest.fn().mockReturnThis(),
+      json: jest.fn().mockImplementation((data) => {
+        if (isSuccessResponse<Material[]>(data)) {
+          allMaterials = data.data;
+        }
+      }),
+    } as unknown as Response;
+
+    expect(allMaterials.length).toBe(0);
   });
 });
