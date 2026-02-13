@@ -2,12 +2,13 @@ import { CreateUserDTO, UpdateUserDTO } from "@src/dto/UserDTO";
 import { UserService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
+import { Pool } from "pg";
 
 export class UserController {
   private _userService: UserService;
 
-  constructor(service: UserService) {
-    this._userService = service;
+  constructor(dbConnection: Pool) {
+    this._userService = new UserService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {

@@ -4,8 +4,6 @@ import { WarehouseService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { CreateWarehouseDTO } from "@src/dto";
 
-
-
 export class WarehouseController {
   private _warehouseService: WarehouseService;
 
@@ -37,14 +35,10 @@ export class WarehouseController {
     }
   }
 
-  async createWarehouse(
-    req: Request<{}, {}, CreateWarehouseDTO>,
-    res: Response,
-  ) {
+  async create(req: Request<{}, {}, CreateWarehouseDTO>, res: Response) {
     try {
       const createData = req.body;
-      const warehouse =
-        await this._warehouseService.createWarehouse(createData);
+      const warehouse = await this._warehouseService.create(createData);
       res.status(201).json({
         data: warehouse,
         message: "Warehouse created successfully",
@@ -54,15 +48,12 @@ export class WarehouseController {
     }
   }
 
-  async updateWarehouse(req: Request<{ id: string }>, res: Response) {
+  async update(req: Request<{ id: string }>, res: Response) {
     try {
       const id = parseInt(req.params.id);
 
       const updateData = req.body;
-      const warehouse = await this._warehouseService.updateWarehouse(
-        id,
-        updateData,
-      );
+      const warehouse = await this._warehouseService.update(id, updateData);
       res.status(200).json({
         data: warehouse,
         message: "Warehouse updated successfully",
@@ -72,11 +63,11 @@ export class WarehouseController {
     }
   }
 
-  async deleteWarehouse(req: Request<{ id: string }, {}, {}>, res: Response) {
+  async delete(req: Request<{ id: string }, {}, {}>, res: Response) {
     try {
       const id = parseInt(req.params.id);
 
-      const deletedWarehouse = await this._warehouseService.deleteWarehouse(id);
+      const deletedWarehouse = await this._warehouseService.delete(id);
       res.status(200).json({
         data: deletedWarehouse,
         message: "Warehouse deleted successfully",
@@ -86,13 +77,11 @@ export class WarehouseController {
     }
   }
 
-  async searchWarehouses(req: Request, res: Response) {
+  async search(req: Request, res: Response) {
     try {
       const query = req.query.q as string;
 
-      const warehouses = await this._warehouseService.searchWarehouses(
-        query.trim(),
-      );
+      const warehouses = await this._warehouseService.search(query.trim());
       res.status(200).json({
         data: warehouses,
         message: `Found ${warehouses.length} warehouse(s)`,

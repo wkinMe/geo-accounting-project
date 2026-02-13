@@ -112,7 +112,7 @@ export class WarehouseService {
     }
   }
 
-  async createWarehouse(
+  async create(
     createData: CreateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
     try {
@@ -277,7 +277,7 @@ export class WarehouseService {
     }
   }
 
-  async updateWarehouse(
+  async update(
     id: number,
     updateData: UpdateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
@@ -450,45 +450,7 @@ export class WarehouseService {
     }
   }
 
-  async searchWarehouses(
-    input: string,
-  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
-    try {
-      const allWarehouses = await this.findAll();
-
-      const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
-        keys: [
-          { name: "name", weight: 0.6 },
-          { name: "organization.name", weight: 0.4 },
-          { name: "manager.name", weight: 0.3 },
-        ],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 2,
-        findAllMatches: true,
-        ignoreLocation: true,
-        useExtendedSearch: true,
-        shouldSort: true,
-      };
-
-      const fuse = new Fuse(allWarehouses, fuseConfig);
-      const searchResult = fuse.search(input);
-
-      return searchResult.map((i) => i.item);
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof ServiceError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to search warehouses",
-        "WarehouseService",
-        "searchWarehouses",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  async deleteWarehouse(id: number): Promise<Warehouse> {
+  async delete(id: number): Promise<Warehouse> {
     try {
       // Проверяем существование склада
       await this.findById(id);
@@ -574,6 +536,44 @@ export class WarehouseService {
         `Failed to delete warehouse with id ${id}`,
         "WarehouseService",
         "deleteWarehouse",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async search(
+    input: string,
+  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
+    try {
+      const allWarehouses = await this.findAll();
+
+      const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
+        keys: [
+          { name: "name", weight: 0.6 },
+          { name: "organization.name", weight: 0.4 },
+          { name: "manager.name", weight: 0.3 },
+        ],
+        includeScore: true,
+        threshold: 0.4,
+        minMatchCharLength: 2,
+        findAllMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        shouldSort: true,
+      };
+
+      const fuse = new Fuse(allWarehouses, fuseConfig);
+      const searchResult = fuse.search(input);
+
+      return searchResult.map((i) => i.item);
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof ServiceError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to search warehouses",
+        "WarehouseService",
+        "searchWarehouses",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

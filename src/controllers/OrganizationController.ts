@@ -2,12 +2,13 @@ import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@src/dto";
 import { OrganizationService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
+import { Pool } from "pg";
 
 export class OrganizationController {
   private _organizationService: OrganizationService;
 
-  constructor(service: OrganizationService) {
-    this._organizationService = service;
+  constructor(dbConnection: Pool) {
+    this._organizationService = new OrganizationService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {

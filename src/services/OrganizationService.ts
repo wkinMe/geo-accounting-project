@@ -283,40 +283,6 @@ export class OrganizationService {
       // Проверяем существование организации
       await this.findById(id);
 
-      // Проверяем, есть ли связанные пользователи
-      const usersCheck = await executeQuery<{ count: number }>(
-        this._db,
-        "checkUsers",
-        "SELECT COUNT(*) as count FROM app_user WHERE organization_id = $1",
-        [id],
-      );
-
-      if (usersCheck[0].count > 0) {
-        throw new ValidationError(
-          `Cannot delete organization with id ${id} because it has associated users`,
-          "delete",
-          "organization_id",
-          id.toString(),
-        );
-      }
-
-      // Проверяем, есть ли связанные склады
-      const warehousesCheck = await executeQuery<{ count: number }>(
-        this._db,
-        "checkWarehouses",
-        "SELECT COUNT(*) as count FROM warehouses WHERE organization_id = $1",
-        [id],
-      );
-
-      if (warehousesCheck[0].count > 0) {
-        throw new ValidationError(
-          `Cannot delete organization with id ${id} because it has associated warehouses`,
-          "delete",
-          "organization_id",
-          id.toString(),
-        );
-      }
-
       const rows = await executeQuery<Organization>(
         this._db,
         "delete",
