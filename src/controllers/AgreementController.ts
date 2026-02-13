@@ -1,12 +1,8 @@
-import { Request, Response } from "express";
-import { AgreementService } from "../services";
-import { baseErrorHandling } from "../utils/errors.utils";
+import { AgreementService } from "@src/services";
 import { Pool } from "pg";
-import { CreateAgreementDTO, UpdateAgreementDTO } from "../dto";
-import {
-  AgreementCreateParams,
-  AgreementUpdateParams,
-} from "../types/services";
+import { Request, Response } from "express";
+import { baseErrorHandling } from "@src/utils";
+import { AgreementCreateParams, AgreementUpdateParams } from "@t/services";
 
 export class AgreementController {
   private _agreementService: AgreementService;

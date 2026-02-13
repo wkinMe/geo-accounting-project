@@ -1,4 +1,4 @@
-export * from "./AgreementsDTO.ts";
-export * from "./MaterialsDTO.ts";
-export * from "./OrganizationsDTO.ts";
-export * from "./WarehousesDTO.ts";
+export type * from "./AgreementsDTO.d.ts";
+export type * from "./MaterialsDTO.d.ts";
+export type * from "./OrganizationsDTO.d.ts";
+export type * from "./WarehousesDTO.d.ts";

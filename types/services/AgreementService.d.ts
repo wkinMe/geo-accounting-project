@@ -1,4 +1,4 @@
-import { CreateAgreementDTO, UpdateAgreementDTO } from "../../src/dto";
+import { CreateAgreementDTO, UpdateAgreementDTO } from "@src/dto";
 
 export interface AgreementCreateParams {
   createData: CreateAgreementDTO;

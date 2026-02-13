@@ -1,8 +1,9 @@
 import { Pool } from "pg";
-import { Organization, User, UserWithOrganization } from "../models";
 import bcrypt from "bcrypt";
-import { CreateUserDTO, UpdateUserDTO } from "../dto/UserDTO";
 import Fuse, { IFuseOptions } from "fuse.js";
+
+import { CreateUserDTO, UpdateUserDTO } from "@src/dto/UserDTO";
+import { Organization, User, UserWithOrganization } from "@src/models";
 
 export class UserService {
   private _db: Pool;

@@ -1,14 +1,14 @@
 import { Pool } from "pg";
-import { Organization } from "../models";
-import { CreateOrganizationDTO, UpdateOrganizationDTO } from "../dto";
+import { Organization } from "@src/models";
+import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@src/dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service";
-import { executeQuery, getSingleResult } from "../utils/query.utils";
+} from "@src/errors/service";
+import { executeQuery, getSingleResult } from "@src/utils";
 
 export class OrganizationService {
   private _db: Pool;

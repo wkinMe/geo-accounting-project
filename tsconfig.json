@@ -18,7 +18,7 @@
     /* Пути для импортов */
     "paths": {
       "@src/*": ["src/*"],
-      "@types/*": ["types/*"],
+      "@t/*": ["types/*"],
       "@tests/*": ["tests/*"]
     },
 
@@ -35,7 +35,7 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "noEmit": false,
+    "noEmit": false
   },
   "include": ["src/**/*", "types/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]

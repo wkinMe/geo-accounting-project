@@ -1,7 +1,7 @@
+import { CreateMaterialDTO, UpdateMaterialDTO } from "@src/dto";
+import { MaterialService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
-import { baseErrorHandling } from "../utils/errors.utils";
-import { MaterialService } from "../services";
-import { CreateMaterialDTO, UpdateMaterialDTO } from "../dto";
 import { Pool } from "pg";
 
 export class MaterialController {

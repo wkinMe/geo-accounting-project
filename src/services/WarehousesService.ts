@@ -1,20 +1,22 @@
 import { Pool } from "pg";
+import Fuse, { IFuseOptions } from "fuse.js";
+
 import {
   Material,
   Organization,
   Warehouse,
   WarehouseWithMaterialsAndOrganization,
   User,
-} from "../models";
-import Fuse, { IFuseOptions } from "fuse.js";
-import { CreateWarehouseDTO, UpdateWarehouseDTO } from "../dto";
+} from "@src/models";
+
+import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@src/dto";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service";
-import { executeQuery, getSingleResult } from "../utils/query.utils";
+} from "@src/errors/service";
+import { executeQuery, getSingleResult } from "@src/utils";
 
 export class WarehouseService {
   private _db: Pool;

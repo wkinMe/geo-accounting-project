@@ -1,7 +1,7 @@
+import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@src/dto";
+import { OrganizationService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
-import { OrganizationService } from "../services";
-import { baseErrorHandling } from "../utils/errors.utils";
-import { CreateOrganizationDTO, UpdateOrganizationDTO } from "../dto";
 
 export class OrganizationController {
   private _organizationService: OrganizationService;

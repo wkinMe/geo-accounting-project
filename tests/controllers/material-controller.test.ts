@@ -1,6 +1,4 @@
 import { Request, Response } from "express";
-import { MaterialController } from "../../src/controllers/MaterialController";
-import { pool } from "../../src/db";
 import {
   jest,
   expect,
@@ -10,8 +8,11 @@ import {
   beforeEach,
   afterAll,
 } from "@jest/globals";
-import { Material } from "../../src/models";
-import { isSuccessResponse } from "../../types";
+
+import { Material } from "@src/models";
+import { MaterialController } from "@src/controllers/MaterialController";
+import { pool } from "@src/db";
+import { isSuccessResponse } from "@t/guards";
 
 describe("Material controller edge cases", () => {
   let materialController: MaterialController;

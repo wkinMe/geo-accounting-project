@@ -1,1 +1,2 @@
-export * from "./AgreementService";
+export type * from "./AgreementService";
+ 

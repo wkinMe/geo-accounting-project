@@ -1,7 +1,7 @@
+import { CreateUserDTO, UpdateUserDTO } from "@src/dto/UserDTO";
+import { UserService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
-import { UserService } from "../services";
-import { baseErrorHandling } from "../utils/errors.utils";
-import { CreateUserDTO, UpdateUserDTO } from "../dto/UserDTO";
 
 export class UserController {
   private _userService: UserService;

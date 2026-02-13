@@ -1,14 +1,14 @@
 import { Pool } from "pg";
-import { Material } from "../models";
-import { CreateMaterialDTO, UpdateMaterialDTO } from "../dto";
+import { Material } from "@src/models";
+import { CreateMaterialDTO, UpdateMaterialDTO } from "@src/dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service"; // Импортируем классы ошибок
-import { executeQuery, getSingleResult } from "../utils/query.utils";
+} from "@src/errors/service"; // Импортируем классы ошибок
+import { executeQuery, getSingleResult } from "@src/utils";
 
 export class MaterialService {
   private _db: Pool;

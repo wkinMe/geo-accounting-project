@@ -1,8 +1,10 @@
 import { Pool } from "pg";
-import { WarehouseService } from "../services";
 import { Request, Response } from "express";
-import { baseErrorHandling } from "../utils";
-import { CreateWarehouseDTO } from "../dto";
+import { WarehouseService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
+import { CreateWarehouseDTO } from "@src/dto";
+
+
 
 export class WarehouseController {
   private _warehouseService: WarehouseService;

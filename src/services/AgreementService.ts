@@ -6,19 +6,16 @@ import {
   Organization,
   User,
   Warehouse,
-} from "../models";
+} from "@src/models";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service"; // Импортируем классы ошибок
-import { executeQuery, getSingleResult } from "../utils/query.utils";
-import {
-  AgreementCreateParams,
-  AgreementUpdateParams,
-} from "../../types/services";
+} from "@src/errors/service"; // Импортируем классы ошибок
+import { executeQuery, getSingleResult } from "@src/utils";
+import { AgreementCreateParams, AgreementUpdateParams } from "@t/services";
 
 export class AgreementService {
   private _db: Pool;
