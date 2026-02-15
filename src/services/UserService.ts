@@ -4,6 +4,13 @@ import Fuse, { IFuseOptions } from "fuse.js";
 
 import { CreateUserDTO, UpdateUserDTO } from "@src/dto/UserDTO";
 import { Organization, User, UserWithOrganization } from "@src/models";
+import { executeQuery, getSingleResult } from "@src/utils";
+import {
+  DatabaseError,
+  NotFoundError,
+  ValidationError,
+  ServiceError,
+} from "@src/errors/service";
 
 export class UserService {
   private _db: Pool;
@@ -13,51 +20,69 @@ export class UserService {
   }
 
   async findAll(): Promise<UserWithOrganization[]> {
-    const query = `
-      SELECT 
-        row_to_json(u.*) as user,
-        row_to_json(o.*) as organization
-      FROM app_users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      ORDER BY u.id
-    `;
+    try {
+      const query = `
+        SELECT 
+          row_to_json(u.*) as user,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        ORDER BY u.id
+      `;
 
-    const result = await this._db.query<{
-      user: User;
-      organization: Organization;
-    }>(query);
+      const result = await executeQuery<{
+        user: User;
+        organization: Organization;
+      }>(this._db, "findAll", query);
 
-    return result.rows.map((row) => ({
-      ...row.user,
-      organization: row.organization,
-    }));
+      return result.map((row) => ({
+        ...row.user,
+        organization: row.organization,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve users",
+        "UserService",
+        "findAll",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 
   async findById(id: number): Promise<UserWithOrganization> {
-    const query = `
-      SELECT 
-        row_to_json(u.*) as user,
-        row_to_json(o.*) as organization
-      FROM app_users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      WHERE u.id = $1
-    `;
+    try {
+      const query = `
+        SELECT 
+          row_to_json(u.*) as user,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.id = $1
+      `;
 
-    const result = await this._db.query<{
-      user: User;
-      organization: Organization;
-    }>(query, [id]);
+      const result = await getSingleResult<{
+        user: User;
+        organization: Organization;
+      }>(this._db, "findById", query, [id], "User", id);
 
-    if (result.rows.length === 0) {
-      throw new Error("User not found");
+      return {
+        ...result.user,
+        organization: result.organization,
+      };
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to find user with id ${id}`,
+        "UserService",
+        "findById",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
-
-    const row = result.rows[0];
-
-    return {
-      ...row.user,
-      organization: row.organization,
-    };
   }
 
   async create({
@@ -66,27 +91,94 @@ export class UserService {
     password,
     is_admin = false,
   }: CreateUserDTO): Promise<User> {
-    const salt = await bcrypt.genSalt(8);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    try {
+      // Валидация входных данных
+      if (!name || name.trim().length === 0) {
+        throw new ValidationError(
+          "User name is required",
+          "create",
+          "name",
+          name,
+        );
+      }
 
-    const createQuery = `
-      INSERT INTO app_users (name, organization_id, password, is_admin) 
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
+      if (!organization_id) {
+        throw new ValidationError(
+          "Organization ID is required",
+          "create",
+          "organization_id",
+          organization_id,
+        );
+      }
 
-    const createResult = await this._db.query<User>(createQuery, [
-      name,
-      organization_id,
-      hashedPassword,
-      is_admin,
-    ]);
+      if (!password || password.trim().length === 0) {
+        throw new ValidationError(
+          "Password is required",
+          "create",
+          "password",
+          password,
+        );
+      }
 
-    if (createResult.rows.length === 0) {
-      throw new Error("Failed to create user");
+      // Проверяем существование организации
+      const orgCheckQuery = "SELECT id FROM organizations WHERE id = $1";
+      const orgExists = await executeQuery<{ id: number }>(
+        this._db,
+        "checkOrganization",
+        orgCheckQuery,
+        [organization_id],
+      );
+
+      if (orgExists.length === 0) {
+        throw new ValidationError(
+          `Organization with id ${organization_id} does not exist`,
+          "create",
+          "organization_id",
+          organization_id.toString(),
+        );
+      }
+
+      const salt = await bcrypt.genSalt(8);
+      const hashedPassword = await bcrypt.hash(password, salt);
+
+      const createQuery = `
+        INSERT INTO app_users (name, organization_id, password, is_admin) 
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
+
+      const createResult = await executeQuery<User>(
+        this._db,
+        "create",
+        createQuery,
+        [name.trim(), organization_id, hashedPassword, is_admin],
+      );
+
+      if (createResult.length === 0) {
+        throw new ServiceError(
+          "Failed to create user - no data returned",
+          "UserService",
+          "create",
+          new Error("No data returned from INSERT query"),
+        );
+      }
+
+      return createResult[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to create user",
+        "UserService",
+        "create",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
-
-    return createResult.rows[0];
   }
 
   async update({
@@ -96,187 +188,347 @@ export class UserService {
     password,
     is_admin,
   }: UpdateUserDTO): Promise<User> {
-    const existingUser = this.findById(id);
+    try {
+      // Проверяем существование пользователя
+      await this.findById(id);
 
-    if (!existingUser) {
-      throw new Error(`User with id ${id} not found`);
-    }
-
-    const updates: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
-
-    // Обрабатываем каждое поле, если оно передано
-    if (name !== undefined) {
-      updates.push(`name = $${paramIndex}`);
-      values.push(name);
-      paramIndex++;
-    }
-
-    if (organization_id !== undefined) {
-      updates.push(`organization_id = $${paramIndex}`);
-      values.push(organization_id);
-      paramIndex++;
-    }
-
-    if (password !== undefined) {
-      const salt = await bcrypt.genSalt(8);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      updates.push(`password = $${paramIndex}`);
-      values.push(hashedPassword);
-      paramIndex++;
-    }
-
-    if (is_admin !== undefined) {
-      updates.push(`is_admin = $${paramIndex}`);
-      values.push(is_admin);
-      paramIndex++;
-    }
-
-    // Если нет полей для обновления, возвращаем текущего пользователя
-    if (updates.length === 0) {
-      const result = await this._db.query<User>(
-        "SELECT * FROM app_users WHERE id = $1",
-        [id],
-      );
-      if (result.rows.length === 0) {
-        throw new Error("User not found");
+      // Валидация входных данных
+      if (name !== undefined && name.trim().length === 0) {
+        throw new ValidationError(
+          "User name cannot be empty",
+          "update",
+          "name",
+          name,
+        );
       }
-      return result.rows[0];
+
+      if (organization_id !== undefined) {
+        // Проверяем существование организации
+        const orgCheckQuery = "SELECT id FROM organizations WHERE id = $1";
+        const orgExists = await executeQuery<{ id: number }>(
+          this._db,
+          "checkOrganization",
+          orgCheckQuery,
+          [organization_id],
+        );
+
+        if (orgExists.length === 0) {
+          throw new ValidationError(
+            `Organization with id ${organization_id} does not exist`,
+            "update",
+            "organization_id",
+            organization_id.toString(),
+          );
+        }
+      }
+
+      if (password !== undefined && password.trim().length === 0) {
+        throw new ValidationError(
+          "Password cannot be empty",
+          "update",
+          "password",
+          password,
+        );
+      }
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let paramIndex = 1;
+
+      if (name !== undefined) {
+        updates.push(`name = $${paramIndex}`);
+        values.push(name.trim());
+        paramIndex++;
+      }
+
+      if (organization_id !== undefined) {
+        updates.push(`organization_id = $${paramIndex}`);
+        values.push(organization_id);
+        paramIndex++;
+      }
+
+      if (password !== undefined) {
+        const salt = await bcrypt.genSalt(8);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        updates.push(`password = $${paramIndex}`);
+        values.push(hashedPassword);
+        paramIndex++;
+      }
+
+      if (is_admin !== undefined) {
+        updates.push(`is_admin = $${paramIndex}`);
+        values.push(is_admin);
+        paramIndex++;
+      }
+
+      // Если нет полей для обновления, возвращаем текущего пользователя
+      if (updates.length === 0) {
+        return await this.findById(id);
+      }
+
+      values.push(id);
+      const updateQuery = `
+        UPDATE app_users 
+        SET ${updates.join(", ")} 
+        WHERE id = $${paramIndex}
+        RETURNING *
+      `;
+
+      const updateResult = await executeQuery<User>(
+        this._db,
+        "update",
+        updateQuery,
+        values,
+      );
+
+      if (updateResult.length === 0) {
+        throw new ServiceError(
+          `Failed to update user with id ${id} - no data returned`,
+          "UserService",
+          "update",
+          new Error("No data returned from UPDATE query"),
+        );
+      }
+
+      return updateResult[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to update user with id ${id}`,
+        "UserService",
+        "update",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
-
-    // Добавляем ID в конец значений
-    values.push(id);
-
-    const updateQuery = `
-      UPDATE app_users 
-      SET ${updates.join(", ")} 
-      WHERE id = $${paramIndex}
-      RETURNING *
-    `;
-
-    const updateResult = await this._db.query<User>(updateQuery, values);
-
-    if (updateResult.rows.length === 0) {
-      throw new Error("User not found");
-    }
-
-    return updateResult.rows[0];
   }
 
   async delete(id: number): Promise<User> {
-    const deleteResult = await this._db.query<User>(
-      "DELETE FROM app_users WHERE id = $1 RETURNING *",
-      [id],
-    );
+    try {
+      // Проверяем существование пользователя перед удалением
+      await this.findById(id);
 
-    if (deleteResult.rows.length === 0) {
-      throw new Error("User not found");
+      const deleteQuery = "DELETE FROM app_users WHERE id = $1 RETURNING *";
+      const deleteResult = await executeQuery<User>(
+        this._db,
+        "delete",
+        deleteQuery,
+        [id],
+      );
+
+      if (deleteResult.length === 0) {
+        throw new ServiceError(
+          `Failed to delete user with id ${id} - no data returned`,
+          "UserService",
+          "delete",
+          new Error("No data returned from DELETE query"),
+        );
+      }
+
+      return deleteResult[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to delete user with id ${id}`,
+        "UserService",
+        "delete",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
-
-    return deleteResult.rows[0];
   }
 
-  async findByOrganizationId(orgId: number): Promise<UserWithOrganization[]> {
-    const query = `
-      SELECT 
-        row_to_json(u.*) as user,
-        row_to_json(o.*) as organization
-      FROM app_users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      WHERE u.organization_id = $1
-      ORDER BY u.id
-    `;
+  async findByOrganizationId(
+    organizationId: number,
+  ): Promise<UserWithOrganization[]> {
+    try {
+      const query = `
+        SELECT 
+          row_to_json(u.*) as user,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.organization_id = $1
+        ORDER BY u.id
+      `;
 
-    const result = await this._db.query<{
-      user: User;
-      organization: Organization;
-    }>(query, [orgId]);
+      const result = await executeQuery<{
+        user: User;
+        organization: Organization;
+      }>(this._db, "findByOrganizationId", query, [organizationId]);
 
-    return result.rows.map((row) => ({
-      ...row.user,
-      organization: row.organization,
-    }));
+      return result.map((row) => ({
+        ...row.user,
+        organization: row.organization,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to find users for organization ${organizationId}`,
+        "UserService",
+        "findByOrganizationId",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 
   async findAdmins(): Promise<UserWithOrganization[]> {
-    const query = `
-      SELECT 
-        row_to_json(u.*) as user,
-        row_to_json(o.*) as organization
-      FROM app_users u
-      LEFT JOIN organizations o ON u.organization_id = o.id
-      WHERE u.is_admin = true
-      ORDER BY u.id
-    `;
+    try {
+      const query = `
+        SELECT 
+          row_to_json(u.*) as user,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.is_admin = true
+        ORDER BY u.id
+      `;
 
-    const result = await this._db.query<{
-      user: User;
-      organization: Organization;
-    }>(query);
+      const result = await executeQuery<{
+        user: User;
+        organization: Organization;
+      }>(this._db, "findAdmins", query);
 
-    return result.rows.map((row) => ({
-      ...row.user,
-      organization: row.organization,
-    }));
-  }
-
-  // Метод для получения доступных менеджеров (пользователей, которых можно назначить)
-  async getAvailableManagers(organizationId?: number): Promise<User[]> {
-    let query = `
-    SELECT u.*, o.name as organization_name
-    FROM app_user u
-    INNER JOIN organizations o ON u.org_id = o.id
-    WHERE u.is_admin = false OR u.is_admin = true
-  `;
-
-    const values = [];
-
-    if (organizationId !== undefined) {
-      query += " AND u.org_id = $1";
-      values.push(organizationId);
+      return result.map((row) => ({
+        ...row.user,
+        organization: row.organization,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve admins",
+        "UserService",
+        "findAdmins",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
-
-    query += " ORDER BY u.name";
-
-    const result = await this._db.query<User>(query, values);
-    return result.rows;
   }
 
-  async search(input: string): Promise<User[]> {
-    // Сначала получаем всех пользователей
-    const query = `
-      SELECT 
-        u.*,
-        row_to_json(o.*) as organization
-      FROM app_user u
-      LEFT JOIN organizations o ON u.org_id = o.id
-    `;
+  async getAvailableManagers(organizationId?: number): Promise<User[]> {
+    try {
+      let query = `
+        SELECT u.*
+        FROM app_users u
+        WHERE u.is_admin = false
+      `;
 
-    const result = await this._db.query<UserWithOrganization>(query);
+      const values: any[] = [];
 
-    const allUsers = result.rows.map((row) => ({
-      ...row,
-      organization: row.organization,
-    }));
+      if (organizationId !== undefined) {
+        query += " AND u.organization_id = $1";
+        values.push(organizationId);
+      }
 
-    // Настраиваем Fuse.js для поиска
-    const fuseConfig: IFuseOptions<User> = {
-      keys: [
-        { name: "name", weight: 0.8 },
-        { name: "organization.name", weight: 0.2 }, // если есть организация
-      ],
-      threshold: 0.4,
-      minMatchCharLength: 2,
-      findAllMatches: true,
-      ignoreLocation: true,
-      useExtendedSearch: true,
-      shouldSort: true,
-    };
+      query += " ORDER BY u.name";
 
-    const fuse = new Fuse(allUsers, fuseConfig);
-    const searchResult = fuse.search(input);
+      const result = await executeQuery<User>(
+        this._db,
+        "getAvailableManagers",
+        query,
+        values,
+      );
 
-    return searchResult.map((i) => i.item);
+      return result;
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve available managers",
+        "UserService",
+        "getAvailableManagers",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async search(input: string): Promise<UserWithOrganization[]> {
+    try {
+      if (!input || input.trim().length === 0) {
+        throw new ValidationError(
+          "Search query is required",
+          "search",
+          "input",
+          input,
+        );
+      }
+
+      // Сначала получаем всех пользователей с организациями
+      const query = `
+        SELECT 
+          u.*,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+      `;
+
+      const result = await executeQuery<{
+        id: number;
+        name: string;
+        organization_id: number;
+        password: string;
+        is_admin: boolean;
+        created_at: Date;
+        updated_at: Date;
+        organization: Organization | null;
+      }>(this._db, "search", query);
+
+      const allUsers = result.map((row) => {
+        const { organization, ...userData } = row;
+        return {
+          ...userData,
+          organization: organization || undefined,
+        } as UserWithOrganization;
+      });
+
+      // Настраиваем Fuse.js для поиска
+      const fuseConfig: IFuseOptions<UserWithOrganization> = {
+        keys: [
+          { name: "name", weight: 0.7 },
+          { name: "organization.name", weight: 0.3 },
+        ],
+        threshold: 0.4,
+        minMatchCharLength: 2,
+        findAllMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        shouldSort: true,
+        includeScore: true,
+      };
+
+      const fuse = new Fuse(allUsers, fuseConfig);
+      const searchResult = fuse.search(input);
+
+      return searchResult.map((result) => result.item);
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to search users",
+        "UserService",
+        "search",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
   }
 }

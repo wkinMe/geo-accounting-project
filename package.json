@@ -8,7 +8,7 @@
     "start": "node dist/app.js",
     "dev": "nodemon --exec node --loader ts-node/esm src/app.ts",
     "build": "tsc",
-    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest"
+    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --runInBand"
   },
   "keywords": [],
   "author": "",

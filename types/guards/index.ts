@@ -1,2 +1,2 @@
-export * from "./apiResponseGuard";
+export * from "./apiGuards";
 export * from "./serviceErrorsGuards";

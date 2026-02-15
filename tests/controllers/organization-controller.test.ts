@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { OrganizationController } from "../../src/controllers/OrganizationController";
-import { pool } from "../../src/db";
+import { OrganizationController } from "@src/controllers";
+import { pool } from "@src/db";
 import {
   jest,
   expect,
@@ -10,8 +10,8 @@ import {
   beforeEach,
   afterAll,
 } from "@jest/globals";
-import { Organization } from "../../src/models";
-import { isSuccessResponse } from "../../types";
+import { Organization } from "@src/models";
+import { isSuccessResponse } from "@t/guards";
 
 describe("Organization Controller Edge Cases", () => {
   let organizationController: OrganizationController;

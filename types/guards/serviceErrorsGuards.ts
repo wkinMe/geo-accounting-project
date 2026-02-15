@@ -3,7 +3,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../../src/errors/service/index.js";
+} from "@src/errors/service";
 
 export function isServiceError(error: unknown): error is ServiceError {
   return error instanceof Error && "service" in error;
