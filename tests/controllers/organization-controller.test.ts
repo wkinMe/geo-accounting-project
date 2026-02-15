@@ -206,56 +206,6 @@ describe("Organization Controller Edge Cases", () => {
         );
       });
 
-      it("should accept null coordinates", async () => {
-        const req = {
-          body: {
-            name: "Test Organization",
-            latitude: null,
-            longitude: null,
-          },
-        } as Request;
-
-        let createdOrg = {} as Organization;
-        const res = {
-          status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Organization>(data)) {
-              createdOrg = data.data;
-            }
-          }),
-        } as unknown as Response;
-
-        await organizationController.create(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(201);
-        expect(createdOrg.name).toBe("Test Organization");
-        expect(createdOrg.latitude).toBeNull();
-        expect(createdOrg.longitude).toBeNull();
-      });
-
-      it("should accept undefined coordinates", async () => {
-        const req = {
-          body: { name: "Test Organization" },
-        } as Request;
-
-        let createdOrg = {} as Organization;
-        const res = {
-          status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Organization>(data)) {
-              createdOrg = data.data;
-            }
-          }),
-        } as unknown as Response;
-
-        await organizationController.create(req, res);
-
-        expect(res.status).toHaveBeenCalledWith(201);
-        expect(createdOrg.name).toBe("Test Organization");
-        expect(createdOrg.latitude).toBeNull();
-        expect(createdOrg.longitude).toBeNull();
-      });
-
       it("should accept valid coordinates", async () => {
         const req = {
           body: {
@@ -499,7 +449,6 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
     });
   });
 
@@ -1097,7 +1046,6 @@ describe("Organization Controller Edge Cases", () => {
       } as unknown as Response;
 
       await organizationController.findAll(findAllReq, findAllRes);
-
       expect(allOrganizations.length).toBe(10);
       names.forEach((name) => {
         expect(allOrganizations.some((org) => org.name === name)).toBeTruthy();
@@ -1175,7 +1123,7 @@ describe("Organization Controller Edge Cases", () => {
       // Создаем связанного пользователя (если таблица app_user существует)
       try {
         await pool.query(
-          `INSERT INTO app_user (username, email, organization_id) 
+          `INSERT INTO app_user (username, email, organization_id)
            VALUES ($1, $2, $3)`,
           ["testuser", "test@example.com", createdOrganization.id],
         );

@@ -3,7 +3,8 @@ export default {
   testEnvironment: "node",
   moduleNameMapper: {
     "^@src/(.*)$": "<rootDir>/src/$1",
-    "^@types/(.*)$": "<rootDir>/types/$1",
+    "^@t/([^/]+)$": "<rootDir>/types/$1/index",
+    "^@t/(.*)$": "<rootDir>/types/$1",
     "^@tests/(.*)$": "<rootDir>/tests/$1",
   },
   moduleFileExtensions: [

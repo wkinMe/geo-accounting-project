@@ -10,7 +10,7 @@ import {
 } from "@jest/globals";
 
 import { Material } from "@src/models";
-import { MaterialController } from "@src/controllers/MaterialController";
+import { MaterialController } from "@src/controllers";
 import { pool } from "@src/db";
 import { isSuccessResponse } from "@t/guards";
 

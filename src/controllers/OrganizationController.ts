@@ -17,6 +17,7 @@ export class OrganizationController {
 
       res.status(200).json({
         data: organizations,
+        message: "All organization info",
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -35,6 +36,7 @@ export class OrganizationController {
 
       res.status(200).json({
         data: organization,
+        message: `Organization with id=${id} info`,
       });
     } catch (e) {
       baseErrorHandling(e, res);
