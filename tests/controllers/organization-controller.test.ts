@@ -12,9 +12,12 @@ import {
 } from "@jest/globals";
 import { Organization } from "@src/models";
 import { isSuccessResponse } from "@t/guards";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
+import { SuccessResponse, ErrorResponse } from "@t/api";
 
 describe("Organization Controller Edge Cases", () => {
   let organizationController: OrganizationController;
+  const entityName = "organization";
 
   beforeAll(() => {
     organizationController = new OrganizationController(pool);
@@ -34,10 +37,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "", latitude: 55.7558, longitude: 37.6176 },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -45,7 +48,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
+      );
     });
 
     it("should reject creation with whitespace-only name", async () => {
@@ -53,10 +58,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "   ", latitude: 55.7558, longitude: 37.6176 },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -64,7 +69,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
+      );
     });
 
     it("should reject creation with missing name field", async () => {
@@ -72,10 +79,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { latitude: 55.7558, longitude: 37.6176 },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -83,7 +90,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
+      );
     });
 
     it("should reject creation with null name", async () => {
@@ -91,10 +100,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: null, latitude: 55.7558, longitude: 37.6176 },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -102,7 +111,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
+      );
     });
 
     describe("Coordinate validation", () => {
@@ -115,10 +126,10 @@ describe("Organization Controller Edge Cases", () => {
           },
         } as Request;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -126,7 +137,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
       });
@@ -140,10 +151,10 @@ describe("Organization Controller Edge Cases", () => {
           },
         } as Request;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -151,7 +162,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
       });
@@ -165,10 +176,10 @@ describe("Organization Controller Edge Cases", () => {
           },
         } as Request;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -176,7 +187,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
       });
@@ -190,10 +201,10 @@ describe("Organization Controller Edge Cases", () => {
           },
         } as Request;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -201,7 +212,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
       });
@@ -215,22 +226,25 @@ describe("Organization Controller Edge Cases", () => {
           },
         } as Request;
 
-        let createdOrg = {} as Organization;
+        let successResponse: SuccessResponse<Organization> | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Organization>(data)) {
-              createdOrg = data.data;
-            }
-          }),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Organization>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(201);
-        expect(createdOrg.name).toBe("Test Organization");
-        expect(createdOrg.latitude).toBe(55.7558);
-        expect(createdOrg.longitude).toBe(37.6176);
+        expect(successResponse?.data.name).toBe("Test Organization");
+        expect(successResponse?.data.latitude).toBe(55.7558);
+        expect(successResponse?.data.longitude).toBe(37.6176);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.CREATE(entityName),
+        );
       });
     });
 
@@ -261,10 +275,10 @@ describe("Organization Controller Edge Cases", () => {
         },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const createRes2 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -272,7 +286,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(createReq2, createRes2);
 
       expect(createRes2.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("already exists");
+      expect(errorResponse?.message).toContain("already exists");
     });
 
     it("should handle extremely long organization names", async () => {
@@ -282,20 +296,23 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: longName, latitude: 55.7558, longitude: 37.6176 },
       } as Request;
 
-      let createdOrg = {} as Organization;
+      let successResponse: SuccessResponse<Organization> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrg = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(createdOrg.name).toBe(longName);
+      expect(successResponse?.data.name).toBe(longName);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.CREATE(entityName),
+      );
     });
 
     it("should handle special characters in organization names", async () => {
@@ -315,20 +332,23 @@ describe("Organization Controller Edge Cases", () => {
           body: { name: specialName, latitude: 55.7558, longitude: 37.6176 },
         } as Request;
 
-        let createdOrg = {} as Organization;
+        let successResponse: SuccessResponse<Organization> | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Organization>(data)) {
-              createdOrg = data.data;
-            }
-          }),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Organization>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await organizationController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(201);
-        expect(createdOrg.name).toBe(specialName);
+        expect(successResponse?.data.name).toBe(specialName);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.CREATE(entityName),
+        );
       }
     });
   });
@@ -347,11 +367,13 @@ describe("Organization Controller Edge Cases", () => {
 
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrganization = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            if (isSuccessResponse<Organization>(data)) {
+              createdOrganization = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.create(createReq, createRes);
@@ -362,10 +384,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "999999" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -373,7 +395,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
 
     it("should handle negative IDs", async () => {
@@ -381,10 +403,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "-5" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -392,7 +414,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle zero ID", async () => {
@@ -400,10 +424,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "0" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -411,7 +435,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle non-numeric ID", async () => {
@@ -419,10 +445,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "abc" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -430,7 +456,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle extremely large ID", async () => {
@@ -438,10 +466,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "9999999999999" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -449,6 +477,31 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    it("should return organization by ID", async () => {
+      const req = {
+        params: { id: String(createdOrganization.id) },
+      } as Request<{ id: string }>;
+
+      let successResponse: SuccessResponse<Organization> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await organizationController.findById(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.id).toBe(createdOrganization.id);
+      expect(successResponse?.data.name).toBe(createdOrganization.name);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_BY_ID(entityName, createdOrganization.id),
+      );
     });
   });
 
@@ -466,11 +519,13 @@ describe("Organization Controller Edge Cases", () => {
 
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrganization = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            if (isSuccessResponse<Organization>(data)) {
+              createdOrganization = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.create(createReq, createRes);
@@ -482,10 +537,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -493,7 +548,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name cannot be empty");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.EMPTY_FIELD("Organization name"),
+      );
     });
 
     it("should reject update with whitespace-only name", async () => {
@@ -502,10 +559,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "   " },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -513,7 +570,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Organization name cannot be empty");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.EMPTY_FIELD("Organization name"),
+      );
     });
 
     it("should reject update to existing name (duplicate)", async () => {
@@ -539,10 +598,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "Second Organization" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -550,7 +609,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("already exists");
+      expect(errorResponse?.message).toContain("already exists");
     });
 
     it("should handle update of non-existent organization", async () => {
@@ -559,10 +618,10 @@ describe("Organization Controller Edge Cases", () => {
         body: { name: "New Name" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -570,7 +629,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
 
     it("should reject update with no fields to update", async () => {
@@ -579,10 +638,10 @@ describe("Organization Controller Edge Cases", () => {
         body: {},
       } as unknown as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -590,7 +649,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Update data is required");
+      expect(errorResponse?.message).toBe(ERROR_MESSAGES.UPDATE_DATA_REQUIRED);
     });
 
     describe("Coordinate validation in update", () => {
@@ -600,10 +659,10 @@ describe("Organization Controller Edge Cases", () => {
           body: { latitude: -91 },
         } as unknown as Request<{ id: string }, {}, { latitude: number }>;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const updateRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -611,7 +670,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.update(updateReq, updateRes);
 
         expect(updateRes.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
       });
@@ -622,10 +681,10 @@ describe("Organization Controller Edge Cases", () => {
           body: { latitude: 91 },
         } as unknown as Request<{ id: string }, {}, { latitude: number }>;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const updateRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -633,7 +692,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.update(updateReq, updateRes);
 
         expect(updateRes.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
       });
@@ -644,10 +703,10 @@ describe("Organization Controller Edge Cases", () => {
           body: { longitude: -181 },
         } as unknown as Request<{ id: string }, {}, { longitude: number }>;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const updateRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -655,7 +714,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.update(updateReq, updateRes);
 
         expect(updateRes.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
       });
@@ -666,10 +725,10 @@ describe("Organization Controller Edge Cases", () => {
           body: { longitude: 181 },
         } as unknown as Request<{ id: string }, {}, { longitude: number }>;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const updateRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -677,7 +736,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.update(updateReq, updateRes);
 
         expect(updateRes.status).toHaveBeenCalledWith(500);
-        expect(errorResponse.message).toContain(
+        expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
       });
@@ -695,23 +754,52 @@ describe("Organization Controller Edge Cases", () => {
           { latitude: number; longitude: number }
         >;
 
-        let updatedOrg = {} as Organization;
+        let successResponse: SuccessResponse<Organization> | undefined;
         const updateRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Organization>(data)) {
-              updatedOrg = data.data;
-            }
-          }),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Organization>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await organizationController.update(updateReq, updateRes);
 
         expect(updateRes.status).toHaveBeenCalledWith(200);
-        expect(updatedOrg.latitude).toBe(40.7128);
-        expect(updatedOrg.longitude).toBe(-74.006);
-        expect(updatedOrg.name).toBe(createdOrganization.name); // имя не изменилось
+        expect(successResponse?.data.latitude).toBe(40.7128);
+        expect(successResponse?.data.longitude).toBe(-74.006);
+        expect(successResponse?.data.name).toBe(createdOrganization.name);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.UPDATE(entityName),
+        );
       });
+    });
+
+    it("should successfully update organization name", async () => {
+      const newName = "Updated Organization Name";
+      const updateReq = {
+        params: { id: String(createdOrganization.id) },
+        body: { name: newName },
+      } as unknown as Request<{ id: string }, {}, { name: string }>;
+
+      let successResponse: SuccessResponse<Organization> | undefined;
+      const updateRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await organizationController.update(updateReq, updateRes);
+
+      expect(updateRes.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.name).toBe(newName);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.UPDATE(entityName),
+      );
     });
   });
 
@@ -729,11 +817,13 @@ describe("Organization Controller Edge Cases", () => {
 
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrganization = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            if (isSuccessResponse<Organization>(data)) {
+              createdOrganization = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.create(createReq, createRes);
@@ -744,10 +834,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "999999" },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -755,7 +845,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
 
     it("should handle negative ID in delete", async () => {
@@ -763,10 +853,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: "-5" },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -774,7 +864,9 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should allow double deletion (second should fail)", async () => {
@@ -783,23 +875,31 @@ describe("Organization Controller Edge Cases", () => {
         params: { id: String(createdOrganization.id) },
       } as Request<{ id: string }, {}, {}>;
 
+      let successResponse: SuccessResponse<Organization> | undefined;
       const deleteRes1 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.delete(deleteReq1, deleteRes1);
       expect(deleteRes1.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.DELETE(entityName),
+      );
 
       // Второе удаление того же ID
       const deleteReq2 = {
         params: { id: String(createdOrganization.id) },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes2 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -807,7 +907,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.delete(deleteReq2, deleteRes2);
 
       expect(deleteRes2.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
   });
 
@@ -841,10 +941,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "" },
       } as Request<{ search: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -852,7 +952,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Search query is required");
+      expect(errorResponse?.message).toBe(ERROR_MESSAGES.SEARCH_QUERY_REQUIRED);
     });
 
     it("should handle whitespace-only search", async () => {
@@ -860,10 +960,10 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "   " },
       } as Request<{ search: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -871,7 +971,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Search query is required");
+      expect(errorResponse?.message).toBe(ERROR_MESSAGES.SEARCH_QUERY_REQUIRED);
     });
 
     it("should return empty array for non-matching search", async () => {
@@ -879,20 +979,23 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "NonexistentPattern123!@#" },
       } as Request<{ search: string }, {}, {}>;
 
-      let searchData: Organization[] = [];
+      let successResponse: SuccessResponse<Organization[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization[]>(data)) {
-            searchData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(searchData.length).toBe(0);
+      expect(successResponse?.data.length).toBe(0);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 0),
+      );
     });
 
     it("should handle very long search string", async () => {
@@ -902,14 +1005,22 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: longSearch },
       } as Request<{ search: string }, {}, {}>;
 
+      let successResponse: SuccessResponse<Organization[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 0),
+      );
     });
 
     it("should handle search with special regex characters", async () => {
@@ -929,13 +1040,24 @@ describe("Organization Controller Edge Cases", () => {
           params: { search },
         } as Request<{ search: string }, {}, {}>;
 
+        let successResponse: SuccessResponse<Organization[]> | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn(),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Organization[]>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await organizationController.search(req, res);
         expect(res.status).toHaveBeenCalledWith(200);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.SEARCH(
+            entityName,
+            successResponse?.data.length || 0,
+          ),
+        );
       }
     });
 
@@ -944,21 +1066,26 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "Tech" },
       } as Request<{ search: string }, {}, {}>;
 
-      let searchData: Organization[] = [];
+      let successResponse: SuccessResponse<Organization[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization[]>(data)) {
-            searchData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(searchData.length).toBe(2); // Tech Company Moscow и Tech Company SPB
-      expect(searchData.every((org) => org.name.includes("Tech"))).toBeTruthy();
+      expect(successResponse?.data.length).toBe(2);
+      expect(
+        successResponse?.data.every((org) => org.name.includes("Tech")),
+      ).toBeTruthy();
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 2),
+      );
     });
 
     it("should search with cyrillic characters", async () => {
@@ -966,21 +1093,24 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "Технологическая" },
       } as Request<{ search: string }, {}, {}>;
 
-      let searchData: Organization[] = [];
+      let successResponse: SuccessResponse<Organization[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization[]>(data)) {
-            searchData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(searchData.length).toBe(1);
-      expect(searchData[0].name).toBe("Технологическая компания");
+      expect(successResponse?.data.length).toBe(1);
+      expect(successResponse?.data[0].name).toBe("Технологическая компания");
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 1),
+      );
     });
 
     it("should search with emoji", async () => {
@@ -988,21 +1118,88 @@ describe("Organization Controller Edge Cases", () => {
         params: { search: "🏢" },
       } as Request<{ search: string }, {}, {}>;
 
-      let searchData: Organization[] = [];
+      let successResponse: SuccessResponse<Organization[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization[]>(data)) {
-            searchData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(searchData.length).toBe(1);
-      expect(searchData[0].name).toContain("🏢");
+      expect(successResponse?.data.length).toBe(1);
+      expect(successResponse?.data[0].name).toContain("🏢");
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 1),
+      );
+    });
+  });
+
+  describe("FIND ALL edge cases", () => {
+    it("should return empty array when no organizations exist", async () => {
+      const req = {} as Request;
+
+      let successResponse: SuccessResponse<Organization[]> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await organizationController.findAll(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.length).toBe(0);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_ALL(entityName),
+      );
+    });
+
+    it("should return all created organizations", async () => {
+      // Создаем несколько организаций
+      const organizations = [
+        { name: "Org 1", latitude: 55.7558, longitude: 37.6176 },
+        { name: "Org 2", latitude: 59.9343, longitude: 30.3351 },
+        { name: "Org 3", latitude: 55.7558, longitude: 37.6176 },
+      ];
+
+      for (const org of organizations) {
+        const req = { body: org } as Request;
+        const res = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as unknown as Response;
+        await organizationController.create(req, res);
+      }
+
+      const req = {} as Request;
+      let successResponse: SuccessResponse<Organization[]> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await organizationController.findAll(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.length).toBe(3);
+      expect(successResponse?.data.map((o) => o.name)).toEqual(
+        expect.arrayContaining(organizations.map((o) => o.name)),
+      );
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_ALL(entityName),
+      );
     });
   });
 
@@ -1038,11 +1235,13 @@ describe("Organization Controller Edge Cases", () => {
       let allOrganizations: Organization[] = [];
       const findAllRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization[]>(data)) {
-            allOrganizations = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization[]>) => {
+            if (isSuccessResponse<Organization[]>(data)) {
+              allOrganizations = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.findAll(findAllReq, findAllRes);
@@ -1065,11 +1264,13 @@ describe("Organization Controller Edge Cases", () => {
       let createdOrganization: Organization;
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrganization = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            if (isSuccessResponse<Organization>(data)) {
+              createdOrganization = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.create(createReq, createRes);
@@ -1078,7 +1279,7 @@ describe("Organization Controller Edge Cases", () => {
       const updatePromises = [];
       for (let i = 0; i < 5; i++) {
         const updateReq = {
-          params: { id: String(createdOrganization.id) },
+          params: { id: String(createdOrganization!.id) },
           body: { name: `Updated Name ${i}` },
         } as unknown as Request<{ id: string }, {}, { name: string }>;
 
@@ -1111,11 +1312,13 @@ describe("Organization Controller Edge Cases", () => {
       let createdOrganization: Organization;
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Organization>(data)) {
-            createdOrganization = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Organization>) => {
+            if (isSuccessResponse<Organization>(data)) {
+              createdOrganization = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await organizationController.create(createReq, createRes);
@@ -1125,18 +1328,18 @@ describe("Organization Controller Edge Cases", () => {
         await pool.query(
           `INSERT INTO app_user (username, email, organization_id)
            VALUES ($1, $2, $3)`,
-          ["testuser", "test@example.com", createdOrganization.id],
+          ["testuser", "test@example.com", createdOrganization!.id],
         );
 
         // Пытаемся удалить организацию
         const deleteReq = {
-          params: { id: String(createdOrganization.id) },
+          params: { id: String(createdOrganization!.id) },
         } as Request<{ id: string }, {}, {}>;
 
-        let errorResponse: any = {};
+        let errorResponse: ErrorResponse | undefined;
         const deleteRes = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
+          json: jest.fn().mockImplementation((data: ErrorResponse) => {
             errorResponse = data;
           }),
         } as unknown as Response;
@@ -1144,7 +1347,7 @@ describe("Organization Controller Edge Cases", () => {
         await organizationController.delete(deleteReq, deleteRes);
 
         // В зависимости от внешнего ключа может быть ошибка или успех
-        if ((errorResponse as any).message) {
+        if (errorResponse?.message) {
           expect(errorResponse.message).toContain("associated users");
         }
       } catch (error) {

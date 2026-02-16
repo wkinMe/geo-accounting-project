@@ -3,9 +3,11 @@ import { UserService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
 import { Pool } from "pg";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
 
 export class UserController {
   private _userService: UserService;
+  private entityName = "user";
 
   constructor(dbConnection: Pool) {
     this._userService = new UserService(dbConnection);
@@ -14,7 +16,10 @@ export class UserController {
   async findAll(req: Request, res: Response) {
     try {
       const users = await this._userService.findAll();
-      res.status(200).json({ data: users });
+      res.status(200).json({
+        data: users,
+        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+      });
     } catch (e) {
       baseErrorHandling(e, res);
     }
@@ -25,11 +30,16 @@ export class UserController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ message: "Invalid user ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
       const user = await this._userService.findById(id);
-      res.status(200).json({ data: user });
+      res.status(200).json({
+        data: user,
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
+      });
     } catch (e) {
       baseErrorHandling(e, res);
     }
@@ -40,13 +50,15 @@ export class UserController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ message: "Invalid user ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
       const deletedUser = await this._userService.delete(id);
       res.status(200).json({
         data: deletedUser,
-        message: "User deleted successfully",
+        message: SUCCESS_MESSAGES.DELETE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -57,28 +69,34 @@ export class UserController {
     try {
       const createData = req.body;
 
-      // Проверка тела запроса
       if (!createData || typeof createData !== "object") {
-        return res.status(400).json({ message: "Request body is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUEST_BODY_REQUIRED,
+        });
       }
 
-      // Проверка обязательных полей по твоим DTO
       if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({ message: "User name is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("User name"),
+        });
       }
 
       if (!createData.organization_id) {
-        return res.status(400).json({ message: "Organization ID is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("Organization ID"),
+        });
       }
 
       if (!createData.password || createData.password.trim() === "") {
-        return res.status(400).json({ message: "Password is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("Password"),
+        });
       }
 
       const createdUser = await this._userService.create(createData);
       res.status(201).json({
         data: createdUser,
-        message: "User created successfully",
+        message: SUCCESS_MESSAGES.CREATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -96,41 +114,43 @@ export class UserController {
       const userId = Number(id);
 
       if (isNaN(userId) || userId <= 0) {
-        return res.status(400).json({ message: "Invalid user ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
-      // Проверка, что есть что обновлять
       if (
         !updateData ||
         typeof updateData !== "object" ||
         Object.keys(updateData).length === 0
       ) {
-        return res.status(400).json({ message: "Update data is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
+        });
       }
 
-      // Проверка имени, если оно пришло
       if (updateData.name !== undefined && updateData.name.trim() === "") {
-        return res.status(400).json({ message: "User name cannot be empty" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("User name"),
+        });
       }
 
-      // Проверка organization_id, если оно пришло (строковое по DTO)
       if (
         updateData.organization_id !== undefined &&
         updateData.organization_id.trim() === ""
       ) {
-        return res
-          .status(400)
-          .json({ message: "Organization ID cannot be empty" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Organization ID"),
+        });
       }
 
-      // Проверка пароля, если он пришел
       if (
         updateData.password !== undefined &&
         updateData.password.trim() === ""
       ) {
-        return res
-          .status(400)
-          .json({ message: "Password cannot be empty if provided" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Password"),
+        });
       }
 
       const updatedUser = await this._userService.update({
@@ -140,7 +160,7 @@ export class UserController {
 
       res.status(200).json({
         data: updatedUser,
-        message: "User updated successfully",
+        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -151,16 +171,17 @@ export class UserController {
     try {
       const { search } = req.params;
 
-      // Проверка search параметра
       if (!search || search.trim() === "") {
-        return res.status(400).json({ message: "Search query is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
       }
 
       const searchedUsers = await this._userService.search(search);
 
       res.status(200).json({
         data: searchedUsers,
-        message: `Found ${searchedUsers.length} user(s)`,
+        message: SUCCESS_MESSAGES.SEARCH(this.entityName, searchedUsers.length),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -170,7 +191,10 @@ export class UserController {
   async getAdmins(req: Request, res: Response) {
     try {
       const admins = await this._userService.findAdmins();
-      res.status(200).json({ data: admins });
+      res.status(200).json({
+        data: admins,
+        message: SUCCESS_MESSAGES.GET_ADMINS(admins.length),
+      });
     } catch (e) {
       baseErrorHandling(e, res);
     }
@@ -185,14 +209,20 @@ export class UserController {
       const orgId = Number(id);
 
       if (isNaN(orgId) || orgId <= 0) {
-        return res.status(400).json({ message: "Invalid organization ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
+        });
       }
 
       const users = await this._userService.findByOrganizationId(orgId);
 
       res.status(200).json({
         data: users,
-        message: `Found ${users.length} user(s)`,
+        message: SUCCESS_MESSAGES.FIND_BY_ORGANIZATION(
+          this.entityName,
+          users.length,
+          orgId,
+        ),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -202,7 +232,12 @@ export class UserController {
   async getAvailableManagers(req: Request, res: Response) {
     try {
       const availableManagers = await this._userService.getAvailableManagers();
-      res.status(200).json({ data: availableManagers });
+      res.status(200).json({
+        data: availableManagers,
+        message: SUCCESS_MESSAGES.GET_AVAILABLE_MANAGERS(
+          availableManagers.length,
+        ),
+      });
     } catch (e) {
       baseErrorHandling(e, res);
     }

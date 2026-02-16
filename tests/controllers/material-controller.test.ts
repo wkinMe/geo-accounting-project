@@ -13,9 +13,12 @@ import { Material } from "@src/models";
 import { MaterialController } from "@src/controllers";
 import { pool } from "@src/db";
 import { isSuccessResponse } from "@t/guards";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
+import { SuccessResponse, ErrorResponse } from "@t/api";
 
 describe("Material controller edge cases", () => {
   let materialController: MaterialController;
+  const entityName = "material";
 
   beforeAll(() => {
     materialController = new MaterialController(pool);
@@ -35,10 +38,10 @@ describe("Material controller edge cases", () => {
         body: { name: "" },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -46,7 +49,9 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+      );
     });
 
     it("should reject creation with whitespace-only name", async () => {
@@ -54,10 +59,10 @@ describe("Material controller edge cases", () => {
         body: { name: "   " },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -65,7 +70,9 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+      );
     });
 
     it("should reject creation with null name", async () => {
@@ -73,10 +80,10 @@ describe("Material controller edge cases", () => {
         body: { name: null },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -84,7 +91,9 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+      );
     });
 
     it("should reject creation with undefined name", async () => {
@@ -92,10 +101,10 @@ describe("Material controller edge cases", () => {
         body: {},
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -103,30 +112,35 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name is required");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+      );
     });
 
     it("should handle extremely long material names (1000+ characters)", async () => {
-      const longName = "a".repeat(5000); // 5000 символов
+      const longName = "a".repeat(5000);
 
       const req = {
         body: { name: longName },
       } as Request;
 
-      let createData = {} as Material;
+      let successResponse: SuccessResponse<Material> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material>(data)) {
-            createData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(createData.name).toBe(longName);
+      expect(successResponse?.data.name).toBe(longName);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.CREATE(entityName),
+      );
     });
 
     it("should reject duplicate material names", async () => {
@@ -148,18 +162,18 @@ describe("Material controller edge cases", () => {
         body: { name: "Unique Material" },
       } as Request;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const createRes2 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
 
       await materialController.create(createReq2, createRes2);
 
-      expect(createRes2.status).toHaveBeenCalledWith(500); // ValidationError превращается в 500 через baseErrorHandling
-      expect(errorResponse.message).toContain("already exists");
+      expect(createRes2.status).toHaveBeenCalledWith(500);
+      expect(errorResponse?.message).toContain("already exists");
     });
 
     it("should handle special characters in material names", async () => {
@@ -180,42 +194,66 @@ describe("Material controller edge cases", () => {
           body: { name: specialName },
         } as Request;
 
-        let createData = {} as Material;
+        let successResponse: SuccessResponse<Material> | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn().mockImplementation((data) => {
-            if (isSuccessResponse<Material>(data)) {
-              createData = data.data;
-            }
-          }),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Material>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await materialController.create(req, res);
 
         expect(res.status).toHaveBeenCalledWith(201);
-        expect(createData.name).toBe(specialName);
+        expect(successResponse?.data.name).toBe(specialName);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.CREATE(entityName),
+        );
       }
     });
   });
 
   describe("FIND BY ID edge cases", () => {
+    let createdMaterial: Material;
+
+    beforeEach(async () => {
+      const createReq = {
+        body: { name: "Test Material" },
+      } as Request;
+
+      const createRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            if (isSuccessResponse<Material>(data)) {
+              createdMaterial = data.data;
+            }
+          }),
+      } as unknown as Response;
+
+      await materialController.create(createReq, createRes);
+    });
+
     it("should handle non-existent ID", async () => {
       const req = {
         params: { id: "999999" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
 
       await materialController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500); // NotFoundError превращается в 500
-      expect(errorResponse.message).toContain("not found");
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(errorResponse?.message).toContain("not found");
     });
 
     it("should handle negative IDs", async () => {
@@ -223,10 +261,10 @@ describe("Material controller edge cases", () => {
         params: { id: "-5" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -234,7 +272,9 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid material ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle zero ID", async () => {
@@ -242,10 +282,10 @@ describe("Material controller edge cases", () => {
         params: { id: "0" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -253,7 +293,9 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid material ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle non-numeric ID", async () => {
@@ -261,10 +303,10 @@ describe("Material controller edge cases", () => {
         params: { id: "abc" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -272,7 +314,9 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid material ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should handle extremely large ID", async () => {
@@ -280,18 +324,42 @@ describe("Material controller edge cases", () => {
         params: { id: "9999999999999" },
       } as Request<{ id: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
 
       await materialController.findById(req, res);
 
-      // Должно пройти валидацию ID (число >0), но вернуть 404/500
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    it("should return material by ID", async () => {
+      const req = {
+        params: { id: String(createdMaterial.id) },
+      } as Request<{ id: string }>;
+
+      let successResponse: SuccessResponse<Material> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await materialController.findById(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.id).toBe(createdMaterial.id);
+      expect(successResponse?.data.name).toBe(createdMaterial.name);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_BY_ID(entityName, createdMaterial.id),
+      );
     });
   });
 
@@ -299,18 +367,19 @@ describe("Material controller edge cases", () => {
     let createdMaterial: Material;
 
     beforeEach(async () => {
-      // Создаем материал для тестов обновления
       const createReq = {
         body: { name: "Original Name" },
       } as Request;
 
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material>(data)) {
-            createdMaterial = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            if (isSuccessResponse<Material>(data)) {
+              createdMaterial = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await materialController.create(createReq, createRes);
@@ -322,10 +391,10 @@ describe("Material controller edge cases", () => {
         body: { name: "" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -333,7 +402,9 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name cannot be empty");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.EMPTY_FIELD("Material name"),
+      );
     });
 
     it("should reject update with whitespace-only name", async () => {
@@ -342,10 +413,10 @@ describe("Material controller edge cases", () => {
         body: { name: "   " },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -353,11 +424,12 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Material name cannot be empty");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.EMPTY_FIELD("Material name"),
+      );
     });
 
     it("should reject update to existing name (duplicate)", async () => {
-      // Создаем второй материал
       const createReq2 = {
         body: { name: "Second Material" },
       } as Request;
@@ -369,16 +441,15 @@ describe("Material controller edge cases", () => {
 
       await materialController.create(createReq2, createRes2);
 
-      // Пытаемся обновить первый материал именем второго
       const updateReq = {
         params: { id: String(createdMaterial.id) },
         body: { name: "Second Material" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -386,7 +457,7 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("already exists");
+      expect(errorResponse?.message).toContain("already exists");
     });
 
     it("should handle update of non-existent material", async () => {
@@ -395,10 +466,10 @@ describe("Material controller edge cases", () => {
         body: { name: "New Name" },
       } as unknown as Request<{ id: string }, {}, { name: string }>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const updateRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -406,7 +477,33 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
+    });
+
+    it("should successfully update material name", async () => {
+      const newName = "Updated Name";
+      const updateReq = {
+        params: { id: String(createdMaterial.id) },
+        body: { name: newName },
+      } as unknown as Request<{ id: string }, {}, { name: string }>;
+
+      let successResponse: SuccessResponse<Material> | undefined;
+      const updateRes = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await materialController.update(updateReq, updateRes);
+
+      expect(updateRes.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.name).toBe(newName);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.UPDATE(entityName),
+      );
     });
   });
 
@@ -420,11 +517,13 @@ describe("Material controller edge cases", () => {
 
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material>(data)) {
-            createdMaterial = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            if (isSuccessResponse<Material>(data)) {
+              createdMaterial = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await materialController.create(createReq, createRes);
@@ -435,10 +534,10 @@ describe("Material controller edge cases", () => {
         params: { id: "999999" },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -446,7 +545,7 @@ describe("Material controller edge cases", () => {
       await materialController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
 
     it("should handle negative ID in delete", async () => {
@@ -454,10 +553,10 @@ describe("Material controller edge cases", () => {
         params: { id: "-5" },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -465,7 +564,9 @@ describe("Material controller edge cases", () => {
       await materialController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Invalid material ID");
+      expect(errorResponse?.message).toBe(
+        ERROR_MESSAGES.INVALID_ID_FORMAT(entityName),
+      );
     });
 
     it("should allow double deletion (second should fail)", async () => {
@@ -474,23 +575,31 @@ describe("Material controller edge cases", () => {
         params: { id: String(createdMaterial.id) },
       } as Request<{ id: string }, {}, {}>;
 
+      let successResponse: SuccessResponse<Material> | undefined;
       const deleteRes1 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await materialController.delete(deleteReq1, deleteRes1);
       expect(deleteRes1.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.DELETE(entityName),
+      );
 
       // Второе удаление того же ID
       const deleteReq2 = {
         params: { id: String(createdMaterial.id) },
       } as Request<{ id: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const deleteRes2 = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -498,13 +607,12 @@ describe("Material controller edge cases", () => {
       await materialController.delete(deleteReq2, deleteRes2);
 
       expect(deleteRes2.status).toHaveBeenCalledWith(500);
-      expect(errorResponse.message).toContain("not found");
+      expect(errorResponse?.message).toContain("not found");
     });
   });
 
   describe("SEARCH edge cases", () => {
     beforeEach(async () => {
-      // Создаем тестовые данные
       const materials = [
         "Test Material 1",
         "Test Material 2",
@@ -528,10 +636,10 @@ describe("Material controller edge cases", () => {
         params: { search: "" },
       } as Request<{ search: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -539,7 +647,7 @@ describe("Material controller edge cases", () => {
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Search query is required");
+      expect(errorResponse?.message).toBe(ERROR_MESSAGES.SEARCH_QUERY_REQUIRED);
     });
 
     it("should handle whitespace-only search", async () => {
@@ -547,10 +655,10 @@ describe("Material controller edge cases", () => {
         params: { search: "   " },
       } as Request<{ search: string }, {}, {}>;
 
-      let errorResponse: any = {};
+      let errorResponse: ErrorResponse | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
+        json: jest.fn().mockImplementation((data: ErrorResponse) => {
           errorResponse = data;
         }),
       } as unknown as Response;
@@ -558,7 +666,7 @@ describe("Material controller edge cases", () => {
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.message).toBe("Search query is required");
+      expect(errorResponse?.message).toBe(ERROR_MESSAGES.SEARCH_QUERY_REQUIRED);
     });
 
     it("should return empty array for non-matching search", async () => {
@@ -566,20 +674,23 @@ describe("Material controller edge cases", () => {
         params: { search: "NonexistentPattern123!@#" },
       } as Request<{ search: string }, {}, {}>;
 
-      let searchData: Material[] = [];
+      let successResponse: SuccessResponse<Material[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material[]>(data)) {
-            searchData = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(searchData.length).toBe(0);
+      expect(successResponse?.data.length).toBe(0);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 0),
+      );
     });
 
     it("should handle very long search string", async () => {
@@ -589,14 +700,22 @@ describe("Material controller edge cases", () => {
         params: { search: longSearch },
       } as Request<{ search: string }, {}, {}>;
 
+      let successResponse: SuccessResponse<Material[]> | undefined;
       const res = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            successResponse = data;
+          }),
       } as unknown as Response;
 
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 0),
+      );
     });
 
     it("should handle search with special regex characters", async () => {
@@ -616,14 +735,108 @@ describe("Material controller edge cases", () => {
           params: { search },
         } as Request<{ search: string }, {}, {}>;
 
+        let successResponse: SuccessResponse<Material[]> | undefined;
         const res = {
           status: jest.fn().mockReturnThis(),
-          json: jest.fn(),
+          json: jest
+            .fn()
+            .mockImplementation((data: SuccessResponse<Material[]>) => {
+              successResponse = data;
+            }),
         } as unknown as Response;
 
         await materialController.search(req, res);
         expect(res.status).toHaveBeenCalledWith(200);
+        expect(successResponse?.message).toBe(
+          SUCCESS_MESSAGES.SEARCH(
+            entityName,
+            successResponse?.data.length || 0,
+          ),
+        );
       }
+    });
+
+    it("should return materials matching search query", async () => {
+      const req = {
+        params: { search: "Test" },
+      } as Request<{ search: string }, {}, {}>;
+
+      let successResponse: SuccessResponse<Material[]> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await materialController.search(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.length).toBe(2);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.SEARCH(entityName, 2),
+      );
+    });
+  });
+
+  describe("FIND ALL edge cases", () => {
+    it("should return empty array when no materials exist", async () => {
+      const req = {} as Request;
+
+      let successResponse: SuccessResponse<Material[]> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await materialController.findAll(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.length).toBe(0);
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_ALL(entityName),
+      );
+    });
+
+    it("should return all created materials", async () => {
+      // Создаем несколько материалов
+      const materials = ["Material 1", "Material 2", "Material 3"];
+      for (const name of materials) {
+        const req = { body: { name } } as Request;
+        const res = {
+          status: jest.fn().mockReturnThis(),
+          json: jest.fn(),
+        } as unknown as Response;
+        await materialController.create(req, res);
+      }
+
+      const req = {} as Request;
+      let successResponse: SuccessResponse<Material[]> | undefined;
+      const res = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            successResponse = data;
+          }),
+      } as unknown as Response;
+
+      await materialController.findAll(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(successResponse?.data.length).toBe(3);
+      expect(successResponse?.data.map((m) => m.name)).toEqual(
+        expect.arrayContaining(materials),
+      );
+      expect(successResponse?.message).toBe(
+        SUCCESS_MESSAGES.FIND_ALL(entityName),
+      );
     });
   });
 
@@ -647,16 +860,17 @@ describe("Material controller edge cases", () => {
 
       await Promise.all(createPromises);
 
-      // Проверяем, что все создались
       const findAllReq = {} as Request;
       let allMaterials: Material[] = [];
       const findAllRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material[]>(data)) {
-            allMaterials = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material[]>) => {
+            if (isSuccessResponse<Material[]>(data)) {
+              allMaterials = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await materialController.findAll(findAllReq, findAllRes);
@@ -668,7 +882,6 @@ describe("Material controller edge cases", () => {
     });
 
     it("should handle concurrent updates to same material", async () => {
-      // Создаем материал
       const createReq = {
         body: { name: "Concurrent Update Test" },
       } as Request;
@@ -676,20 +889,21 @@ describe("Material controller edge cases", () => {
       let createdMaterial: Material;
       const createRes = {
         status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockImplementation((data) => {
-          if (isSuccessResponse<Material>(data)) {
-            createdMaterial = data.data;
-          }
-        }),
+        json: jest
+          .fn()
+          .mockImplementation((data: SuccessResponse<Material>) => {
+            if (isSuccessResponse<Material>(data)) {
+              createdMaterial = data.data;
+            }
+          }),
       } as unknown as Response;
 
       await materialController.create(createReq, createRes);
 
-      // Пытаемся обновить его одновременно 5 раз
       const updatePromises = [];
       for (let i = 0; i < 5; i++) {
         const updateReq = {
-          params: { id: String(createdMaterial.id) },
+          params: { id: String(createdMaterial!.id) },
           body: { name: `Updated Name ${i}` },
         } as unknown as Request<{ id: string }, {}, { name: string }>;
 
@@ -701,7 +915,6 @@ describe("Material controller edge cases", () => {
         updatePromises.push(materialController.update(updateReq, updateRes));
       }
 
-      // Все запросы должны выполниться без ошибок (последний победит)
       await expect(Promise.all(updatePromises)).resolves.not.toThrow();
     });
   });
