@@ -45,7 +45,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name is required");
+      expect(errorResponse.message).toBe("Organization name is required");
     });
 
     it("should reject creation with whitespace-only name", async () => {
@@ -64,7 +64,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name is required");
+      expect(errorResponse.message).toBe("Organization name is required");
     });
 
     it("should reject creation with missing name field", async () => {
@@ -83,7 +83,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name is required");
+      expect(errorResponse.message).toBe("Organization name is required");
     });
 
     it("should reject creation with null name", async () => {
@@ -102,7 +102,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name is required");
+      expect(errorResponse.message).toBe("Organization name is required");
     });
 
     describe("Coordinate validation", () => {
@@ -392,7 +392,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid ID");
+      expect(errorResponse.message).toBe("Invalid ID");
     });
 
     it("should handle zero ID", async () => {
@@ -411,7 +411,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid ID");
+      expect(errorResponse.message).toBe("Invalid ID");
     });
 
     it("should handle non-numeric ID", async () => {
@@ -430,7 +430,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid ID");
+      expect(errorResponse.message).toBe("Invalid ID");
     });
 
     it("should handle extremely large ID", async () => {
@@ -493,7 +493,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name cannot be empty");
+      expect(errorResponse.message).toBe("Organization name cannot be empty");
     });
 
     it("should reject update with whitespace-only name", async () => {
@@ -513,7 +513,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Organization name cannot be empty");
+      expect(errorResponse.message).toBe("Organization name cannot be empty");
     });
 
     it("should reject update to existing name (duplicate)", async () => {
@@ -590,7 +590,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Update data is required");
+      expect(errorResponse.message).toBe("Update data is required");
     });
 
     describe("Coordinate validation in update", () => {
@@ -774,7 +774,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid ID");
+      expect(errorResponse.message).toBe("Invalid ID");
     });
 
     it("should allow double deletion (second should fail)", async () => {
@@ -852,7 +852,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Search query is required");
+      expect(errorResponse.message).toBe("Search query is required");
     });
 
     it("should handle whitespace-only search", async () => {
@@ -871,7 +871,7 @@ describe("Organization Controller Edge Cases", () => {
       await organizationController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Search query is required");
+      expect(errorResponse.message).toBe("Search query is required");
     });
 
     it("should return empty array for non-matching search", async () => {

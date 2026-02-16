@@ -32,7 +32,7 @@ export class MaterialController {
 
       // Добавляем проверку ID
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid material ID" });
+        return res.status(400).json({ message: "Invalid material ID" });
       }
 
       const material = await this._materialService.findById(id);
@@ -51,7 +51,7 @@ export class MaterialController {
 
       // Проверка тела запроса
       if (!name || name.trim() === "") {
-        return res.status(400).json({ error: "Material name is required" });
+        return res.status(400).json({ message: "Material name is required" });
       }
 
       // Добавляем await (метод сервиса асинхронный)
@@ -73,7 +73,7 @@ export class MaterialController {
 
       // Добавляем проверку ID
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid material ID" });
+        return res.status(400).json({ message: "Invalid material ID" });
       }
 
       const deletedMaterial = await this._materialService.delete(id);
@@ -96,12 +96,12 @@ export class MaterialController {
 
       // Проверка ID
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid material ID" });
+        return res.status(400).json({ message: "Invalid material ID" });
       }
 
       // Проверка, что есть что обновлять
       if (!name || name.trim() === "") {
-        return res.status(400).json({ error: "Material name cannot be empty" });
+        return res.status(400).json({ message: "Material name cannot be empty" });
       }
 
       const updatedMaterial = await this._materialService.update({
@@ -125,7 +125,7 @@ export class MaterialController {
 
       // Проверка search параметра
       if (!search || search.trim() === "") {
-        return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({ message: "Search query is required" });
       }
 
       const searchedMaterials = await this._materialService.search(search);

@@ -116,7 +116,7 @@ export class WarehouseController {
 
       if (isNaN(warehouseId)) {
         return res.status(400).json({
-          error: "Invalid warehouse ID",
+          message: "Invalid warehouse ID",
         });
       }
 
@@ -129,12 +129,12 @@ export class WarehouseController {
           parsedManagerId = parseInt(managerId);
           if (isNaN(parsedManagerId)) {
             return res.status(400).json({
-              error: "Invalid manager ID",
+              message: "Invalid manager ID",
             });
           }
         } else {
           return res.status(400).json({
-            error: "Invalid manager ID format",
+            message: "Invalid manager ID format",
           });
         }
       } else if (managerId === null) {

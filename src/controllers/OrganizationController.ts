@@ -29,7 +29,7 @@ export class OrganizationController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       const organization = await this._organizationService.findById(id);
@@ -48,7 +48,7 @@ export class OrganizationController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       const deletedOrganization = await this._organizationService.delete(id);
@@ -68,12 +68,14 @@ export class OrganizationController {
 
       // Проверка тела запроса
       if (!createData || typeof createData !== "object") {
-        return res.status(400).json({ error: "Request body is required" });
+        return res.status(400).json({ message: "Request body is required" });
       }
 
       // Проверка обязательного поля name
       if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({ error: "Organization name is required" });
+        return res
+          .status(400)
+          .json({ message: "Organization name is required" });
       }
 
       const createdOrganization =
@@ -99,20 +101,20 @@ export class OrganizationController {
       const numId = Number(id);
 
       if (isNaN(numId) || numId <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       // Проверка, что есть что обновлять
       const updateData = { name, manager_id, latitude, longitude };
       if (Object.values(updateData).every((value) => value === undefined)) {
-        return res.status(400).json({ error: "Update data is required" });
+        return res.status(400).json({ message: "Update data is required" });
       }
 
       // Проверка имени, если оно пришло
       if (name !== undefined && name.trim() === "") {
         return res
           .status(400)
-          .json({ error: "Organization name cannot be empty" });
+          .json({ message: "Organization name cannot be empty" });
       }
 
       const updatedOrganization = await this._organizationService.update({
@@ -138,7 +140,7 @@ export class OrganizationController {
 
       // Проверка search параметра
       if (!search || search.trim() === "") {
-        return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({ message: "Search query is required" });
       }
 
       const searchedOrganizations =

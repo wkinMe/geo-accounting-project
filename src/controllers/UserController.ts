@@ -25,7 +25,7 @@ export class UserController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid user ID" });
+        return res.status(400).json({ message: "Invalid user ID" });
       }
 
       const user = await this._userService.findById(id);
@@ -40,7 +40,7 @@ export class UserController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid user ID" });
+        return res.status(400).json({ message: "Invalid user ID" });
       }
 
       const deletedUser = await this._userService.delete(id);
@@ -59,23 +59,20 @@ export class UserController {
 
       // Проверка тела запроса
       if (!createData || typeof createData !== "object") {
-        return res.status(400).json({ error: "Request body is required" });
+        return res.status(400).json({ message: "Request body is required" });
       }
 
       // Проверка обязательных полей по твоим DTO
       if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({ error: "User name is required" });
+        return res.status(400).json({ message: "User name is required" });
       }
 
-      if (
-        !createData.organization_id ||
-        createData.organization_id.trim() === ""
-      ) {
-        return res.status(400).json({ error: "Organization ID is required" });
+      if (!createData.organization_id) {
+        return res.status(400).json({ message: "Organization ID is required" });
       }
 
       if (!createData.password || createData.password.trim() === "") {
-        return res.status(400).json({ error: "Password is required" });
+        return res.status(400).json({ message: "Password is required" });
       }
 
       const createdUser = await this._userService.create(createData);
@@ -99,7 +96,7 @@ export class UserController {
       const userId = Number(id);
 
       if (isNaN(userId) || userId <= 0) {
-        return res.status(400).json({ error: "Invalid user ID" });
+        return res.status(400).json({ message: "Invalid user ID" });
       }
 
       // Проверка, что есть что обновлять
@@ -108,12 +105,12 @@ export class UserController {
         typeof updateData !== "object" ||
         Object.keys(updateData).length === 0
       ) {
-        return res.status(400).json({ error: "Update data is required" });
+        return res.status(400).json({ message: "Update data is required" });
       }
 
       // Проверка имени, если оно пришло
       if (updateData.name !== undefined && updateData.name.trim() === "") {
-        return res.status(400).json({ error: "User name cannot be empty" });
+        return res.status(400).json({ message: "User name cannot be empty" });
       }
 
       // Проверка organization_id, если оно пришло (строковое по DTO)
@@ -123,7 +120,7 @@ export class UserController {
       ) {
         return res
           .status(400)
-          .json({ error: "Organization ID cannot be empty" });
+          .json({ message: "Organization ID cannot be empty" });
       }
 
       // Проверка пароля, если он пришел
@@ -133,7 +130,7 @@ export class UserController {
       ) {
         return res
           .status(400)
-          .json({ error: "Password cannot be empty if provided" });
+          .json({ message: "Password cannot be empty if provided" });
       }
 
       const updatedUser = await this._userService.update({
@@ -156,7 +153,7 @@ export class UserController {
 
       // Проверка search параметра
       if (!search || search.trim() === "") {
-        return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({ message: "Search query is required" });
       }
 
       const searchedUsers = await this._userService.search(search);
@@ -188,7 +185,7 @@ export class UserController {
       const orgId = Number(id);
 
       if (isNaN(orgId) || orgId <= 0) {
-        return res.status(400).json({ error: "Invalid organization ID" });
+        return res.status(400).json({ message: "Invalid organization ID" });
       }
 
       const users = await this._userService.findByOrganizationId(orgId);

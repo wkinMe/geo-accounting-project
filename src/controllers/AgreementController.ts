@@ -25,7 +25,7 @@ export class AgreementController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       const agreement = await this._agreementService.findById(id);
@@ -40,7 +40,7 @@ export class AgreementController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       const deletedAgreement = await this._agreementService.delete(id);
@@ -59,23 +59,23 @@ export class AgreementController {
 
       // Базовая проверка тела запроса
       if (!createData || typeof createData !== "object") {
-        return res.status(400).json({ error: "Request body is required" });
+        return res.status(400).json({ message: "Request body is required" });
       }
 
       if (!createData.status || createData.status.trim() === "") {
-        return res.status(400).json({ error: "Status is required" });
+        return res.status(400).json({ message: "Status is required" });
       }
 
       if (!createData.supplier_warehouse_id) {
         return res
           .status(400)
-          .json({ error: "Supplier warehouse ID is required" });
+          .json({ message: "Supplier warehouse ID is required" });
       }
 
       if (!createData.customer_warehouse_id) {
         return res
           .status(400)
-          .json({ error: "Customer warehouse ID is required" });
+          .json({ message: "Customer warehouse ID is required" });
       }
 
       const createdAgreement = await this._agreementService.create({
@@ -101,7 +101,7 @@ export class AgreementController {
       const { updateData, materials } = req.body;
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({ message: "Invalid ID" });
       }
 
       // Проверка, что есть что обновлять
@@ -110,12 +110,12 @@ export class AgreementController {
         typeof updateData !== "object" ||
         Object.keys(updateData).length === 0
       ) {
-        return res.status(400).json({ error: "Update data is required" });
+        return res.status(400).json({ message: "Update data is required" });
       }
 
       // Проверка статуса, если он пришел
       if (updateData.status !== undefined && updateData.status.trim() === "") {
-        return res.status(400).json({ error: "Status cannot be empty" });
+        return res.status(400).json({ message: "Status cannot be empty" });
       }
 
       const updatedAgreement = await this._agreementService.update({
@@ -138,7 +138,7 @@ export class AgreementController {
 
       // Проверка query параметра
       if (!searchQuery || searchQuery.trim() === "") {
-        return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({ message: "Search query is required" });
       }
 
       const searchedAgreements =

@@ -46,7 +46,7 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name is required");
+      expect(errorResponse.message).toBe("Material name is required");
     });
 
     it("should reject creation with whitespace-only name", async () => {
@@ -65,7 +65,7 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name is required");
+      expect(errorResponse.message).toBe("Material name is required");
     });
 
     it("should reject creation with null name", async () => {
@@ -84,7 +84,7 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name is required");
+      expect(errorResponse.message).toBe("Material name is required");
     });
 
     it("should reject creation with undefined name", async () => {
@@ -103,7 +103,7 @@ describe("Material controller edge cases", () => {
       await materialController.create(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name is required");
+      expect(errorResponse.message).toBe("Material name is required");
     });
 
     it("should handle extremely long material names (1000+ characters)", async () => {
@@ -234,7 +234,7 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid material ID");
+      expect(errorResponse.message).toBe("Invalid material ID");
     });
 
     it("should handle zero ID", async () => {
@@ -253,7 +253,7 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid material ID");
+      expect(errorResponse.message).toBe("Invalid material ID");
     });
 
     it("should handle non-numeric ID", async () => {
@@ -272,7 +272,7 @@ describe("Material controller edge cases", () => {
       await materialController.findById(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid material ID");
+      expect(errorResponse.message).toBe("Invalid material ID");
     });
 
     it("should handle extremely large ID", async () => {
@@ -333,7 +333,7 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name cannot be empty");
+      expect(errorResponse.message).toBe("Material name cannot be empty");
     });
 
     it("should reject update with whitespace-only name", async () => {
@@ -353,7 +353,7 @@ describe("Material controller edge cases", () => {
       await materialController.update(updateReq, updateRes);
 
       expect(updateRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Material name cannot be empty");
+      expect(errorResponse.message).toBe("Material name cannot be empty");
     });
 
     it("should reject update to existing name (duplicate)", async () => {
@@ -465,7 +465,7 @@ describe("Material controller edge cases", () => {
       await materialController.delete(deleteReq, deleteRes);
 
       expect(deleteRes.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Invalid material ID");
+      expect(errorResponse.message).toBe("Invalid material ID");
     });
 
     it("should allow double deletion (second should fail)", async () => {
@@ -539,7 +539,7 @@ describe("Material controller edge cases", () => {
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Search query is required");
+      expect(errorResponse.message).toBe("Search query is required");
     });
 
     it("should handle whitespace-only search", async () => {
@@ -558,7 +558,7 @@ describe("Material controller edge cases", () => {
       await materialController.search(req, res);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(errorResponse.error).toBe("Search query is required");
+      expect(errorResponse.message).toBe("Search query is required");
     });
 
     it("should return empty array for non-matching search", async () => {
