@@ -16,10 +16,19 @@ export const SUCCESS_MESSAGES = {
     count > 0
       ? `Found ${count} available manager(s)`
       : "No available managers found",
-  FIND_BY_ORGANIZATION: (entity: string, count: number, orgId: number) =>
+  FIND_BY_ORGANIZATION: (entity: string, count: number, orgName: string) =>
     count > 0
-      ? `Found ${count} ${entity}(s) in organization ${orgId}`
-      : `No ${entity}s found in organization ${orgId}`,
+      ? `Found ${count} ${entity}(s) in organization ${orgName}`
+      : `No ${entity}s found in organization ${orgName}`,
+
+  // Специфичные для Warehouse
+
+  FIND_BY_MANAGER_ID: (entity: string, count: number, managerName: string) =>
+    count > 0
+      ? `Found ${count} ${entity} for manager ${managerName}`
+      : `No ${entity}s found for manager ${managerName}`,
+  ASSIGN_MANAGER: (managerName: string, isAssigned = true) =>
+    `Manager ${managerName} has been ${!isAssigned && `un`}assigned`,
 };
 
 export const ERROR_MESSAGES = {
@@ -33,4 +42,6 @@ export const ERROR_MESSAGES = {
   SEARCH_QUERY_REQUIRED: "Search query is required",
   NOT_FOUND: (entity: string, id: number) =>
     `${entity} with ID ${id} not found`,
+  INVALID_LATITUDE: "Latitude must be between -90 and 90 degrees",
+  INVALID_LONGITUDE: "Longitude must be between -180 and 180 degrees",
 };

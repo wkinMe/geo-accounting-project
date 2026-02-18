@@ -391,7 +391,7 @@ describe("User Controller Edge Cases", () => {
         },
       } as Request;
 
-      let responseData: ErrorResponse | undefined;
+      let responseData: ErrorResponse;
       const res = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockImplementation((data: ErrorResponse) => {
@@ -401,10 +401,10 @@ describe("User Controller Edge Cases", () => {
 
       await userController.create(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(400);
       expect(isErrorResponse(responseData)).toBe(true);
       if (isErrorResponse(responseData)) {
-        expect(responseData.message).toBeDefined();
+        expect(responseData.message).toContain(`does not exist`);
       }
     });
 
@@ -417,7 +417,7 @@ describe("User Controller Edge Cases", () => {
         },
       } as Request;
 
-      let responseData: SuccessResponse<User> | undefined;
+      let responseData: SuccessResponse<User>;
       const res = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockImplementation((data: SuccessResponse<User>) => {
@@ -503,7 +503,7 @@ describe("User Controller Edge Cases", () => {
 
       await userController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
       expect(isErrorResponse(responseData)).toBe(true);
       if (isErrorResponse(responseData)) {
         expect(responseData.message).toContain("not found");
@@ -753,7 +753,7 @@ describe("User Controller Edge Cases", () => {
 
       await userController.update(updateReq, updateRes);
 
-      expect(updateRes.status).toHaveBeenCalledWith(500);
+      expect(updateRes.status).toHaveBeenCalledWith(404);
       expect(isErrorResponse(responseData)).toBe(true);
       if (isErrorResponse(responseData)) {
         expect(responseData.message).toContain("not found");
@@ -947,7 +947,7 @@ describe("User Controller Edge Cases", () => {
 
       await userController.delete(deleteReq, deleteRes);
 
-      expect(deleteRes.status).toHaveBeenCalledWith(500);
+      expect(deleteRes.status).toHaveBeenCalledWith(404);
       expect(isErrorResponse(responseData)).toBe(true);
       if (isErrorResponse(responseData)) {
         expect(responseData.message).toContain("not found");
@@ -1060,7 +1060,7 @@ describe("User Controller Edge Cases", () => {
 
       await userController.delete(deleteReq2, deleteRes2);
 
-      expect(deleteRes2.status).toHaveBeenCalledWith(500);
+      expect(deleteRes2.status).toHaveBeenCalledWith(404);
       expect(isErrorResponse(responseData2)).toBe(true);
       if (isErrorResponse(responseData2)) {
         expect(responseData2.message).toContain("not found");
@@ -1220,11 +1220,13 @@ describe("User Controller Edge Cases", () => {
       } as unknown as Response;
 
       await userController.search(req, res);
+
       expect(res.status).toHaveBeenCalledWith(200);
       expect(isSuccessResponse<User[]>(responseData)).toBe(true);
       if (isSuccessResponse<User[]>(responseData)) {
         expect(responseData.data.length).toBe(2);
         expect(responseData.data[0].name).toContain("John");
+        expect(responseData.data[1].name).toContain("John");
         expect(responseData.message).toBe(
           SUCCESS_MESSAGES.SEARCH(entityName, 2),
         );
@@ -1523,7 +1525,7 @@ describe("User Controller Edge Cases", () => {
             SUCCESS_MESSAGES.FIND_BY_ORGANIZATION(
               "user",
               4,
-              testOrganization.id,
+              testOrganization.name,
             ),
           );
         }
@@ -1555,7 +1557,7 @@ describe("User Controller Edge Cases", () => {
         if (isSuccessResponse<UserWithOrganization[]>(responseData)) {
           expect(responseData.data.length).toBe(0);
           expect(responseData.message).toBe(
-            SUCCESS_MESSAGES.FIND_BY_ORGANIZATION("user", 0, 999999),
+            SUCCESS_MESSAGES.FIND_BY_ORGANIZATION("user", 0, "Unknown"),
           );
         }
       });

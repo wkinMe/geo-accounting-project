@@ -216,12 +216,24 @@ export class UserController {
 
       const users = await this._userService.findByOrganizationId(orgId);
 
+      // Проверяем, есть ли пользователи
+      if (users.length === 0) {
+        return res.status(200).json({
+          data: users,
+          message: SUCCESS_MESSAGES.FIND_BY_ORGANIZATION(
+            this.entityName,
+            0,
+            "Unknown", // или можно получить название организации из другого источника
+          ),
+        });
+      }
+
       res.status(200).json({
         data: users,
         message: SUCCESS_MESSAGES.FIND_BY_ORGANIZATION(
           this.entityName,
           users.length,
-          orgId,
+          users[0].organization.name,
         ),
       });
     } catch (e) {

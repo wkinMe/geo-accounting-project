@@ -50,7 +50,10 @@ export class MaterialService {
       );
       return material;
     } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      if (error instanceof NotFoundError) {
         throw error;
       }
       throw new ServiceError(

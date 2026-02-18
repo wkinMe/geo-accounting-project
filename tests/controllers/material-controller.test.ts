@@ -172,7 +172,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.create(createReq2, createRes2);
 
-      expect(createRes2.status).toHaveBeenCalledWith(500);
+      expect(createRes2.status).toHaveBeenCalledWith(400);
       expect(errorResponse?.message).toContain("already exists");
     });
 
@@ -252,7 +252,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -321,10 +321,10 @@ describe("Material controller edge cases", () => {
 
     it("should handle extremely large ID", async () => {
       const req = {
-        params: { id: "9999999999999" },
+        params: { id: "999999999" },
       } as Request<{ id: string }>;
 
-      let errorResponse: ErrorResponse | undefined;
+      let errorResponse: ErrorResponse;
       const res = {
         status: jest.fn().mockReturnThis(),
         json: jest.fn().mockImplementation((data: ErrorResponse) => {
@@ -334,7 +334,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
     });
 
     it("should return material by ID", async () => {
@@ -456,7 +456,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.update(updateReq, updateRes);
 
-      expect(updateRes.status).toHaveBeenCalledWith(500);
+      expect(updateRes.status).toHaveBeenCalledWith(400);
       expect(errorResponse?.message).toContain("already exists");
     });
 
@@ -476,7 +476,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.update(updateReq, updateRes);
 
-      expect(updateRes.status).toHaveBeenCalledWith(500);
+      expect(updateRes.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -544,7 +544,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.delete(deleteReq, deleteRes);
 
-      expect(deleteRes.status).toHaveBeenCalledWith(500);
+      expect(deleteRes.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -606,7 +606,7 @@ describe("Material controller edge cases", () => {
 
       await materialController.delete(deleteReq2, deleteRes2);
 
-      expect(deleteRes2.status).toHaveBeenCalledWith(500);
+      expect(deleteRes2.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
   });

@@ -31,6 +31,7 @@ export async function getSingleResult<T extends QueryResultRow>(
   entityName?: string,
   entityId?: string | number,
 ): Promise<T> {
+
   const rows = await executeQuery<T>(db, operation, query, parameters);
 
   if (rows.length === 0) {

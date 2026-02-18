@@ -35,7 +35,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         GROUP BY w.id, o.id, u.id
@@ -79,7 +79,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         WHERE w.id = $1
@@ -183,7 +183,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManager",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [createData.manager_id],
         );
         if (managerCheck.length === 0) {
@@ -348,7 +348,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManagerUpdate",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [updateData.manager_id],
         );
         if (managerCheck.length === 0) {
@@ -587,7 +587,7 @@ export class WarehouseService {
       const managerCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkManagerExists",
-        "SELECT id FROM app_user WHERE id = $1",
+        "SELECT id FROM app_users WHERE id = $1",
         [managerId],
       );
 
@@ -607,7 +607,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         WHERE w.manager_id = $1
@@ -655,7 +655,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManagerAssign",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [managerId],
         );
         if (managerCheck.length === 0) {

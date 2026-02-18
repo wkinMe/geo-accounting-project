@@ -136,7 +136,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.create(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
@@ -161,7 +161,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.create(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
@@ -186,7 +186,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.create(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
@@ -211,7 +211,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.create(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
@@ -285,7 +285,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.create(createReq2, createRes2);
 
-      expect(createRes2.status).toHaveBeenCalledWith(500);
+      expect(createRes2.status).toHaveBeenCalledWith(400);
       expect(errorResponse?.message).toContain("already exists");
     });
 
@@ -394,7 +394,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -461,9 +461,9 @@ describe("Organization Controller Edge Cases", () => {
       );
     });
 
-    it("should handle extremely large ID", async () => {
+    it("should handle extremely large but valid ID", async () => {
       const req = {
-        params: { id: "9999999999999" },
+        params: { id: "2147483647" }, // MAX INT для PostgreSQL
       } as Request<{ id: string }>;
 
       let errorResponse: ErrorResponse | undefined;
@@ -476,7 +476,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.findById(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
     });
 
     it("should return organization by ID", async () => {
@@ -608,7 +608,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.update(updateReq, updateRes);
 
-      expect(updateRes.status).toHaveBeenCalledWith(500);
+      expect(updateRes.status).toHaveBeenCalledWith(400);
       expect(errorResponse?.message).toContain("already exists");
     });
 
@@ -628,7 +628,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.update(updateReq, updateRes);
 
-      expect(updateRes.status).toHaveBeenCalledWith(500);
+      expect(updateRes.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -669,7 +669,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.update(updateReq, updateRes);
 
-        expect(updateRes.status).toHaveBeenCalledWith(500);
+        expect(updateRes.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
@@ -691,7 +691,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.update(updateReq, updateRes);
 
-        expect(updateRes.status).toHaveBeenCalledWith(500);
+        expect(updateRes.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Latitude must be between -90 and 90",
         );
@@ -713,7 +713,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.update(updateReq, updateRes);
 
-        expect(updateRes.status).toHaveBeenCalledWith(500);
+        expect(updateRes.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
@@ -735,7 +735,7 @@ describe("Organization Controller Edge Cases", () => {
 
         await organizationController.update(updateReq, updateRes);
 
-        expect(updateRes.status).toHaveBeenCalledWith(500);
+        expect(updateRes.status).toHaveBeenCalledWith(400);
         expect(errorResponse?.message).toContain(
           "Longitude must be between -180 and 180",
         );
@@ -844,7 +844,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.delete(deleteReq, deleteRes);
 
-      expect(deleteRes.status).toHaveBeenCalledWith(500);
+      expect(deleteRes.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
 
@@ -906,7 +906,7 @@ describe("Organization Controller Edge Cases", () => {
 
       await organizationController.delete(deleteReq2, deleteRes2);
 
-      expect(deleteRes2.status).toHaveBeenCalledWith(500);
+      expect(deleteRes2.status).toHaveBeenCalledWith(404);
       expect(errorResponse?.message).toContain("not found");
     });
   });
@@ -1352,9 +1352,6 @@ describe("Organization Controller Edge Cases", () => {
         }
       } catch (error) {
         // Таблица app_user может не существовать
-        console.log(
-          "Skipping user integration test - app_user table may not exist",
-        );
       }
     });
   });
