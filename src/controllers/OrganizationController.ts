@@ -1,21 +1,24 @@
+import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@src/dto";
+import { OrganizationService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
-import { OrganizationService } from "../services";
-import { baseErrorHandling } from "../utils/errors.utils";
-import { CreateOrganizationDTO, UpdateOrganizationDTO } from "../dto";
+import { Pool } from "pg";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
 
 export class OrganizationController {
   private _organizationService: OrganizationService;
+  private entityName = "organization";
 
-  constructor(service: OrganizationService) {
-    this._organizationService = service;
+  constructor(dbConnection: Pool) {
+    this._organizationService = new OrganizationService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {
     try {
       const organizations = await this._organizationService.findAll();
-
       res.status(200).json({
         data: organizations,
+        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -27,13 +30,15 @@ export class OrganizationController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
       const organization = await this._organizationService.findById(id);
-
       res.status(200).json({
         data: organization,
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -45,14 +50,15 @@ export class OrganizationController {
       const id = Number(req.params.id);
 
       if (isNaN(id) || id <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
       const deletedOrganization = await this._organizationService.delete(id);
-
       res.status(200).json({
         data: deletedOrganization,
-        message: "Organization deleted successfully",
+        message: SUCCESS_MESSAGES.DELETE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -63,14 +69,16 @@ export class OrganizationController {
     try {
       const createData = req.body;
 
-      // Проверка тела запроса
       if (!createData || typeof createData !== "object") {
-        return res.status(400).json({ error: "Request body is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUEST_BODY_REQUIRED,
+        });
       }
 
-      // Проверка обязательного поля name
       if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({ error: "Organization name is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
+        });
       }
 
       const createdOrganization =
@@ -78,7 +86,7 @@ export class OrganizationController {
 
       res.status(201).json({
         data: createdOrganization,
-        message: "Organization created successfully",
+        message: SUCCESS_MESSAGES.CREATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -96,20 +104,22 @@ export class OrganizationController {
       const numId = Number(id);
 
       if (isNaN(numId) || numId <= 0) {
-        return res.status(400).json({ error: "Invalid ID" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
       }
 
-      // Проверка, что есть что обновлять
       const updateData = { name, manager_id, latitude, longitude };
       if (Object.values(updateData).every((value) => value === undefined)) {
-        return res.status(400).json({ error: "Update data is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
+        });
       }
 
-      // Проверка имени, если оно пришло
       if (name !== undefined && name.trim() === "") {
-        return res
-          .status(400)
-          .json({ error: "Organization name cannot be empty" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Organization name"),
+        });
       }
 
       const updatedOrganization = await this._organizationService.update({
@@ -122,7 +132,7 @@ export class OrganizationController {
 
       res.status(200).json({
         data: updatedOrganization,
-        message: "Organization updated successfully",
+        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -133,9 +143,10 @@ export class OrganizationController {
     try {
       const { search } = req.params;
 
-      // Проверка search параметра
       if (!search || search.trim() === "") {
-        return res.status(400).json({ error: "Search query is required" });
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
       }
 
       const searchedOrganizations =
@@ -143,7 +154,10 @@ export class OrganizationController {
 
       res.status(200).json({
         data: searchedOrganizations,
-        message: `Found ${searchedOrganizations.length} organization(s)`,
+        message: SUCCESS_MESSAGES.SEARCH(
+          this.entityName,
+          searchedOrganizations.length,
+        ),
       });
     } catch (e) {
       baseErrorHandling(e, res);

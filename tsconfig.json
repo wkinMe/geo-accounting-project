@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    /* Базовые опции для ESM */
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "./",
+    "baseUrl": "./",
+
+    /* Настройки модулей */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    /* Пути для импортов */
+    "paths": {
+      "@src/*": ["src/*"],
+      "@t/*": ["types/*"],
+      "@tests/*": ["tests/*"]
+    },
+
+    /* Настройки для работы с типами */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Настройки для Jest */
+    "types": ["node", "jest"],
+
+    /* Настройки для компиляции */
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "include": ["src/**/*", "types/**/*", "tests/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

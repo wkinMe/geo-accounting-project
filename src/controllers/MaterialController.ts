@@ -1,11 +1,13 @@
+import { CreateMaterialDTO, UpdateMaterialDTO } from "@src/dto";
+import { MaterialService } from "@src/services";
+import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
-import { baseErrorHandling } from "../utils/errors.utils";
-import { MaterialService } from "../services";
-import { UpdateMaterialDTO } from "../dto";
 import { Pool } from "pg";
+import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
 
 export class MaterialController {
   private _materialService: MaterialService;
+  private entityName = "material";
 
   constructor(dbConnection: Pool) {
     this._materialService = new MaterialService(dbConnection);
@@ -14,37 +16,70 @@ export class MaterialController {
   async findAll(req: Request, res: Response) {
     try {
       const materials = await this._materialService.findAll();
-
       res.status(200).json({
         data: materials,
+        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
     }
   }
 
-  async findById(req: Request, res: Response) {
+  async findById(req: Request<{ id: string }>, res: Response) {
     try {
-      const material = await this._materialService.findById(
-        Number(req.params.id),
-      );
+      const id = Number(req.params.id);
 
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      const material = await this._materialService.findById(id);
       res.status(200).json({
         data: material,
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
       });
     } catch (e) {
       baseErrorHandling(e, res);
     }
   }
 
-  async delete(req: Request, res: Response) {
+  async create(req: Request<{}, {}, CreateMaterialDTO>, res: Response) {
     try {
-      const deletedMaterial = await this._materialService.delete(
-        Number(req.params.id),
-      );
+      const { name } = req.body;
 
+      if (!name || name.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+        });
+      }
+
+      const result = await this._materialService.create({ name });
+
+      res.status(201).json({
+        data: result,
+        message: SUCCESS_MESSAGES.CREATE(this.entityName),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async delete(req: Request<{ id: string }>, res: Response) {
+    try {
+      const id = Number(req.params.id);
+
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      const deletedMaterial = await this._materialService.delete(id);
       res.status(200).json({
         data: deletedMaterial,
+        message: SUCCESS_MESSAGES.DELETE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -52,20 +87,33 @@ export class MaterialController {
   }
 
   async update(
-    req: Request<{ id: number }, {}, Omit<UpdateMaterialDTO, "id">>,
+    req: Request<{ id: string }, {}, Omit<UpdateMaterialDTO, "id">>,
     res: Response,
   ) {
     try {
-      const { id } = req.params;
+      const id = Number(req.params.id);
       const { name } = req.body;
+
+      if (isNaN(id) || id <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      if (!name || name.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Material name"),
+        });
+      }
 
       const updatedMaterial = await this._materialService.update({
         id,
         name,
       });
 
-      res.json(201).json({
+      res.status(200).json({
         data: updatedMaterial,
+        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -76,10 +124,20 @@ export class MaterialController {
     try {
       const { search } = req.params;
 
+      if (!search || search.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
+      }
+
       const searchedMaterials = await this._materialService.search(search);
 
-      res.send(200).json({
+      res.status(200).json({
         data: searchedMaterials,
+        message: SUCCESS_MESSAGES.SEARCH(
+          this.entityName,
+          searchedMaterials.length,
+        ),
       });
     } catch (e) {
       baseErrorHandling(e, res);

@@ -6,23 +6,21 @@ import {
   Organization,
   User,
   Warehouse,
-} from "../models";
-import { UpdateAgreementDTO } from "../dto";
-import Fuse, { IFuseOptions } from "fuse.js";
+} from "@src/models";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service"; // Импортируем классы ошибок
-import { executeQuery, getSingleResult } from "../utils/query.utils";
-import {
-  AgreementCreateParams,
-  AgreementUpdateParams,
-} from "../types/services";
+} from "@src/errors/service";
+import { executeQuery, getSingleResult } from "@src/utils";
+import { AgreementCreateParams, AgreementUpdateParams } from "@t/services";
+import { ERROR_MESSAGES } from "@src/constants/messages";
+import Fuse, { IFuseOptions } from "fuse.js";
 
 export class AgreementService {
   private _db: Pool;
+  private entityName = "agreement";
 
   constructor(dbConnection: Pool) {
     this._db = dbConnection;
@@ -39,27 +37,33 @@ export class AgreementService {
         row_to_json(oc.*) as customer_organization,
         row_to_json(sw.*) as supplier_warehouse,
         row_to_json(cw.*) as customer_warehouse,
-        json_agg(
-          json_build_object(
-            'material', m.*,
-            'amount', am.amount
-          )
+        COALESCE(
+          json_agg(
+            CASE WHEN m.id IS NOT NULL THEN
+              json_build_object(
+                'material', m.*,
+                'amount', am.amount
+              )
+            ELSE NULL END
+          ) FILTER (WHERE m.id IS NOT NULL),
+          '[]'::json
         ) as materials
       FROM agreements a
-      INNER JOIN app_user s ON a.supplier_id = s.id
+      INNER JOIN app_users s ON a.supplier_id = s.id
       LEFT JOIN organizations os ON s.organization_id = os.id
-      INNER JOIN app_user c ON a.customer_id = c.id
+      INNER JOIN app_users c ON a.customer_id = c.id
       LEFT JOIN organizations oc ON c.organization_id = oc.id
       INNER JOIN warehouses sw ON a.supplier_warehouse_id = sw.id
-      INNER JOIN warehouses cw ON a.customer_warehouse_id = c.id
-      INNER JOIN agreement_material am ON a.id = am.agreement_id
+      INNER JOIN warehouses cw ON a.customer_warehouse_id = cw.id
+      LEFT JOIN agreement_material am ON a.id = am.agreement_id
       LEFT JOIN materials m ON am.material_id = m.id
       GROUP BY 
         a.id, 
         s.id, os.id, 
         c.id, oc.id, 
         sw.id, 
-        cw.id;
+        cw.id
+      ORDER BY a.id;
     `;
 
       const rows = await executeQuery<{
@@ -88,7 +92,7 @@ export class AgreementService {
         },
         supplier_warehouse: row.supplier_warehouse,
         customer_warehouse: row.customer_warehouse,
-        materials: row.materials,
+        materials: row.materials || [],
       }));
     } catch (error) {
       if (error instanceof DatabaseError) {
@@ -114,19 +118,24 @@ export class AgreementService {
         row_to_json(oc.*) as customer_organization,
         row_to_json(sw.*) as supplier_warehouse,
         row_to_json(cw.*) as customer_warehouse,
-        json_agg(
-          json_build_object(
-            'material', m.*,
-            'amount', am.amount
-          )
-        ) as materials_with_amounts
+        COALESCE(
+          json_agg(
+            CASE WHEN m.id IS NOT NULL THEN
+              json_build_object(
+                'material', m.*,
+                'amount', am.amount
+              )
+            ELSE NULL END
+          ) FILTER (WHERE m.id IS NOT NULL),
+          '[]'::json
+        ) as materials
       FROM agreements a
-      INNER JOIN app_user s ON a.supplier_id = s.id
+      INNER JOIN app_users s ON a.supplier_id = s.id
       LEFT JOIN organizations os ON s.organization_id = os.id
-      INNER JOIN app_user c ON a.customer_id = c.id
+      INNER JOIN app_users c ON a.customer_id = c.id
       LEFT JOIN organizations oc ON c.organization_id = oc.id
       INNER JOIN warehouses sw ON a.supplier_warehouse_id = sw.id
-      INNER JOIN warehouses cw ON a.customer_warehouse_id = c.id
+      INNER JOIN warehouses cw ON a.customer_warehouse_id = cw.id
       LEFT JOIN agreement_material am ON a.id = am.agreement_id
       LEFT JOIN materials m ON am.material_id = m.id
       WHERE a.id = $1
@@ -138,7 +147,7 @@ export class AgreementService {
         cw.id;
     `;
 
-      const agreementData = await getSingleResult<{
+      const result = await getSingleResult<{
         agreement: Agreement;
         supplier: User;
         supplier_organization: Organization;
@@ -150,21 +159,21 @@ export class AgreementService {
           material: Material;
           amount: number;
         }>;
-      }>(this._db, "findById", query, [id], "Agreement", id);
+      }>(this._db, "findById", query, [id], this.entityName, id);
 
       return {
-        ...agreementData.agreement,
+        ...result.agreement,
         supplier: {
-          ...agreementData.supplier,
-          organization: agreementData.supplier_organization,
+          ...result.supplier,
+          organization: result.supplier_organization,
         },
         customer: {
-          ...agreementData.customer,
-          organization: agreementData.customer_organization,
+          ...result.customer,
+          organization: result.customer_organization,
         },
-        supplier_warehouse: agreementData.supplier_warehouse,
-        customer_warehouse: agreementData.customer_warehouse,
-        materials: agreementData.materials,
+        supplier_warehouse: result.supplier_warehouse,
+        customer_warehouse: result.customer_warehouse,
+        materials: result.materials || [],
       };
     } catch (error) {
       if (error instanceof DatabaseError || error instanceof NotFoundError) {
@@ -188,71 +197,154 @@ export class AgreementService {
       supplier_warehouse_id,
       customer_id,
       customer_warehouse_id,
+      status,
     } = createData;
 
     try {
-      if (supplier_id !== undefined) {
-        const supplierCheck = await executeQuery(
-          this._db,
-          "checkSupplier",
-          "SELECT id FROM app_user WHERE id = $1",
-          [supplier_id],
+      // Проверка статуса
+      if (status !== undefined && status.trim() === "") {
+        throw new ValidationError(
+          ERROR_MESSAGES.EMPTY_FIELD("Status"),
+          "create",
+          "status",
+          status,
         );
-        if (supplierCheck.length === 0) {
-          throw new NotFoundError(
-            `Supplier with id ${supplier_id} not found`,
-            "Supplier",
-            supplier_id,
-          );
-        }
       }
 
-      if (customer_id !== undefined) {
-        const customerCheck = await executeQuery(
-          this._db,
-          "checkCustomer",
-          "SELECT id FROM app_user WHERE id = $1",
-          [customer_id],
+      // Проверка supplier_id
+      if (supplier_id === undefined) {
+        throw new ValidationError(
+          ERROR_MESSAGES.REQUIRED_FIELD("Supplier ID"),
+          "create",
+          "supplier_id",
+          supplier_id,
         );
-        if (customerCheck.length === 0) {
-          throw new NotFoundError(
-            `Customer with id ${customer_id} not found`,
-            "Customer",
-            customer_id,
-          );
-        }
       }
 
-      if (supplier_warehouse_id !== undefined) {
-        const supplierWarehouseCheck = await executeQuery(
-          this._db,
-          "checkSupplierWarehouse",
-          "SELECT id FROM warehouses WHERE id = $1",
-          [supplier_warehouse_id],
+      if (supplier_id <= 0) {
+        throw new ValidationError(
+          ERROR_MESSAGES.INVALID_ID_FORMAT("Supplier"),
+          "create",
+          "supplier_id",
+          supplier_id,
         );
-        if (supplierWarehouseCheck.length === 0) {
-          throw new NotFoundError(
-            `Supplier warehouse with id ${supplier_warehouse_id} not found`,
-            "Warehouse",
-            supplier_warehouse_id,
-          );
-        }
       }
 
-      if (customer_warehouse_id !== undefined) {
-        const customerWarehouseCheck = await executeQuery(
-          this._db,
-          "checkCustomerWarehouse",
-          "SELECT id FROM warehouses WHERE id = $1",
-          [customer_warehouse_id],
+      // Проверка существования поставщика
+      const supplierCheck = await executeQuery(
+        this._db,
+        "checkSupplier",
+        "SELECT id FROM app_users WHERE id = $1",
+        [supplier_id],
+      );
+      if (supplierCheck.length === 0) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("Supplier", supplier_id),
+          "Supplier",
+          supplier_id,
         );
-        if (customerWarehouseCheck.length === 0) {
-          throw new NotFoundError(
-            `Customer warehouse with id ${customer_warehouse_id} not found`,
-            "Warehouse",
-            customer_warehouse_id,
-          );
-        }
+      }
+
+      // Проверка customer_id
+      if (customer_id === undefined) {
+        throw new ValidationError(
+          ERROR_MESSAGES.REQUIRED_FIELD("Customer ID"),
+          "create",
+          "customer_id",
+          customer_id,
+        );
+      }
+
+      if (customer_id <= 0) {
+        throw new ValidationError(
+          ERROR_MESSAGES.INVALID_ID_FORMAT("Customer"),
+          "create",
+          "customer_id",
+          customer_id,
+        );
+      }
+
+      // Проверка существования заказчика
+      const customerCheck = await executeQuery(
+        this._db,
+        "checkCustomer",
+        "SELECT id FROM app_users WHERE id = $1",
+        [customer_id],
+      );
+      if (customerCheck.length === 0) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("Customer", customer_id),
+          "Customer",
+          customer_id,
+        );
+      }
+
+      // Проверка supplier_warehouse_id
+      if (supplier_warehouse_id === undefined) {
+        throw new ValidationError(
+          ERROR_MESSAGES.REQUIRED_FIELD("Supplier warehouse ID"),
+          "create",
+          "supplier_warehouse_id",
+          supplier_warehouse_id,
+        );
+      }
+
+      if (supplier_warehouse_id <= 0) {
+        throw new ValidationError(
+          ERROR_MESSAGES.INVALID_ID_FORMAT("Supplier warehouse"),
+          "create",
+          "supplier_warehouse_id",
+          supplier_warehouse_id,
+        );
+      }
+
+      // Проверка существования склада поставщика
+      const supplierWarehouseCheck = await executeQuery(
+        this._db,
+        "checkSupplierWarehouse",
+        "SELECT id FROM warehouses WHERE id = $1",
+        [supplier_warehouse_id],
+      );
+      if (supplierWarehouseCheck.length === 0) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("Supplier warehouse", supplier_warehouse_id),
+          "Warehouse",
+          supplier_warehouse_id,
+        );
+      }
+
+      // Проверка customer_warehouse_id
+      if (customer_warehouse_id === undefined) {
+        throw new ValidationError(
+          ERROR_MESSAGES.REQUIRED_FIELD("Customer warehouse ID"),
+          "create",
+          "customer_warehouse_id",
+          customer_warehouse_id,
+        );
+      }
+
+      if (customer_warehouse_id <= 0) {
+        throw new ValidationError(
+          ERROR_MESSAGES.INVALID_ID_FORMAT("Customer warehouse"),
+          "create",
+          "customer_warehouse_id",
+          customer_warehouse_id,
+        );
+      }
+
+      // Проверка существования склада заказчика
+      const customerWarehouseCheck = await executeQuery(
+        this._db,
+        "checkCustomerWarehouse",
+        "SELECT id FROM warehouses WHERE id = $1",
+        [customer_warehouse_id],
+      );
+      if (customerWarehouseCheck.length === 0) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("Customer warehouse", customer_warehouse_id),
+          "Warehouse",
+          customer_warehouse_id,
+        );
       }
 
       const client = await this._db.connect();
@@ -260,55 +352,88 @@ export class AgreementService {
       try {
         await client.query("BEGIN");
 
-        const createQuery = `INSERT INTO agreements(supplier_id, customer_id, supplier_warehouse_id, customer_warehouse_id) VALUES ($1, $2, $3, $4) RETURNING id`;
+        const createQuery = `
+          INSERT INTO agreements(
+            supplier_id, 
+            customer_id, 
+            supplier_warehouse_id, 
+            customer_warehouse_id,
+            status
+          ) 
+          VALUES ($1, $2, $3, $4, $5) 
+          RETURNING id
+        `;
 
-        // Исправлено: значения должны быть переданы как массив
         const result = await client.query(createQuery, [
           supplier_id,
           customer_id,
           supplier_warehouse_id,
           customer_warehouse_id,
+          status || null,
         ]);
 
-        // Получаем ID созданного agreement
         const agreementId = result.rows[0].id;
 
-        // Если переданы материалы, обновляем agreement_material
+        // Добавляем материалы, только если они есть и это массив
         if (materials !== undefined) {
-          // Добавляем новые материалы
-          for (const material of materials) {
-            // Проверяем существование материала
-            const materialCheck = await client.query(
-              "SELECT id FROM materials WHERE id = $1",
-              [material.material_id],
-            );
-            if (materialCheck.rows.length === 0) {
-              throw new NotFoundError(
-                `Material with id ${material.material_id} not found`,
-                "Material",
-                material.material_id,
-              );
-            }
-
-            // Проверяем, что amount положительный
-            if (material.amount <= 0) {
-              throw new ValidationError(
-                `Amount for material ${material.material_id} must be positive`,
-                "update",
-                "amount",
-                material.amount,
-              );
-            }
-
-            await client.query(
-              `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-                 VALUES ($1, $2, $3)`,
-              [agreementId, material.material_id, material.amount],
+          if (!Array.isArray(materials)) {
+            throw new ValidationError(
+              "Materials must be an array",
+              "create",
+              "materials",
+              materials,
             );
           }
+
+          // Если массив не пустой, добавляем материалы
+          if (materials.length > 0) {
+            for (const material of materials) {
+              // Проверяем material_id
+              if (!material.material_id || material.material_id <= 0) {
+                throw new ValidationError(
+                  ERROR_MESSAGES.INVALID_ID_FORMAT("Material"),
+                  "create",
+                  "material_id",
+                  material.material_id,
+                );
+              }
+
+              // Проверяем существование материала
+              const materialCheck = await client.query(
+                "SELECT id FROM materials WHERE id = $1",
+                [material.material_id],
+              );
+              if (materialCheck.rows.length === 0) {
+                throw new NotFoundError(
+                  ERROR_MESSAGES.NOT_FOUND("Material", material.material_id),
+                  "Material",
+                  material.material_id,
+                );
+              }
+
+              // Проверяем, что amount положительный
+              if (!material.amount || material.amount <= 0) {
+                throw new ValidationError(
+                  "Amount must be positive",
+                  "create",
+                  "amount",
+                  material.amount,
+                );
+              }
+
+              await client.query(
+                `INSERT INTO agreement_material (agreement_id, material_id, amount) 
+                 VALUES ($1, $2, $3)`,
+                [agreementId, material.material_id, material.amount],
+              );
+            }
+          }
+          // Если materials = [] - просто не добавляем материалы, это валидно
         }
 
         await client.query("COMMIT");
+
+        // Возвращаем созданное соглашение
         return await this.findById(agreementId);
       } catch (error) {
         await client.query("ROLLBACK");
@@ -343,47 +468,86 @@ export class AgreementService {
       supplier_warehouse_id,
       customer_id,
       customer_warehouse_id,
+      status,
     } = updateData;
 
     try {
       // Проверяем существование соглашения
       const existingAgreement = await this.findById(id);
 
-      // Проверяем существование пользователей, если меняем
+      // Проверка статуса, если он передан
+      if (status !== undefined && status.trim() === "") {
+        throw new ValidationError(
+          ERROR_MESSAGES.EMPTY_FIELD("Status"),
+          "update",
+          "status",
+          status,
+        );
+      }
+
+      // Проверяем supplier_id, если передан
       if (supplier_id !== undefined) {
+        if (supplier_id <= 0) {
+          throw new ValidationError(
+            ERROR_MESSAGES.INVALID_ID_FORMAT("Supplier"),
+            "update",
+            "supplier_id",
+            supplier_id,
+          );
+        }
+
         const supplierCheck = await executeQuery(
           this._db,
           "checkSupplier",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [supplier_id],
         );
         if (supplierCheck.length === 0) {
           throw new NotFoundError(
-            `Supplier with id ${supplier_id} not found`,
+            ERROR_MESSAGES.NOT_FOUND("Supplier", supplier_id),
             "Supplier",
             supplier_id,
           );
         }
       }
 
+      // Проверяем customer_id, если передан
       if (customer_id !== undefined) {
+        if (customer_id <= 0) {
+          throw new ValidationError(
+            ERROR_MESSAGES.INVALID_ID_FORMAT("Customer"),
+            "update",
+            "customer_id",
+            customer_id,
+          );
+        }
+
         const customerCheck = await executeQuery(
           this._db,
           "checkCustomer",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [customer_id],
         );
         if (customerCheck.length === 0) {
           throw new NotFoundError(
-            `Customer with id ${customer_id} not found`,
+            ERROR_MESSAGES.NOT_FOUND("Customer", customer_id),
             "Customer",
             customer_id,
           );
         }
       }
 
-      // Проверяем существование складов, если меняем
+      // Проверяем supplier_warehouse_id, если передан
       if (supplier_warehouse_id !== undefined) {
+        if (supplier_warehouse_id <= 0) {
+          throw new ValidationError(
+            ERROR_MESSAGES.INVALID_ID_FORMAT("Supplier warehouse"),
+            "update",
+            "supplier_warehouse_id",
+            supplier_warehouse_id,
+          );
+        }
+
         const supplierWarehouseCheck = await executeQuery(
           this._db,
           "checkSupplierWarehouse",
@@ -392,14 +556,27 @@ export class AgreementService {
         );
         if (supplierWarehouseCheck.length === 0) {
           throw new NotFoundError(
-            `Supplier warehouse with id ${supplier_warehouse_id} not found`,
+            ERROR_MESSAGES.NOT_FOUND(
+              "Supplier warehouse",
+              supplier_warehouse_id,
+            ),
             "Warehouse",
             supplier_warehouse_id,
           );
         }
       }
 
+      // Проверяем customer_warehouse_id, если передан
       if (customer_warehouse_id !== undefined) {
+        if (customer_warehouse_id <= 0) {
+          throw new ValidationError(
+            ERROR_MESSAGES.INVALID_ID_FORMAT("Customer warehouse"),
+            "update",
+            "customer_warehouse_id",
+            customer_warehouse_id,
+          );
+        }
+
         const customerWarehouseCheck = await executeQuery(
           this._db,
           "checkCustomerWarehouse",
@@ -408,7 +585,10 @@ export class AgreementService {
         );
         if (customerWarehouseCheck.length === 0) {
           throw new NotFoundError(
-            `Customer warehouse with id ${customer_warehouse_id} not found`,
+            ERROR_MESSAGES.NOT_FOUND(
+              "Customer warehouse",
+              customer_warehouse_id,
+            ),
             "Warehouse",
             customer_warehouse_id,
           );
@@ -444,6 +624,15 @@ export class AgreementService {
         paramIndex++;
       }
 
+      if (status !== undefined) {
+        fields.push(`status = $${paramIndex}`);
+        values.push(status);
+        paramIndex++;
+      }
+
+      // Добавляем updated_at
+      fields.push(`updated_at = CURRENT_TIMESTAMP`);
+
       // Начинаем транзакцию
       const client = await this._db.connect();
 
@@ -455,54 +644,76 @@ export class AgreementService {
           values.push(id); // Добавляем id в конец для WHERE условия
 
           const updateAgreementQuery = `
-          UPDATE agreements 
-          SET ${fields.join(", ")}
-          WHERE id = $${paramIndex}
-          RETURNING *
-        `;
+            UPDATE agreements 
+            SET ${fields.join(", ")}
+            WHERE id = $${paramIndex}
+            RETURNING *
+          `;
 
           await client.query(updateAgreementQuery, values);
         }
 
         // Если переданы материалы, обновляем agreement_material
         if (materials !== undefined) {
+          if (!Array.isArray(materials)) {
+            throw new ValidationError(
+              "Materials must be an array",
+              "update",
+              "materials",
+              materials,
+            );
+          }
+
           // Удаляем старые материалы
           await client.query(
             "DELETE FROM agreement_material WHERE agreement_id = $1",
             [id],
           );
 
-          // Добавляем новые материалы
-          for (const material of materials) {
-            // Проверяем существование материала
-            const materialCheck = await client.query(
-              "SELECT id FROM materials WHERE id = $1",
-              [material.material_id],
-            );
-            if (materialCheck.rows.length === 0) {
-              throw new NotFoundError(
-                `Material with id ${material.material_id} not found`,
-                "Material",
-                material.material_id,
+          // Если массив не пустой, добавляем новые материалы
+          if (materials.length > 0) {
+            for (const material of materials) {
+              // Проверяем material_id
+              if (!material.material_id || material.material_id <= 0) {
+                throw new ValidationError(
+                  ERROR_MESSAGES.INVALID_ID_FORMAT("Material"),
+                  "update",
+                  "material_id",
+                  material.material_id,
+                );
+              }
+
+              // Проверяем существование материала
+              const materialCheck = await client.query(
+                "SELECT id FROM materials WHERE id = $1",
+                [material.material_id],
+              );
+              if (materialCheck.rows.length === 0) {
+                throw new NotFoundError(
+                  ERROR_MESSAGES.NOT_FOUND("Material", material.material_id),
+                  "Material",
+                  material.material_id,
+                );
+              }
+
+              // Проверяем, что amount положительный
+              if (!material.amount || material.amount <= 0) {
+                throw new ValidationError(
+                  "Amount must be positive",
+                  "update",
+                  "amount",
+                  material.amount,
+                );
+              }
+
+              await client.query(
+                `INSERT INTO agreement_material (agreement_id, material_id, amount) 
+                 VALUES ($1, $2, $3)`,
+                [id, material.material_id, material.amount],
               );
             }
-
-            // Проверяем, что amount положительный
-            if (material.amount <= 0) {
-              throw new ValidationError(
-                `Amount for material ${material.material_id} must be positive`,
-                "update",
-                "amount",
-                material.amount,
-              );
-            }
-
-            await client.query(
-              `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-             VALUES ($1, $2, $3)`,
-              [id, material.material_id, material.amount],
-            );
           }
+          // Если materials = [] - просто удаляем все материалы (соглашение без материалов)
         }
 
         await client.query("COMMIT");
@@ -534,22 +745,43 @@ export class AgreementService {
 
   async delete(id: number): Promise<Agreement> {
     try {
-      const rows = await executeQuery<Agreement>(
-        this._db,
-        "delete",
-        `DELETE FROM agreements WHERE id=$1 RETURNING *`,
-        [id],
-      );
+      // Сначала проверяем существование соглашения
+      await this.findById(id);
 
-      if (rows.length === 0) {
-        throw new NotFoundError(
-          `Agreement with id = ${id} not found`,
-          "Agreement",
-          id,
+      const client = await this._db.connect();
+
+      try {
+        await client.query("BEGIN");
+
+        // Удаляем связанные материалы
+        await client.query(
+          "DELETE FROM agreement_material WHERE agreement_id = $1",
+          [id],
         );
-      }
 
-      return rows[0];
+        // Удаляем само соглашение
+        const result = await client.query(
+          "DELETE FROM agreements WHERE id = $1 RETURNING *",
+          [id],
+        );
+
+        await client.query("COMMIT");
+
+        if (result.rows.length === 0) {
+          throw new NotFoundError(
+            ERROR_MESSAGES.NOT_FOUND(this.entityName, id),
+            this.entityName,
+            id,
+          );
+        }
+
+        return result.rows[0];
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     } catch (error) {
       if (error instanceof DatabaseError || error instanceof NotFoundError) {
         throw error;
@@ -569,16 +801,17 @@ export class AgreementService {
 
       const fuseConfig: IFuseOptions<AgreementWithDetails> = {
         keys: [
-          { name: "supplier.name", weight: 0.4 },
-          { name: "supplier.organization.name", weight: 0.4 },
-          { name: "customer.name", weight: 0.3 },
+          { name: "supplier.name", weight: 0.6 },
+          { name: "supplier.organization.name", weight: 0.5 },
+          { name: "customer.name", weight: 0.4 },
           { name: "customer.organization.name", weight: 0.3 },
           { name: "supplier_warehouse.name", weight: 0.1 },
           { name: "customer_warehouse.name", weight: 0.1 },
           { name: "materials.material.name", weight: 0.05 },
+          { name: "status", weight: 0.2 },
         ],
         includeScore: true,
-        threshold: 0.4,
+        threshold: 0.2,
         minMatchCharLength: 2,
         findAllMatches: true,
         ignoreLocation: true,

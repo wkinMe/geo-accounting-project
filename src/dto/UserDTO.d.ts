@@ -1,6 +1,6 @@
 export interface CreateUserDTO {
   name: string;
-  organization_id: string;
+  organization_id: number;
   password: string;
   is_admin: boolean;
 }

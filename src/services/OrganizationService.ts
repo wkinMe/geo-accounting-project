@@ -1,14 +1,14 @@
 import { Pool } from "pg";
-import { Organization } from "../models";
-import { CreateOrganizationDTO, UpdateOrganizationDTO } from "../dto";
+import { Organization } from "@src/models";
+import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@src/dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service";
-import { executeQuery, getSingleResult } from "../utils/query.utils";
+} from "@src/errors/service";
+import { executeQuery, getSingleResult } from "@src/utils";
 
 export class OrganizationService {
   private _db: Pool;
@@ -282,40 +282,6 @@ export class OrganizationService {
     try {
       // Проверяем существование организации
       await this.findById(id);
-
-      // Проверяем, есть ли связанные пользователи
-      const usersCheck = await executeQuery<{ count: number }>(
-        this._db,
-        "checkUsers",
-        "SELECT COUNT(*) as count FROM app_user WHERE organization_id = $1",
-        [id],
-      );
-
-      if (usersCheck[0].count > 0) {
-        throw new ValidationError(
-          `Cannot delete organization with id ${id} because it has associated users`,
-          "delete",
-          "organization_id",
-          id.toString(),
-        );
-      }
-
-      // Проверяем, есть ли связанные склады
-      const warehousesCheck = await executeQuery<{ count: number }>(
-        this._db,
-        "checkWarehouses",
-        "SELECT COUNT(*) as count FROM warehouses WHERE organization_id = $1",
-        [id],
-      );
-
-      if (warehousesCheck[0].count > 0) {
-        throw new ValidationError(
-          `Cannot delete organization with id ${id} because it has associated warehouses`,
-          "delete",
-          "organization_id",
-          id.toString(),
-        );
-      }
 
       const rows = await executeQuery<Organization>(
         this._db,

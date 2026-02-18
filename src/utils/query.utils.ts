@@ -1,5 +1,5 @@
-import { Pool, QueryResult, QueryResultRow } from "pg";
-import { DatabaseError, NotFoundError } from "../errors/service";
+import { Pool, QueryResultRow } from "pg";
+import { DatabaseError, NotFoundError } from "@src/errors/service";
 
 // Вспомогательный метод для безопасного выполнения запросов
 export async function executeQuery<T extends QueryResultRow>(
@@ -31,6 +31,7 @@ export async function getSingleResult<T extends QueryResultRow>(
   entityName?: string,
   entityId?: string | number,
 ): Promise<T> {
+
   const rows = await executeQuery<T>(db, operation, query, parameters);
 
   if (rows.length === 0) {

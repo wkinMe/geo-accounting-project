@@ -1,20 +1,22 @@
 import { Pool } from "pg";
+import Fuse, { IFuseOptions } from "fuse.js";
+
 import {
   Material,
   Organization,
   Warehouse,
   WarehouseWithMaterialsAndOrganization,
   User,
-} from "../models";
-import Fuse, { IFuseOptions } from "fuse.js";
-import { CreateWarehouseDTO, UpdateWarehouseDTO } from "../dto";
+} from "@src/models";
+
+import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@src/dto";
 import {
   DatabaseError,
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "../errors/service";
-import { executeQuery, getSingleResult } from "../utils/query.utils";
+} from "@src/errors/service";
+import { executeQuery, getSingleResult } from "@src/utils";
 
 export class WarehouseService {
   private _db: Pool;
@@ -33,7 +35,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         GROUP BY w.id, o.id, u.id
@@ -77,7 +79,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         WHERE w.id = $1
@@ -110,7 +112,7 @@ export class WarehouseService {
     }
   }
 
-  async createWarehouse(
+  async create(
     createData: CreateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
     try {
@@ -181,7 +183,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManager",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [createData.manager_id],
         );
         if (managerCheck.length === 0) {
@@ -275,7 +277,7 @@ export class WarehouseService {
     }
   }
 
-  async updateWarehouse(
+  async update(
     id: number,
     updateData: UpdateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
@@ -346,7 +348,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManagerUpdate",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [updateData.manager_id],
         );
         if (managerCheck.length === 0) {
@@ -448,45 +450,7 @@ export class WarehouseService {
     }
   }
 
-  async searchWarehouses(
-    input: string,
-  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
-    try {
-      const allWarehouses = await this.findAll();
-
-      const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
-        keys: [
-          { name: "name", weight: 0.6 },
-          { name: "organization.name", weight: 0.4 },
-          { name: "manager.name", weight: 0.3 },
-        ],
-        includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 2,
-        findAllMatches: true,
-        ignoreLocation: true,
-        useExtendedSearch: true,
-        shouldSort: true,
-      };
-
-      const fuse = new Fuse(allWarehouses, fuseConfig);
-      const searchResult = fuse.search(input);
-
-      return searchResult.map((i) => i.item);
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof ServiceError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to search warehouses",
-        "WarehouseService",
-        "searchWarehouses",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  async deleteWarehouse(id: number): Promise<Warehouse> {
+  async delete(id: number): Promise<Warehouse> {
     try {
       // Проверяем существование склада
       await this.findById(id);
@@ -577,6 +541,44 @@ export class WarehouseService {
     }
   }
 
+  async search(
+    input: string,
+  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
+    try {
+      const allWarehouses = await this.findAll();
+
+      const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
+        keys: [
+          { name: "name", weight: 0.6 },
+          { name: "organization.name", weight: 0.4 },
+          { name: "manager.name", weight: 0.3 },
+        ],
+        includeScore: true,
+        threshold: 0.4,
+        minMatchCharLength: 2,
+        findAllMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        shouldSort: true,
+      };
+
+      const fuse = new Fuse(allWarehouses, fuseConfig);
+      const searchResult = fuse.search(input);
+
+      return searchResult.map((i) => i.item);
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof ServiceError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to search warehouses",
+        "WarehouseService",
+        "searchWarehouses",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
   async findByManagerId(
     managerId: number,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
@@ -585,7 +587,7 @@ export class WarehouseService {
       const managerCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkManagerExists",
-        "SELECT id FROM app_user WHERE id = $1",
+        "SELECT id FROM app_users WHERE id = $1",
         [managerId],
       );
 
@@ -605,7 +607,7 @@ export class WarehouseService {
           row_to_json(u.*) as manager
         FROM warehouses w 
         INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_user u ON w.manager_id = u.id
+        LEFT JOIN app_users u ON w.manager_id = u.id
         LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
         LEFT JOIN materials m ON wm.material_id = m.id 
         WHERE w.manager_id = $1
@@ -653,7 +655,7 @@ export class WarehouseService {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
           "checkManagerAssign",
-          "SELECT id FROM app_user WHERE id = $1",
+          "SELECT id FROM app_users WHERE id = $1",
           [managerId],
         );
         if (managerCheck.length === 0) {
