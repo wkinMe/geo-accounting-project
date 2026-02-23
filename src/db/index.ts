@@ -1,9 +1,12 @@
 import { Pool } from "pg";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 export const pool = new Pool({
-  user: "chill",
-  password: "chill",
-  host: "localhost",
-  port: 5432,
-  database: "geo_app",
+  user: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  host: process.env.DATABASE_HOST,
+  port: Number(process.env.DATABASE_PORT),
+  database: process.env.DATABASE_NAME,
 });

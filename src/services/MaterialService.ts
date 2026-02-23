@@ -29,6 +29,7 @@ export class MaterialService {
       if (error instanceof DatabaseError) {
         throw error;
       }
+
       throw new ServiceError(
         "Failed to retrieve materials",
         "MaterialService",

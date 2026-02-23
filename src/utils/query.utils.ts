@@ -13,6 +13,8 @@ export async function executeQuery<T extends QueryResultRow>(
     return result.rows;
   } catch (error) {
     // Обертываем все ошибки базы данных в DatabaseError
+
+    console.log(error);
     throw new DatabaseError(
       `Database operation failed: ${operation}`,
       operation,
@@ -31,7 +33,6 @@ export async function getSingleResult<T extends QueryResultRow>(
   entityName?: string,
   entityId?: string | number,
 ): Promise<T> {
-
   const rows = await executeQuery<T>(db, operation, query, parameters);
 
   if (rows.length === 0) {

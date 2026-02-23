@@ -34,7 +34,7 @@ export function baseErrorHandling(e: unknown, res: Response) {
       message: e.message,
       service: e.service,
       operation: e.operation,
-      ...(e.query && { query: e.query }),
+      ...(e && { query: e.query }),
     });
   }
 
