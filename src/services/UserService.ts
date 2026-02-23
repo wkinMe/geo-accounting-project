@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import bcrypt from "bcrypt";
 import Fuse, { IFuseOptions } from "fuse.js";
 
-import { CreateUserDTO, UpdateUserDTO } from "@src/dto/UserDTO";
+import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@src/dto/UserDTO";
 import { Organization, User, UserWithOrganization } from "@src/models";
 import { executeQuery, getSingleResult } from "@src/utils";
 import {
@@ -10,7 +10,9 @@ import {
   NotFoundError,
   ValidationError,
   ServiceError,
+  UnauthorizedError,
 } from "@src/errors/service";
+import { TokenService } from "./TokenService";
 
 export class UserService {
   private _db: Pool;
@@ -85,85 +87,102 @@ export class UserService {
     }
   }
 
-  async create({
-    name,
-    organization_id,
-    password,
-    is_admin = false,
-  }: CreateUserDTO): Promise<User> {
+  async register(userData: CreateUserDTO): Promise<{
+    user: User;
+    tokens: { accessToken: string; refreshToken: string };
+  }> {
     try {
-      // Валидация входных данных
-      if (!name || name.trim().length === 0) {
+      if (!userData.name || userData.name.trim().length === 0) {
         throw new ValidationError(
           "User name is required",
-          "create",
+          "register",
           "name",
-          name,
+          userData.name,
         );
       }
 
-      if (!organization_id) {
+      if (!userData.organization_id) {
         throw new ValidationError(
           "Organization ID is required",
-          "create",
+          "register",
           "organization_id",
-          organization_id,
+          userData.organization_id,
         );
       }
 
-      if (!password || password.trim().length === 0) {
+      if (!userData.password || userData.password.trim().length === 0) {
         throw new ValidationError(
           "Password is required",
-          "create",
+          "register",
           "password",
-          password,
+          userData.password,
         );
       }
 
-      // Проверяем существование организации
-      const orgCheckQuery = "SELECT id FROM organizations WHERE id = $1";
-      const orgExists = await executeQuery<{ id: number }>(
+      const existingUserQuery = "SELECT id FROM app_users WHERE name = $1";
+      const existingUser = await executeQuery<User>(
         this._db,
-        "checkOrganization",
-        orgCheckQuery,
-        [organization_id],
+        "checkExistingUser",
+        existingUserQuery,
+        [userData.name.trim()],
       );
 
-      if (orgExists.length === 0) {
+      if (existingUser.length > 0) {
         throw new ValidationError(
-          `Organization with id ${organization_id} does not exist`,
-          "create",
-          "organization_id",
-          organization_id.toString(),
+          "User with this name already exists",
+          "register",
+          "name",
+          userData.name,
         );
       }
 
       const salt = await bcrypt.genSalt(8);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const hashedPassword = await bcrypt.hash(userData.password, salt);
 
       const createQuery = `
-        INSERT INTO app_users (name, organization_id, password, is_admin) 
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-      `;
+      INSERT INTO app_users (name, organization_id, password, is_admin) 
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, name, organization_id, is_admin, created_at, updated_at
+    `;
 
       const createResult = await executeQuery<User>(
         this._db,
-        "create",
+        "register",
         createQuery,
-        [name.trim(), organization_id, hashedPassword, is_admin],
+        [
+          userData.name.trim(),
+          userData.organization_id,
+          hashedPassword,
+          userData.is_admin || false,
+        ],
       );
 
       if (createResult.length === 0) {
         throw new ServiceError(
-          "Failed to create user - no data returned",
+          "Failed to register user - no data returned",
           "UserService",
-          "create",
+          "register",
           new Error("No data returned from INSERT query"),
         );
       }
 
-      return createResult[0];
+      const newUser = createResult[0];
+
+      const tokenService = new TokenService(this._db);
+
+      const userDataForToken: UserDataDTO = {
+        id: newUser.id,
+        name: newUser.name,
+        organization_id: newUser.organization_id,
+      };
+
+      const tokens = await tokenService.generateTokens(userDataForToken);
+      await tokenService.saveRefreshToken(newUser.id, tokens.refreshToken);
+
+      return {
+        user: newUser,
+        tokens,
+      };
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -173,9 +192,123 @@ export class UserService {
         throw error;
       }
       throw new ServiceError(
-        "Failed to create user",
+        "Failed to register user",
         "UserService",
-        "create",
+        "register",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async login(
+    name: string,
+    password: string,
+  ): Promise<{
+    user: User;
+    tokens: { accessToken: string; refreshToken: string };
+  }> {
+    try {
+      if (!name || name.trim().length === 0) {
+        throw new ValidationError(
+          "Username is required",
+          "login",
+          "name",
+          name,
+        );
+      }
+
+      if (!password || password.trim().length === 0) {
+        throw new ValidationError(
+          "Password is required",
+          "login",
+          "password",
+          password,
+        );
+      }
+
+      const query = `
+      SELECT id, name, organization_id, password, is_admin, created_at, updated_at
+      FROM app_users 
+      WHERE name = $1
+    `;
+
+      const result = await executeQuery<User & { password: string }>(
+        this._db,
+        "login",
+        query,
+        [name.trim()],
+      );
+
+      if (result.length === 0) {
+        throw new UnauthorizedError("Invalid username or password", "login");
+      }
+
+      const user = result[0];
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      if (!isPasswordValid) {
+        throw new UnauthorizedError("Invalid username or password", "login");
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      const tokenService = new TokenService(this._db);
+
+      const userDataForToken: UserDataDTO = {
+        id: user.id,
+        name: user.name,
+        organization_id: user.organization_id,
+      };
+
+      const tokens = await tokenService.generateTokens(userDataForToken);
+      await tokenService.saveRefreshToken(user.id, tokens.refreshToken);
+
+      return {
+        user: userWithoutPassword as User,
+        tokens,
+      };
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof UnauthorizedError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to login",
+        "UserService",
+        "login",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async logout(refreshToken: string): Promise<void> {
+    try {
+      if (!refreshToken) {
+        throw new ValidationError(
+          "Refresh token is required",
+          "logout",
+          "refreshToken",
+          refreshToken,
+        );
+      }
+
+      const tokenService = new TokenService(this._db);
+      await tokenService.deleteRefreshToken(refreshToken);
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to logout",
+        "UserService",
+        "logout",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

@@ -12,3 +12,9 @@ export interface UpdateUserDTO {
   password?: string;
   is_admin?: boolean;
 }
+
+export interface UserDataDTO {
+  id: number;
+  name: string;
+  organization_id: number;
+}

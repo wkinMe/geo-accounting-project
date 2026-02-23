@@ -44,3 +44,10 @@ export class ValidationError extends ServiceError {
     this.name = "ValidationError";
   }
 }
+
+export class UnauthorizedError extends ServiceError {
+  constructor(message: string, operation: string) {
+    super(message, "AuthService", operation);
+    this.name = "UnauthorizedError";
+  }
+}
