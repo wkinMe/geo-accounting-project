@@ -4,13 +4,16 @@ import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
 import { Pool } from "pg";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@src/constants/messages";
+import { TokenService } from "@src/services/TokenService";
 
 export class UserController {
   private _userService: UserService;
+  private _tokenService: TokenService;
   private entityName = "user";
 
   constructor(dbConnection: Pool) {
     this._userService = new UserService(dbConnection);
+    this._tokenService = new TokenService(dbConnection);
   }
 
   async findAll(req: Request, res: Response) {
@@ -59,44 +62,6 @@ export class UserController {
       res.status(200).json({
         data: deletedUser,
         message: SUCCESS_MESSAGES.DELETE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async create(req: Request<{}, {}, CreateUserDTO>, res: Response) {
-    try {
-      const createData = req.body;
-
-      if (!createData || typeof createData !== "object") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUEST_BODY_REQUIRED,
-        });
-      }
-
-      if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("User name"),
-        });
-      }
-
-      if (!createData.organization_id) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Organization ID"),
-        });
-      }
-
-      if (!createData.password || createData.password.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Password"),
-        });
-      }
-
-      const createdUser = await this._userService.create(createData);
-      res.status(201).json({
-        data: createdUser,
-        message: SUCCESS_MESSAGES.CREATE(this.entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -167,7 +132,7 @@ export class UserController {
     }
   }
 
-  async search(req: Request<{}, {}, {}, {q?: string}>, res: Response) {
+  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
     try {
       const { q } = req.query;
 
@@ -249,6 +214,137 @@ export class UserController {
         message: SUCCESS_MESSAGES.GET_AVAILABLE_MANAGERS(
           availableManagers.length,
         ),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async register(
+    req: Request<
+      {},
+      {},
+      { name: string; password: string; is_admin?: boolean }
+    >,
+    res: Response,
+  ) {
+    try {
+      const { password, name, is_admin = false } = req.body;
+
+      if (!password || !name) {
+        return res.status(400).json({
+          message: "Email, password and name are required",
+        });
+      }
+
+      const result = await this._userService.register({
+        password,
+        name,
+        is_admin,
+      });
+      res.status(201).json({
+        data: result,
+        message: "User registered successfully",
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async login(
+    req: Request<{}, {}, { email: string; password: string }>,
+    res: Response,
+  ) {
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({
+          message: "Email and password are required",
+        });
+      }
+
+      const result = await this._userService.login(email, password);
+      res.status(200).json({
+        data: result,
+        message: "Login successful",
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  // В контроллере (UserController.ts)
+  async refreshToken(
+    req: Request<{}, {}, { refreshToken: string }>,
+    res: Response,
+  ) {
+    try {
+      const { refreshToken } = req.body;
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          message: "Refresh token is required",
+        });
+      }
+
+      // Валидируем старый токен
+      const user = await this._tokenService.verifyRefreshToken(refreshToken);
+
+      // Генерируем новые токены
+      const tokens = await this._tokenService.generateTokens({
+        id: user.id,
+        name: user.name,
+        organization_id: user.organization_id,
+      });
+
+      // Сохраняем новый refresh токен
+      await this._tokenService.saveRefreshToken(user.id, tokens.refreshToken);
+
+      res.status(200).json({
+        data: tokens,
+        message: "Token refreshed successfully",
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async logout(req: Request, res: Response) {
+    try {
+      const refreshToken =
+        req.body.refreshToken || req.headers["x-refresh-token"];
+
+      if (!refreshToken) {
+        return res.status(400).json({
+          message: "Refresh token is required",
+        });
+      }
+
+      await this._userService.logout(refreshToken);
+      res.status(200).json({
+        message: "Logout successful",
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async getProfile(req: Request, res: Response) {
+    try {
+      // @ts-ignore - добавляем user в Request через middleware
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          message: "Unauthorized",
+        });
+      }
+
+      const user = await this._userService.findById(userId);
+      res.status(200).json({
+        data: user,
+        message: "Profile fetched successfully",
       });
     } catch (e) {
       baseErrorHandling(e, res);

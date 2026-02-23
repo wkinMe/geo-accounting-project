@@ -101,15 +101,6 @@ export class UserService {
         );
       }
 
-      if (!userData.organization_id) {
-        throw new ValidationError(
-          "Organization ID is required",
-          "register",
-          "organization_id",
-          userData.organization_id,
-        );
-      }
-
       if (!userData.password || userData.password.trim().length === 0) {
         throw new ValidationError(
           "Password is required",
