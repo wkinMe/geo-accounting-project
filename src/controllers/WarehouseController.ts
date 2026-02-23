@@ -189,17 +189,17 @@ export class WarehouseController {
     }
   }
 
-  async search(req: Request, res: Response) {
+  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
     try {
-      const query = req.query.q as string;
+      const { q } = req.query;
 
-      if (!query || query.trim() === "") {
+      if (!q || q.trim() === "") {
         return res.status(400).json({
           message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
         });
       }
 
-      const warehouses = await this._warehouseService.search(query.trim());
+      const warehouses = await this._warehouseService.search(q.trim());
       res.status(200).json({
         data: warehouses,
         message: SUCCESS_MESSAGES.SEARCH(this.entityName, warehouses.length),

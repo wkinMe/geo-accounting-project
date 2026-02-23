@@ -167,17 +167,17 @@ export class UserController {
     }
   }
 
-  async search(req: Request<{ search: string }, {}, {}>, res: Response) {
+  async search(req: Request<{}, {}, {}, {q?: string}>, res: Response) {
     try {
-      const { search } = req.params;
+      const { q } = req.query;
 
-      if (!search || search.trim() === "") {
+      if (!q || q.trim() === "") {
         return res.status(400).json({
           message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
         });
       }
 
-      const searchedUsers = await this._userService.search(search);
+      const searchedUsers = await this._userService.search(q);
 
       res.status(200).json({
         data: searchedUsers,

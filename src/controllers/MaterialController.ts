@@ -120,17 +120,17 @@ export class MaterialController {
     }
   }
 
-  async search(req: Request<{ search: string }, {}, {}>, res: Response) {
+  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
     try {
-      const { search } = req.params;
+      const { q } = req.query;
 
-      if (!search || search.trim() === "") {
+      if (!q || q.trim() === "") {
         return res.status(400).json({
           message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
         });
       }
 
-      const searchedMaterials = await this._materialService.search(search);
+      const searchedMaterials = await this._materialService.search(q);
 
       res.status(200).json({
         data: searchedMaterials,
