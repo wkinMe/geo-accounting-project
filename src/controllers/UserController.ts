@@ -242,6 +242,9 @@ export class UserController {
         name,
         is_admin,
       });
+      res.cookie("refreshToken", result.tokens.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
       res.status(201).json({
         data: result,
         message: "User registered successfully",
@@ -252,19 +255,22 @@ export class UserController {
   }
 
   async login(
-    req: Request<{}, {}, { email: string; password: string }>,
+    req: Request<{}, {}, { name: string; password: string }>,
     res: Response,
   ) {
     try {
-      const { email, password } = req.body;
+      const { name, password } = req.body;
 
-      if (!email || !password) {
+      if (!name || !password) {
         return res.status(400).json({
-          message: "Email and password are required",
+          message: "Name and password are required",
         });
       }
 
-      const result = await this._userService.login(email, password);
+      const result = await this._userService.login(name, password);
+      res.cookie("refreshToken", result.tokens.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
       res.status(200).json({
         data: result,
         message: "Login successful",
@@ -280,30 +286,14 @@ export class UserController {
     res: Response,
   ) {
     try {
-      const { refreshToken } = req.body;
-
-      if (!refreshToken) {
-        return res.status(400).json({
-          message: "Refresh token is required",
-        });
-      }
-
-      // Валидируем старый токен
-      const user = await this._tokenService.verifyRefreshToken(refreshToken);
-
-      // Генерируем новые токены
-      const tokens = await this._tokenService.generateTokens({
-        id: user.id,
-        name: user.name,
-        organization_id: user.organization_id,
+      const { refreshToken } = req.cookies;
+      const result = await this._userService.refreshToken(refreshToken);
+      res.cookie("refreshToken", result.tokens.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
-
-      // Сохраняем новый refresh токен
-      await this._tokenService.saveRefreshToken(user.id, tokens.refreshToken);
-
       res.status(200).json({
-        data: tokens,
-        message: "Token refreshed successfully",
+        data: result,
+        message: "Refreshed successful",
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -312,8 +302,7 @@ export class UserController {
 
   async logout(req: Request, res: Response) {
     try {
-      const refreshToken =
-        req.body.refreshToken || req.headers["x-refresh-token"];
+      const refreshToken = req.cookies || req.headers["x-refresh-token"];
 
       if (!refreshToken) {
         return res.status(400).json({
@@ -321,6 +310,7 @@ export class UserController {
         });
       }
 
+      res.clearCookie("refreshToken");
       await this._userService.logout(refreshToken);
       res.status(200).json({
         message: "Logout successful",

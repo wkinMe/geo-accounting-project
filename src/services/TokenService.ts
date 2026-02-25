@@ -16,7 +16,7 @@ export class TokenService {
     const accessToken = jwt.sign(
       userData,
       process.env.JWT_ACCESS_TOKEN_SECRET,
-      { expiresIn: "1h" },
+      { expiresIn: "30m" },
     );
     const refreshToken = jwt.sign(
       userData,
@@ -71,7 +71,7 @@ export class TokenService {
       const decoded = jwt.verify(
         token,
         process.env.JWT_ACCESS_TOKEN_SECRET,
-      ) as UserDataDTO; 
+      ) as UserDataDTO;
       return decoded;
     } catch (error) {
       throw new UnauthorizedError(

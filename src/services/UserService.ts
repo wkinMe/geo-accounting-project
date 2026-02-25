@@ -133,7 +133,7 @@ export class UserService {
       const createQuery = `
       INSERT INTO app_users (name, organization_id, password, is_admin) 
       VALUES ($1, $2, $3, $4)
-      RETURNING id, name, organization_id, is_admin, created_at, updated_at
+      RETURNING *
     `;
 
       const createResult = await executeQuery<User>(
@@ -165,6 +165,7 @@ export class UserService {
         id: newUser.id,
         name: newUser.name,
         organization_id: newUser.organization_id,
+        is_admin: newUser.is_admin,
       };
 
       const tokens = await tokenService.generateTokens(userDataForToken);
@@ -231,14 +232,14 @@ export class UserService {
       );
 
       if (result.length === 0) {
-        throw new UnauthorizedError("Invalid username or password", "login");
+        throw new ValidationError("Invalid username or password", "login");
       }
 
       const user = result[0];
       const isPasswordValid = await bcrypt.compare(password, user.password);
 
       if (!isPasswordValid) {
-        throw new UnauthorizedError("Invalid username or password", "login");
+        throw new ValidationError("Invalid username or password", "login");
       }
 
       const { password: _, ...userWithoutPassword } = user;
@@ -248,6 +249,7 @@ export class UserService {
         id: user.id,
         name: user.name,
         organization_id: user.organization_id,
+        is_admin: user.is_admin,
       };
 
       const tokens = await tokenService.generateTokens(userDataForToken);
@@ -300,6 +302,52 @@ export class UserService {
         "Failed to logout",
         "UserService",
         "logout",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async refreshToken(refreshToken: string): Promise<{
+    user: UserWithOrganization;
+    tokens: { accessToken: string; refreshToken: string };
+  }> {
+    try {
+      if (!refreshToken) {
+        throw new UnauthorizedError("Invalid or expired token", "refreshToken");
+      }
+      const tokenService = new TokenService(this._db);
+
+      const verifiedUserData = tokenService.verifyRefreshToken(refreshToken);
+      const tokenFromDb = await tokenService.findRefreshToken(refreshToken);
+
+      if (!verifiedUserData || !tokenFromDb) {
+        throw new UnauthorizedError("Invalid or expired token", "refreshToken");
+      }
+
+      const currentUserData = await this.findById(verifiedUserData.id);
+      const { organization, ...userDataWithoutOrg } = currentUserData;
+      const tokens = await tokenService.generateTokens(userDataWithoutOrg);
+      await tokenService.saveRefreshToken(
+        userDataWithoutOrg.id,
+        tokenFromDb.refreshToken,
+      );
+
+      return {
+        user: currentUserData,
+        tokens,
+      };
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to refresh token",
+        "UserService",
+        "refreshToken",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

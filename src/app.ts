@@ -2,6 +2,7 @@ import express from "express";
 import router from "./routes"; // Импортируем основной роутер
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { errorHandler } from "./handlers/error-handler";
 
 const PORT = 3112;
 
@@ -19,6 +20,7 @@ app.use((req, res) => {
     message: `Cannot ${req.method} ${req.originalUrl}`,
   });
 });
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server is ready on port ${PORT}`);

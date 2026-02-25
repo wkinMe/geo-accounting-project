@@ -1,43 +1,54 @@
 import { OrganizationController } from "@src/controllers";
 import { pool } from "@src/db";
+import { authMiddleware } from "@src/middleware/auth-middleware";
 import { Router } from "express";
+import { Request, Response } from "express";
 
 const organizationsRouter = Router();
 const organizationController = new OrganizationController(pool);
 
 // GET /api/organizations - получить все организации
-organizationsRouter.get("/", (req, res) => {
+organizationsRouter.get("/", (req: Request, res: Response) => {
   organizationController.findAll(req, res);
 });
 
 // GET /api/organizations/search?q=name - поиск организаций
-organizationsRouter.get("/search", (req, res) => {
-  organizationController.search(req, res);
-});
-
-// Если оставляете как есть с req.params, то нужно использовать такой роут:
-organizationsRouter.get("/search/:search", (req, res) => {
-  organizationController.search(req, res);
-});
+organizationsRouter.get(
+  "/search",
+  (req: Request, res: Response) => {
+    organizationController.search(req, res);
+  },
+);
 
 // GET /api/organizations/:id - получить организацию по ID
-organizationsRouter.get("/:id", (req, res) => {
-  organizationController.findById(req, res);
-});
+organizationsRouter.get(
+  "/:id",
+  (req: Request<{ id: string }>, res: Response) => {
+    organizationController.findById(req, res);
+  },
+);
 
 // POST /api/organizations - создать новую организацию
-organizationsRouter.post("/", (req, res) => {
+organizationsRouter.post("/", authMiddleware, (req: Request, res: Response) => {
   organizationController.create(req, res);
 });
 
 // PATCH /api/organizations/:id - обновить организацию
-organizationsRouter.patch("/:id", (req, res) => {
-  organizationController.update(req, res);
-});
+organizationsRouter.patch(
+  "/:id",
+  authMiddleware,
+  (req: Request<{ id: string }>, res: Response) => {
+    organizationController.update(req, res);
+  },
+);
 
 // DELETE /api/organizations/:id - удалить организацию
-organizationsRouter.delete("/:id", (req, res) => {
-  organizationController.delete(req, res);
-});
+organizationsRouter.delete(
+  "/:id",
+  authMiddleware,
+  (req: Request<{ id: string }>, res: Response) => {
+    organizationController.delete(req, res);
+  },
+);
 
 export default organizationsRouter;

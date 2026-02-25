@@ -11,8 +11,3 @@ export interface User extends BaseModel {
 export interface UserWithOrganization extends User {
   organization?: Organization;
 }
-
-export interface LoginDTO {
-  name: string;
-  password: string;
-}
