@@ -3,7 +3,7 @@ import bcrypt from "bcrypt";
 import Fuse, { IFuseOptions } from "fuse.js";
 
 import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@shared/dto";
-import { Organization, User, UserWithOrganization } from "@src/models";
+import { Organization, User, UserWithOrganization } from "@shared/models";
 import { executeQuery, getSingleResult } from "@src/utils";
 import {
   DatabaseError,

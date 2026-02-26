@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { Organization } from "@src/models";
+import { Organization } from "@shared/models";
 import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@shared/dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {

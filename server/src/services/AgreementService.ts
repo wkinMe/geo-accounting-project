@@ -6,7 +6,7 @@ import {
   Organization,
   User,
   Warehouse,
-} from "@src/models";
+} from "@shared/models";
 import {
   DatabaseError,
   NotFoundError,
