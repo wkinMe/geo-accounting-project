@@ -1,0 +1,50 @@
+{
+  "compilerOptions": {
+    /* Базовые опции для ESM */
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "outDir": "./dist",
+    "rootDir": "../", // Оставляем текущую папку как корневую
+    "baseUrl": ".", // Базовый URL для резолва путей
+
+    /* Настройки модулей */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+
+    /* Пути для импортов - ГЛАВНОЕ ИЗМЕНЕНИЕ */
+    "paths": {
+      "@src/*": ["src/*"],
+      "@tests/*": ["tests/*"],
+      "@shared/*": ["../packages/shared/*"], // Путь к shared пакету
+      "@/*": ["../*"] // Опционально, если нужно импортировать что-то еще с уровня выше
+    },
+
+    /* Настройки для работы с типами */
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node", "jest"],
+
+    /* Настройки для компиляции */
+    "allowImportingTsExtensions": true,
+    "emitDeclarationOnly": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "include": [
+    "src/**/*",
+    "types/**/*",
+    "tests/**/*",
+    "../packages/shared/**/*" // Добавляем shared в include
+, "../packages/shared/constants"  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../packages/shared/node_modules" // Исключаем node_modules из shared
+  ]
+}
