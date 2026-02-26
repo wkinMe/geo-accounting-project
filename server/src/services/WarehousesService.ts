@@ -7,7 +7,7 @@ import {
   Warehouse,
   WarehouseWithMaterialsAndOrganization,
   User,
-} from "@src/models";
+} from "@shared/models";
 
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
 import {

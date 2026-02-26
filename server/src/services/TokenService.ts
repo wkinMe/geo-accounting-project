@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import jwt from "jsonwebtoken";
 import { executeQuery, getSingleResult } from "@src/utils";
 import { NotFoundError, UnauthorizedError } from "@src/errors/service";
-import { Token } from "@src/models/Token";
+import { Token } from "@shared/models/Token";
 import { UserDataDTO } from "@shared/dto";
 
 export class TokenService {

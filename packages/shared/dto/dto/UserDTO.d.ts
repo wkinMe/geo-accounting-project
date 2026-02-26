@@ -1,3 +1,4 @@
+// packages/shared/dto/user.dto.ts
 export interface CreateUserDTO {
   name: string;
   organization_id?: number;
@@ -6,7 +7,7 @@ export interface CreateUserDTO {
 }
 
 export interface UpdateUserDTO {
-  id: number;
+  id: number; 
   name?: string;
   organization_id?: string;
   password?: string;
@@ -18,4 +19,17 @@ export interface UserDataDTO {
   name: string;
   organization_id: number;
   is_admin: boolean;
+}
+
+export interface LoginDTO {
+  name: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  user: UserDataDTO;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+  };
 }

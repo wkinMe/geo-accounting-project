@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { Material } from "@src/models";
+import { Material } from "@shared/models";
 import { CreateMaterialDTO, UpdateMaterialDTO } from "@shared/dto";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
