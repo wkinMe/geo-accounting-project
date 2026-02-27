@@ -1,4 +1,3 @@
-
 import { UserService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";

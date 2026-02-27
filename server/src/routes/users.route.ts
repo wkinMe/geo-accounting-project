@@ -7,6 +7,10 @@ import { Request, Response } from "express";
 const usersRouter = Router();
 const userController = new UserController(pool);
 
+usersRouter.get("/profile", authMiddleware, (req: Request, res: Response) => {
+  userController.getProfile(req, res);
+});
+
 // GET /api/users - получить всех пользователей
 usersRouter.get("/", authMiddleware, (req: Request, res: Response) => {
   userController.findAll(req, res);
