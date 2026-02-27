@@ -10,7 +10,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true })); // Лучше добавить extended: true
 app.use(cookieParser());
-app.use(cors());
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  }),
+);
 
 // Подключаем все роуты с префиксом /api
 app.use("/api", router);

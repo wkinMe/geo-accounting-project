@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 export const instance = axios.create({
-	baseURL: import.meta.env.API_URL,
+	baseURL: import.meta.env.VITE_API_URL,
 	withCredentials: true,
 });
 
@@ -18,7 +18,7 @@ instance.interceptors.response.use(
 		const originalResponse = error.config;
 		if (error?.response?.status === 401) {
 			try {
-				const response = await axios.get(`${import.meta.env.API_URL}/refresh`, {
+				const response = await axios.get(`${import.meta.env.VITE_API_URL}/refresh`, {
 					withCredentials: true,
 				});
 				if (response.status === 200) {
