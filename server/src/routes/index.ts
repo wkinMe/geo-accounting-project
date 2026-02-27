@@ -14,3 +14,4 @@ router.use("/warehouses", warehousesRouter);
 router.use("/agreements", agreementsRouter);
 
 export default router;
+  
