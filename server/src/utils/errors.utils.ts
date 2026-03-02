@@ -3,10 +3,19 @@ import {
   DatabaseError,
   NotFoundError,
   ServiceError,
+  UnauthorizedError,
   ValidationError,
 } from "@src/errors/service";
 
 export function baseErrorHandling(e: unknown, res: Response) {
+  if (e instanceof UnauthorizedError) {
+    return res.status(401).json({
+      message: e.message,
+      service: e.service,
+      operation: e.operation,
+    });
+  }
+
   // NotFoundError - ресурс не найден (404)
   if (e instanceof NotFoundError) {
     return res.status(404).json({

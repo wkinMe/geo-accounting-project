@@ -45,12 +45,15 @@ class UserService {
 		return response.data;
 	}
 
-	async logout(): Promise<ApiResponse<null>> {
+	async logout(): Promise<ApiResponse<null> | undefined> {
 		try {
 			const response = await instance.post<ApiResponse<null>>(`${this.baseUrl}/logout`, {});
-			return response.data;
-		} finally {
 			localStorage.removeItem('token');
+			return response.data;
+		} catch (e: unknown) {
+			if (e instanceof Error) {
+				throw new Error('Logout error' + e.message);
+			}
 		}
 	}
 

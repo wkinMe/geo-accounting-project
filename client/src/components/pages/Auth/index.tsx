@@ -16,10 +16,17 @@ export function Auth() {
 	// Получаем путь, с которого пришли, или '/' по умолчанию
 	const from = location.state?.from?.pathname || '/';
 
-	const { data: profile, isLoading } = useQuery({
+	const {
+		data: profile,
+		isLoading,
+		isError,
+	} = useQuery({
 		queryKey: ['profile'],
 		queryFn: () => userService.getProfile(),
 		retry: false,
+		// Не используем кеш для этого запроса на странице логина
+		staleTime: 0,
+		gcTime: 0,
 	});
 
 	const { mutate: login, isPending } = useMutation({
@@ -50,6 +57,7 @@ export function Auth() {
 
 	// Если пользователь уже авторизован - редиректим
 	if (profile?.data) {
+		console.log('Проходит дата');
 		return <Navigate to={from} replace />;
 	}
 
@@ -100,7 +108,7 @@ export function Auth() {
 					<button
 						type="submit"
 						disabled={isPending || !username || !password}
-						className="w-full bg-primary-600 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-primary-300 disabled:cursor-not-allowed"
+						className="w-full bg-black cursor-pointer hover:opacity-90 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-opacity disabled:bg-primary-300 disabled:cursor-not-allowed"
 					>
 						{isPending ? 'Вход...' : 'Войти'}
 					</button>
