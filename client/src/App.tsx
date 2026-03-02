@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { userService } from './services';
 import { useState } from 'react';
-import Input from './components/Input';
+import Input from './components/shared/Input';
 
 function App() {
 	const [username, setUsername] = useState('');
