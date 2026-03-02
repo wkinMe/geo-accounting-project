@@ -8,7 +8,7 @@ const PORT = 3112;
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Лучше добавить extended: true
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
@@ -17,7 +17,6 @@ app.use(
   }),
 );
 
-// Подключаем все роуты с префиксом /api
 app.use("/api", router);
 
 app.use((req, res) => {

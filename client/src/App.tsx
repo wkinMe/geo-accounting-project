@@ -1,12 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { userService } from './services';
-import { useState } from 'react';
-import Input from './components/Input';
+import { Link, Outlet, useNavigate } from 'react-router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import Spinner from './components/shared/Spinner';
 
 function App() {
-	const [username, setUsername] = useState('');
-	const [password, setPassword] = useState('');
-
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const { data: profile, isLoading } = useQuery({
@@ -15,96 +14,87 @@ function App() {
 		retry: false,
 	});
 
-	const { mutate: login, isPending } = useMutation({
-		mutationFn: () => userService.login({ name: username, password }),
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['profile'] });
-			setUsername('');
-			setPassword('');
-		},
-	});
-
 	const { mutate: logout } = useMutation({
 		mutationFn: () => userService.logout(),
 		onSuccess: () => {
 			localStorage.removeItem('token');
-			queryClient.invalidateQueries({ queryKey: ['profile'] });
+			// Очищаем весь кеш, а не только инвалидируем
+			queryClient.clear();
+			// Также можно удалить конкретный ключ
+			queryClient.removeQueries({ queryKey: ['profile'] });
+			navigate('/login');
 		},
 	});
 
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
-		if (username && password) {
-			login();
-		}
-	};
-
-	// Показываем загрузку
 	if (isLoading) {
-		return (
-			<div className="min-h-screen flex items-center justify-center">
-				<div className="text-gray-500">Загрузка...</div>
-			</div>
-		);
+		return <Spinner fullScreen blur />;
 	}
 
-	// Если пользователь авторизован
-	if (profile?.data) {
-		return (
-			<div className="min-h-screen bg-gray-50">
-				{/* Кнопка logout справа вверху */}
-				<div className="absolute top-4 right-4">
-					<button
-						onClick={() => logout()}
-						className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors shadow-sm"
-					>
-						Выйти
-					</button>
-				</div>
-
-				{/* Имя пользователя по центру */}
-				<div className="min-h-screen flex items-center justify-center">
-					<h1 className="text-4xl font-bold text-gray-800">{profile.data.name}</h1>
-				</div>
-			</div>
-		);
-	}
-
-	// Форма логина (если не авторизован)
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gray-50">
-			<form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-96">
-				<h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Вход в систему</h2>
+		<div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+			{/* Навигационная панель */}
+			<nav className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+				<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+					<div className="flex justify-between h-16">
+						<div className="flex items-center space-x-8">
+							{/* Логотип */}
+							<div className="flex-shrink-0">
+								<Link to="/" className="text-xl font-bold text-primary-600 dark:text-primary-400">
+									Logistics Pro
+								</Link>
+							</div>
 
-				<div className="mb-4">
-					<label className="block text-gray-700 text-sm font-bold mb-2">Имя пользователя</label>
-					<Input
-						placeholder="Введите своё имя"
-						value={username}
-						onChange={(e) => setUsername(e.target.value)}
-						disabled={isPending}
-					/>
+							{/* Навигационные ссылки */}
+							<div className="hidden sm:flex sm:space-x-8">
+								<Link
+									to="/warehouses"
+									className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 border-b-2 border-transparent hover:border-primary-500 transition-colors"
+								>
+									Склады
+								</Link>
+								<Link
+									to="/managers"
+									className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 border-b-2 border-transparent hover:border-primary-500 transition-colors"
+								>
+									Менеджеры
+								</Link>
+								<Link
+									to="/reports"
+									className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 border-b-2 border-transparent hover:border-primary-500 transition-colors"
+								>
+									Отчеты
+								</Link>
+							</div>
+						</div>
+
+						{/* Профиль и выход */}
+						<div className="flex items-center space-x-4">
+							<div className="text-sm text-gray-700 dark:text-gray-300">
+								<span className="font-medium">{profile?.data?.name}</span>
+							</div>
+							<button
+								onClick={() => logout()}
+								className="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors"
+							>
+								<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+									/>
+								</svg>
+								Выйти
+							</button>
+						</div>
+					</div>
 				</div>
+			</nav>
 
-				<div className="mb-6">
-					<label className="block text-gray-700 text-sm font-bold mb-2">Пароль</label>
-					<Input
-						placeholder="Введите пароль"
-						type="password"
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						disabled={isPending}
-					/>
-				</div>
-
-				<button
-					type="submit"
-					disabled={isPending || !username || !password}
-					className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
-				>
-					{isPending ? 'Вход...' : 'Войти'}
-				</button>
-			</form>
+			{/* Основной контент */}
+			<main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+				<Outlet />
+			</main>
 		</div>
 	);
 }
