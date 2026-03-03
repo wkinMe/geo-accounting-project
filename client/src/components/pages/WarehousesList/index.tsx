@@ -57,6 +57,7 @@ export function WarehousesList() {
 			name: 'details',
 			action: (item) => navigate(`${item.id}`),
 			icon: <FaRegEye />,
+			popupName: 'Просмотреть',
 		},
 		{
 			name: 'edit',
@@ -67,18 +68,22 @@ export function WarehousesList() {
 				});
 			},
 			icon: <MdEdit />,
+			popupName: 'Редактировать',
 		},
 		{
 			name: 'delete',
 			action: (item) => deleteMutate(item.id),
 			icon: <FaRegTrashAlt />,
+			popupName: 'Удалить',
+			needConfirmation: true,
 		},
 		{
 			name: 'special',
 			action: (item) => navigate(`/report/${item.id}`),
 			icon: <TbReportAnalytics />,
+			popupName: 'Сформировать отчёт',
 		},
 	];
 
-	return <Table headers={headers} elements={elements} actions={actions} />;
+	return <Table itemName="Склад" headers={headers} elements={elements} actions={actions} />;
 }
