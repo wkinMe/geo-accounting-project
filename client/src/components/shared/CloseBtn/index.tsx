@@ -59,6 +59,7 @@ export default function CloseBtn({
 		<button
 			type="button"
 			className={`
+        cursor-pointer
         inline-flex items-center justify-center
         ${sizeClasses[size]}
         ${variantClasses[variant]}

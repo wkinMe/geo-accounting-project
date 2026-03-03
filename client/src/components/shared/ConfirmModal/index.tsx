@@ -1,6 +1,7 @@
+// components/shared/ConfirmModal.tsx
 import { Dialog } from '@base-ui/react';
-import CloseBtn from '../CloseBtn';
 import { useState } from 'react';
+import CloseBtn from '../CloseBtn';
 
 interface Props {
 	open: boolean;
@@ -44,27 +45,27 @@ export function ConfirmedModal({
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Portal>
-				<Dialog.Backdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-all data-closed:opacity-0 data-open:opacity-100" />
+				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all data-closed:opacity-0 data-open:opacity-100" />
 
 				<Dialog.Viewport className="fixed inset-0 flex items-center justify-center p-4">
-					<Dialog.Popup className="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 transition-all data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100">
+					<Dialog.Popup className="relative bg-white dark:bg-black rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 transition-all data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100">
 						<Dialog.Close className="absolute top-4 right-4">
 							<CloseBtn />
 						</Dialog.Close>
 
-						<Dialog.Title className="text-xl font-bold text-gray-900 dark:text-white pr-8">
+						<Dialog.Title className="text-xl font-bold text-black dark:text-white pr-8">
 							Подтверждение действия {actionName && `: ${actionName}`}
 						</Dialog.Title>
 
 						{/* Контент модального окна */}
-						<div className="mt-4">{children}</div>
+						<div className="mt-4 text-gray-600 dark:text-gray-400">{children}</div>
 
 						{/* Кнопки действий */}
-						<div className="flex justify-end gap-3 mt-6">
+						<div className="flex justify-between gap-3 mt-6">
 							<Dialog.Close>
 								<button
 									disabled={isLoading}
-									className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{cancelText}
 								</button>
@@ -74,40 +75,37 @@ export function ConfirmedModal({
 								onClick={handleConfirm}
 								disabled={isLoading}
 								className={`
-									px-4 py-2 rounded-lg transition-colors font-medium
-									focus:outline-none focus:ring-2 focus:ring-offset-2
+									px-4 py-2 rounded-lg transition-opacity font-medium
+									focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white
 									disabled:opacity-50 disabled:cursor-not-allowed
-									flex items-center justify-center min-w-25
+									flex items-center justify-center min-w-25 cursor-pointer
 									${
 										isDestructive
-											? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-											: 'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500'
+											? 'bg-red-600 text-white hover:opacity-80 dark:bg-red-700'
+											: 'bg-black dark:bg-white text-white dark:text-black hover:opacity-80'
 									}
 								`}
 							>
 								{isLoading ? (
-									<>
-										<svg
-											className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-											fill="none"
-											viewBox="0 0 24 24"
-										>
-											<circle
-												className="opacity-25"
-												cx="12"
-												cy="12"
-												r="10"
-												stroke="currentColor"
-												strokeWidth="4"
-											/>
-											<path
-												className="opacity-75"
-												fill="currentColor"
-												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-											/>
-										</svg>
-										Загрузка...
-									</>
+									<svg
+										className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+										fill="none"
+										viewBox="0 0 24 24"
+									>
+										<circle
+											className="opacity-25"
+											cx="12"
+											cy="12"
+											r="10"
+											stroke="currentColor"
+											strokeWidth="4"
+										/>
+										<path
+											className="opacity-75"
+											fill="currentColor"
+											d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+										/>
+									</svg>
 								) : (
 									confirmText
 								)}
