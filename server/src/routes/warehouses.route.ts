@@ -40,7 +40,7 @@ warehousesRouter.get(
 );
 
 // POST /api/warehouses - создать новый склад
-warehousesRouter.post("/", authMiddleware, (req: Request, res: Response) => {
+warehousesRouter.post("/", (req: Request, res: Response) => {
   warehouseController.create(req, res);
 });
 

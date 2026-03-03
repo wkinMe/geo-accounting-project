@@ -1,9 +1,9 @@
+import type { BaseModel } from "./Base";
 import { Material } from "./Material";
 import { Organization } from "./Organization";
 import { User } from "./User";
 
-export interface Warehouse {
-  id: number;
+export interface Warehouse extends BaseModel{
   name: string;
   organization_id: number;
   manager_id: number;

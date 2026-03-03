@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useNavigate, useLocation, Navigate } from 'react-router';
 import Input from '@/components/shared/Input';
 import Spinner from '@/components/shared/Spinner';
+import { Button } from '@base-ui/react/button';
 
 export function Auth() {
 	const [username, setUsername] = useState('');
@@ -63,25 +64,25 @@ export function Auth() {
 
 	// Форма логина для неавторизованных пользователей
 	return (
-		<div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+		<div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
 			<div className="relative">
 				{/* Спиннер поверх формы во время отправки */}
 				{isPending && (
-					<div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm bg-white/50 dark:bg-gray-900/50 rounded-lg z-10">
+					<div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm bg-white/50 dark:bg-black/50 rounded-lg z-10">
 						<Spinner />
 					</div>
 				)}
 
 				<form
 					onSubmit={handleSubmit}
-					className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md w-96"
+					className="bg-white dark:bg-black p-8 rounded-lg shadow-xl w-96 border border-gray-200 dark:border-gray-800"
 				>
-					<h2 className="text-2xl font-bold mb-6 text-center text-gray-800 dark:text-white">
+					<h2 className="text-2xl font-bold mb-6 text-center text-black dark:text-white">
 						Вход в систему
 					</h2>
 
 					<div className="mb-4">
-						<label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+						<label className="block text-gray-600 dark:text-gray-400 text-sm font-bold mb-2">
 							Имя пользователя
 						</label>
 						<Input
@@ -89,11 +90,12 @@ export function Auth() {
 							value={username}
 							onChange={(e) => setUsername(e.target.value)}
 							disabled={isPending}
+							className="border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-white"
 						/>
 					</div>
 
 					<div className="mb-6">
-						<label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+						<label className="block text-gray-600 dark:text-gray-400 text-sm font-bold mb-2">
 							Пароль
 						</label>
 						<Input
@@ -102,16 +104,17 @@ export function Auth() {
 							value={password}
 							onChange={(e) => setPassword(e.target.value)}
 							disabled={isPending}
+							className="border-gray-300 dark:border-gray-700 focus:border-black dark:focus:border-white"
 						/>
 					</div>
 
-					<button
+					<Button
 						type="submit"
-						disabled={isPending || !username || !password}
-						className="w-full bg-black cursor-pointer hover:opacity-90 text-white py-2 px-4 rounded-lg hover:bg-primary-700 transition-opacity disabled:bg-primary-300 disabled:cursor-not-allowed"
+						disabled={isPending}
+						className="w-full bg-black dark:bg-white cursor-pointer hover:opacity-80 text-white dark:text-black py-2 px-4 rounded-lg transition-opacity disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-500 dark:disabled:text-gray-400"
 					>
 						{isPending ? 'Вход...' : 'Войти'}
-					</button>
+					</Button>
 				</form>
 			</div>
 		</div>

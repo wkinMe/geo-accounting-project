@@ -29,7 +29,7 @@ organizationsRouter.get(
 );
 
 // POST /api/organizations - создать новую организацию
-organizationsRouter.post("/", authMiddleware, (req: Request, res: Response) => {
+organizationsRouter.post("/", (req: Request, res: Response) => {
   organizationController.create(req, res);
 });
 

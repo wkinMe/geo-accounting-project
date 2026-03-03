@@ -9,12 +9,7 @@ import type {
 	UserDataDTO,
 } from '@shared/dto';
 import type { User, UserWithOrganization } from '@shared/models';
-
-// Интерфейс для ответа API (как в контроллере)
-export interface ApiResponse<T> {
-	data: T;
-	message: string;
-}
+import type { SuccessResponse } from '@shared/types';
 
 class UserService {
 	private readonly baseUrl = '/users';
@@ -22,8 +17,8 @@ class UserService {
 	/**
 	 * Аутентификация
 	 */
-	async login(data: LoginDTO): Promise<ApiResponse<AuthResponse>> {
-		const response = await instance.post<ApiResponse<AuthResponse>>(`${this.baseUrl}/login/`, data);
+	async login(data: LoginDTO): Promise<SuccessResponse<AuthResponse>> {
+		const response = await instance.post<SuccessResponse<AuthResponse>>(`${this.baseUrl}/login/`, data);
 
 		if (response.data?.data?.tokens?.accessToken) {
 			localStorage.setItem('token', response.data.data.tokens.accessToken);
@@ -32,8 +27,8 @@ class UserService {
 		return response.data;
 	}
 
-	async register(data: CreateUserDTO): Promise<ApiResponse<AuthResponse>> {
-		const response = await instance.post<ApiResponse<AuthResponse>>(
+	async register(data: CreateUserDTO): Promise<SuccessResponse<AuthResponse>> {
+		const response = await instance.post<SuccessResponse<AuthResponse>>(
 			`${this.baseUrl}/register`,
 			data
 		);
@@ -45,9 +40,9 @@ class UserService {
 		return response.data;
 	}
 
-	async logout(): Promise<ApiResponse<null> | undefined> {
+	async logout(): Promise<SuccessResponse<null> | undefined> {
 		try {
-			const response = await instance.post<ApiResponse<null>>(`${this.baseUrl}/logout`, {});
+			const response = await instance.post<SuccessResponse<null>>(`${this.baseUrl}/logout`, {});
 			localStorage.removeItem('token');
 			return response.data;
 		} catch (e: unknown) {
@@ -57,8 +52,8 @@ class UserService {
 		}
 	}
 
-	async refreshToken(): Promise<ApiResponse<AuthResponse>> {
-		const response = await instance.post<ApiResponse<AuthResponse>>(`${this.baseUrl}/refresh`, {});
+	async refreshToken(): Promise<SuccessResponse<AuthResponse>> {
+		const response = await instance.post<SuccessResponse<AuthResponse>>(`${this.baseUrl}/refresh`, {});
 
 		if (response.data?.data?.tokens?.accessToken) {
 			localStorage.setItem('token', response.data.data.tokens.accessToken);
@@ -67,58 +62,58 @@ class UserService {
 		return response.data;
 	}
 
-	async getProfile(): Promise<ApiResponse<UserDataDTO>> {
-		const response = await instance.get<ApiResponse<UserDataDTO>>(`${this.baseUrl}/profile`);
+	async getProfile(): Promise<SuccessResponse<UserDataDTO>> {
+		const response = await instance.get<SuccessResponse<UserDataDTO>>(`${this.baseUrl}/profile`);
 		return response.data;
 	}
 
 	/**
 	 * CRUD операции
 	 */
-	async findAll(): Promise<ApiResponse<User[]>> {
-		const response = await instance.get<ApiResponse<User[]>>(`${this.baseUrl}/`);
+	async findAll(): Promise<SuccessResponse<User[]>> {
+		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/`);
 		return response.data;
 	}
 
-	async findById(id: number): Promise<ApiResponse<User>> {
-		const response = await instance.get<ApiResponse<User>>(`${this.baseUrl}/${id}`);
+	async findById(id: number): Promise<SuccessResponse<User>> {
+		const response = await instance.get<SuccessResponse<User>>(`${this.baseUrl}/${id}`);
 		return response.data;
 	}
 
-	async update(id: number, data: Omit<UpdateUserDTO, 'id'>): Promise<ApiResponse<User>> {
-		const response = await instance.patch<ApiResponse<User>>(`${this.baseUrl}/${id}`, data);
+	async update(id: number, data: Omit<UpdateUserDTO, 'id'>): Promise<SuccessResponse<User>> {
+		const response = await instance.patch<SuccessResponse<User>>(`${this.baseUrl}/${id}`, data);
 		return response.data;
 	}
 
-	async delete(id: number): Promise<ApiResponse<User>> {
-		const response = await instance.delete<ApiResponse<User>>(`${this.baseUrl}/${id}`);
+	async delete(id: number): Promise<SuccessResponse<User>> {
+		const response = await instance.delete<SuccessResponse<User>>(`${this.baseUrl}/${id}`);
 		return response.data;
 	}
 
 	/**
 	 * Поиск и фильтрация
 	 */
-	async search(query: string): Promise<ApiResponse<User[]>> {
-		const response = await instance.get<ApiResponse<User[]>>(`${this.baseUrl}/search`, {
+	async search(query: string): Promise<SuccessResponse<User[]>> {
+		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/search`, {
 			params: { q: query },
 		});
 		return response.data;
 	}
 
-	async getAdmins(): Promise<ApiResponse<User[]>> {
-		const response = await instance.get<ApiResponse<User[]>>(`${this.baseUrl}/admins`);
+	async getAdmins(): Promise<SuccessResponse<User[]>> {
+		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/admins`);
 		return response.data;
 	}
 
-	async findByOrganizationId(organizationId: number): Promise<ApiResponse<UserWithOrganization[]>> {
-		const response = await instance.get<ApiResponse<UserWithOrganization[]>>(
+	async findByOrganizationId(organizationId: number): Promise<SuccessResponse<UserWithOrganization[]>> {
+		const response = await instance.get<SuccessResponse<UserWithOrganization[]>>(
 			`${this.baseUrl}/organization/${organizationId}`
 		);
 		return response.data;
 	}
 
-	async getAvailableManagers(): Promise<ApiResponse<User[]>> {
-		const response = await instance.get<ApiResponse<User[]>>(`${this.baseUrl}/available-managers`);
+	async getAvailableManagers(): Promise<SuccessResponse<User[]>> {
+		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/available-managers`);
 		return response.data;
 	}
 
