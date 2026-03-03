@@ -99,7 +99,7 @@ export class OrganizationController {
   ) {
     try {
       const { id } = req.params;
-      const { name, manager_id, latitude, longitude } = req.body;
+      const { name, latitude, longitude } = req.body;
 
       const numId = Number(id);
 
@@ -109,7 +109,7 @@ export class OrganizationController {
         });
       }
 
-      const updateData = { name, manager_id, latitude, longitude };
+      const updateData = { name, latitude, longitude };
       if (Object.values(updateData).every((value) => value === undefined)) {
         return res.status(400).json({
           message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
@@ -125,7 +125,6 @@ export class OrganizationController {
       const updatedOrganization = await this._organizationService.update({
         id: numId,
         name,
-        manager_id,
         latitude,
         longitude,
       });

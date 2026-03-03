@@ -4,7 +4,7 @@ import { Request, Response } from "express";
 import { Pool } from "pg";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
 import { TokenService } from "@src/services/TokenService";
-import { UpdateUserDTO } from "@shared/dto";
+import { CreateUserDTO, UpdateUserDTO } from "@shared/dto";
 
 export class UserController {
   private _userService: UserService;
@@ -224,12 +224,12 @@ export class UserController {
     req: Request<
       {},
       {},
-      { name: string; password: string; is_admin?: boolean }
+      CreateUserDTO
     >,
     res: Response,
   ) {
     try {
-      const { password, name, is_admin = false } = req.body;
+      const { password, name, organization_id = null, is_admin = false } = req.body;
 
       if (!password || !name) {
         return res.status(400).json({
@@ -240,6 +240,7 @@ export class UserController {
       const result = await this._userService.register({
         password,
         name,
+        organization_id,
         is_admin,
       });
       res.cookie("refreshToken", result.tokens.refreshToken, {
