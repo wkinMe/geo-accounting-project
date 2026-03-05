@@ -45,10 +45,10 @@ export function ConfirmModal({
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Portal>
-				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 data-[closed]:opacity-0 data-[open]:opacity-100" />
+				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 data-closed:opacity-0 data-open:opacity-100" />
 
 				<Dialog.Viewport className="fixed inset-0 flex items-center justify-center p-4">
-					<Dialog.Popup className="relative bg-white dark:bg-black rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 transition-all duration-300 data-[closed]:scale-95 data-[closed]:opacity-0 data-[open]:scale-100 data-[open]:opacity-100">
+					<Dialog.Popup className="relative bg-white dark:bg-black rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 transition-all duration-300 data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100">
 						<Dialog.Close className="absolute top-4 right-4">
 							<CloseBtn />
 						</Dialog.Close>
@@ -65,7 +65,7 @@ export function ConfirmModal({
 							<Dialog.Close>
 								<button
 									disabled={isLoading}
-									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 "
 								>
 									{cancelText}
 								</button>
@@ -77,7 +77,7 @@ export function ConfirmModal({
 								className={`
 									px-4 py-2 rounded-lg transition-opacity font-medium
 									focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white
-									disabled:opacity-50 disabled:cursor-not-allowed
+									
 									flex items-center justify-center min-w-25 cursor-pointer
 									${
 										isDestructive
@@ -88,7 +88,7 @@ export function ConfirmModal({
 							>
 								{isLoading ? (
 									<svg
-										className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+										className="animate-spin h-4 w-4 text-current"
 										fill="none"
 										viewBox="0 0 24 24"
 									>

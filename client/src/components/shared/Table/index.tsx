@@ -6,7 +6,7 @@ export type ActionName = 'details' | 'edit' | 'delete' | 'special';
 export interface Action<T> {
 	name: ActionName;
 	popupName?: string;
-	action: (item: T) => void;
+	action: (item: T) => void | Promise<void>;
 	icon: string | React.ReactNode;
 	needConfirmation?: boolean;
 }
@@ -41,14 +41,15 @@ export function Table<T extends { id: number }>({
 
 	return (
 		<>
-			{needConfirmation && currentItem && (
+			{needConfirmation && (
 				<ConfirmModal
-					onConfirm={() => {
+					onConfirm={async () => {
 						if (currentAction && currentItem) {
-							currentAction.action(currentItem);
-							setCurrentAction({} as Action<T>);
-							setCurrentItem({} as T);
-							a;
+							await currentAction.action(currentItem);
+							setTimeout(() => {
+								setCurrentAction(null);
+								setCurrentItem(null);
+							}, 100);
 						}
 					}}
 					actionName={currentAction?.popupName}

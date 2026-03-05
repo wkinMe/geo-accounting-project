@@ -26,7 +26,7 @@ export function WarehousesList() {
 	});
 
 	const { mutate: deleteMutate } = useMutation({
-		mutationFn: (id: number) => warehouseService.delete(id),
+		mutationFn: async (id: number) => warehouseService.delete(id),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
 		},
@@ -72,7 +72,7 @@ export function WarehousesList() {
 		},
 		{
 			name: 'delete',
-			action: (item) => deleteMutate(item.id),
+			action: async (item) => deleteMutate(item.id),
 			icon: <FaRegTrashAlt />,
 			popupName: 'Удалить',
 			needConfirmation: true,
