@@ -18,9 +18,13 @@ instance.interceptors.response.use(
 		const originalResponse = error.config;
 		if (error?.response?.status === 401) {
 			try {
-				const response = await axios.post(`${import.meta.env.VITE_API_URL}/users/refresh`, {
-					withCredentials: true,
-				});
+				const response = await axios.post(
+					`${import.meta.env.VITE_API_URL}/users/refresh`,
+					() => {},
+					{
+						withCredentials: true,
+					}
+				);
 				if (response.status === 200) {
 					return instance.request(originalResponse);
 				}
