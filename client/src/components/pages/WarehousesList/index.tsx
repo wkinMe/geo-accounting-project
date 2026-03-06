@@ -1,4 +1,7 @@
+// client/src/pages/warehouses/WarehousesList.tsx
+import { useState } from 'react';
 import { Table, type Action } from '@/components/shared/Table';
+import { EditWarehouseModal } from './EditWarehouseModal';
 import { warehouseService } from '@/services/warehouseService';
 import type { UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,17 +11,25 @@ import { TbReportAnalytics } from 'react-icons/tb';
 import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
 
-// Важно: делаем headers const для вывода литеральных типов
 const headers = ['id', 'name', 'manager', 'organization', 'created_at', 'updated_at'] as const;
-
-// Правильное определение типа на основе headers
-type WarehouseElement = {
-	[K in (typeof headers)[number]]: K extends 'id' ? number : string;
-};
 
 export function WarehousesList() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+
+	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [selectedWarehouse, setSelectedWarehouse] = useState<{
+		id: number;
+		name: string;
+		manager?: string;
+		managerId?: number | null;
+		organization: string;
+		organization_id: number;
+		latitude?: number;
+		longitude?: number;
+		created_at: string;
+		updated_at: string;
+	} | null>(null);
 
 	const { data: warehouses } = useQuery({
 		queryKey: ['warehouses'],
@@ -32,27 +43,44 @@ export function WarehousesList() {
 		},
 	});
 
-	const { mutate: editMutate } = useMutation({
+	const { mutate: updateMutate, isPending: isUpdating } = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			setTimeout(() => {
+				setIsEditModalOpen(false);
+				setSelectedWarehouse(null);
+			}, 300);
 		},
 	});
 
-	// Преобразуем данные в формат для таблицы
-	const elements: WarehouseElement[] =
+	const elements =
 		warehouses?.data.map((w) => ({
 			id: w.id,
 			name: w.name,
 			manager: w.manager?.name || '-',
+			managerId: w.manager?.id,
 			organization: w.organization.name,
+			organization_id: w.organization.id,
+			latitude: w.latitude,
+			longitude: w.longitude,
 			created_at: new Date(w.created_at).toLocaleDateString(),
 			updated_at: new Date(w.updated_at).toLocaleDateString(),
 		})) || [];
 
-	// Действия работают с WarehouseElement
-	const actions: Action<WarehouseElement>[] = [
+	const openEditModal = (warehouse: (typeof elements)[0]) => {
+		setSelectedWarehouse(warehouse);
+		setTimeout(() => {
+			setIsEditModalOpen(true);
+		}, 50);
+	};
+
+	const handleUpdate = (id: number, data: UpdateWarehouseDTO) => {
+		updateMutate({ id, data });
+	};
+
+	const actions: Action<(typeof elements)[0]>[] = [
 		{
 			name: 'details',
 			action: (item) => navigate(`${item.id}`),
@@ -61,14 +89,15 @@ export function WarehousesList() {
 		},
 		{
 			name: 'edit',
-			action: (item) => {
-				editMutate({
-					id: item.id,
-					data: { ...item },
-				});
-			},
+			action: (item) => openEditModal(item),
 			icon: <MdEdit />,
 			popupName: 'Редактировать',
+		},
+		{
+			name: 'special',
+			action: (item) => navigate(`/report/${item.id}`),
+			icon: <TbReportAnalytics />,
+			popupName: 'Сформировать отчёт',
 		},
 		{
 			name: 'delete',
@@ -79,13 +108,49 @@ export function WarehousesList() {
 			popupName: 'Удалить',
 			needConfirmation: true,
 		},
-		{
-			name: 'special',
-			action: (item) => navigate(`/report/${item.id}`),
-			icon: <TbReportAnalytics />,
-			popupName: 'Сформировать отчёт',
-		},
 	];
 
-	return <Table itemName="Склад" headers={headers} elements={elements} actions={actions} />;
+	return (
+		<>
+			<Table itemName="Склад" headers={headers} elements={elements} actions={actions} />
+
+			{selectedWarehouse && (
+				<EditWarehouseModal
+					open={isEditModalOpen}
+					setOpen={setIsEditModalOpen}
+					warehouse={{
+						id: selectedWarehouse.id,
+						name: selectedWarehouse.name,
+						organization_id: selectedWarehouse.organization_id,
+						manager_id: selectedWarehouse.managerId,
+						latitude: selectedWarehouse.latitude,
+						longitude: selectedWarehouse.longitude,
+					}}
+					onUpdate={handleUpdate}
+				/>
+			)}
+
+			{isUpdating && (
+				<div className="fixed bottom-4 right-4 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
+					<svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+						<circle
+							className="opacity-25"
+							cx="12"
+							cy="12"
+							r="10"
+							stroke="currentColor"
+							strokeWidth="4"
+							fill="none"
+						/>
+						<path
+							className="opacity-75"
+							fill="currentColor"
+							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+						/>
+					</svg>
+					<span>Сохранение...</span>
+				</div>
+			)}
+		</>
+	);
 }

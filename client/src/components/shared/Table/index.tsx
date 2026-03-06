@@ -113,7 +113,6 @@ export function Table<T extends { id: number }>({
 												<button
 													key={actionIdx}
 													onClick={() => {
-														console.log(action);
 														if (!action.needConfirmation) {
 															action.action(item);
 														} else {

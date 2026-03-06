@@ -1,10 +1,7 @@
 // client/src/services/warehouseService.ts
 
 import { instance } from '@/api/instance';
-import type {
-	CreateWarehouseDTO,
-	UpdateWarehouseDTO,
-} from '@shared/dto';
+import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import type { Warehouse, WarehouseWithMaterialsAndOrganization } from '@shared/models';
 import type { SuccessResponse } from '@shared/types';
 
@@ -15,7 +12,9 @@ class WarehouseService {
 	 * Получение всех складов с материалами и организацией
 	 */
 	async findAll(): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(`${this.baseUrl}/`);
+		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
+			`${this.baseUrl}/`
+		);
 		return response.data;
 	}
 
@@ -23,23 +22,36 @@ class WarehouseService {
 	 * Получение склада по ID
 	 */
 	async findById(id: number): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(`${this.baseUrl}/${id}`);
+		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
+			`${this.baseUrl}/${id}`
+		);
 		return response.data;
 	}
 
 	/**
 	 * Создание нового склада
 	 */
-	async create(data: CreateWarehouseDTO): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.post<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(`${this.baseUrl}/`, data);
+	async create(
+		data: CreateWarehouseDTO
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
+		const response = await instance.post<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
+			`${this.baseUrl}/`,
+			data
+		);
 		return response.data;
 	}
 
 	/**
 	 * Обновление склада
 	 */
-	async update(id: number, data: UpdateWarehouseDTO): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.patch<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(`${this.baseUrl}/${id}`, data);
+	async update(
+		id: number,
+		data: UpdateWarehouseDTO
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
+		const response = await instance.patch<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
+			`${this.baseUrl}/${id}`,
+			data
+		);
 		return response.data;
 	}
 
@@ -55,16 +67,21 @@ class WarehouseService {
 	 * Поиск складов по запросу
 	 */
 	async search(query: string): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(`${this.baseUrl}/search`, {
-			params: { q: query },
-		});
+		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
+			`${this.baseUrl}/search`,
+			{
+				params: { q: query },
+			}
+		);
 		return response.data;
 	}
 
 	/**
 	 * Получение складов по менеджеру
 	 */
-	async findByManagerId(managerId: number): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
+	async findByManagerId(
+		managerId: number
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
 		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
 			`${this.baseUrl}/manager/${managerId}`
 		);
@@ -74,8 +91,11 @@ class WarehouseService {
 	/**
 	 * Назначение менеджера на склад
 	 */
-	async assignManager(warehouseId: number, managerId: number | null): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.post<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
+	async assignManager(
+		warehouseId: number,
+		managerId: number | null
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
+		const response = await instance.patch<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
 			`${this.baseUrl}/${warehouseId}/assign-manager`,
 			{ managerId }
 		);

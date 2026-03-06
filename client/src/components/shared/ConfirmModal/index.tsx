@@ -9,6 +9,7 @@ interface Props {
 	actionName?: string;
 	children?: React.ReactNode;
 	onConfirm?: () => void | Promise<void>;
+	onCancel?: () => void;
 	confirmText?: string;
 	cancelText?: string;
 	isDestructive?: boolean;
@@ -20,6 +21,7 @@ export function ConfirmModal({
 	actionName,
 	children,
 	onConfirm,
+	onCancel,
 	confirmText = 'Подтвердить',
 	cancelText = 'Отмена',
 	isDestructive = false,
@@ -42,6 +44,11 @@ export function ConfirmModal({
 		}
 	};
 
+	const handleCancel = () => {
+		onCancel?.();
+		setOpen(false);
+	};
+
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Portal>
@@ -49,23 +56,20 @@ export function ConfirmModal({
 
 				<Dialog.Viewport className="fixed inset-0 flex items-center justify-center p-4">
 					<Dialog.Popup className="relative bg-white dark:bg-black rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 transition-all duration-300 data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100">
-						<Dialog.Close className="absolute top-4 right-4">
-							<CloseBtn />
-						</Dialog.Close>
+						<Dialog.Close render={<CloseBtn />} className="absolute top-4 right-4" />
 
 						<Dialog.Title className="text-xl font-bold text-black dark:text-white pr-8">
 							Подтверждение действия {actionName && `: ${actionName}`}
 						</Dialog.Title>
 
-						{/* Контент модального окна */}
 						<div className="mt-4 text-gray-600 dark:text-gray-400">{children}</div>
 
-						{/* Кнопки действий */}
 						<div className="flex justify-between gap-3 mt-6">
 							<Dialog.Close>
 								<button
+									onClick={handleCancel}
 									disabled={isLoading}
-									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 "
+									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
 								>
 									{cancelText}
 								</button>
@@ -77,7 +81,7 @@ export function ConfirmModal({
 								className={`
 									px-4 py-2 rounded-lg transition-opacity font-medium
 									focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black dark:focus:ring-white
-									
+									disabled:opacity-50 disabled:cursor-not-allowed
 									flex items-center justify-center min-w-25 cursor-pointer
 									${
 										isDestructive
@@ -88,7 +92,7 @@ export function ConfirmModal({
 							>
 								{isLoading ? (
 									<svg
-										className="animate-spin h-4 w-4 text-current"
+										className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
 										fill="none"
 										viewBox="0 0 24 24"
 									>

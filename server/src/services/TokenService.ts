@@ -29,31 +29,46 @@ export class TokenService {
 
   async saveRefreshToken(userId: number, refreshToken: string) {
     try {
+      // Пытаемся найти существующий токен
       const token = await getSingleResult<Token>(
         this._db,
         "saveRefreshToken",
-        `SELECT * FROM tokens WHERE user_id=$1`,
+        `SELECT * FROM tokens WHERE user_id = $1`,
         [userId],
       );
+
+      // Если токен найден - обновляем
       if (token) {
         const result = await executeQuery<Token>(
           this._db,
           "saveRefreshToken",
-          `UPDATE tokens SET refreshToken=$1 WHERE user_id=$2 RETURNING *`,
+          `UPDATE tokens SET "refreshToken" = $1 WHERE user_id = $2 RETURNING *`,
           [refreshToken, userId],
         );
         return result;
       }
+
+      // Если токен не найден - создаем новый
+      const result = await executeQuery<Token>(
+        this._db,
+        "saveRefreshToken",
+        `INSERT INTO tokens (user_id, "refreshToken") VALUES ($1, $2) RETURNING *`,
+        [userId, refreshToken],
+      );
+      return result;
     } catch (e: unknown) {
+      // Если произошла ошибка NotFoundError при поиске, все равно пробуем создать
       if (e instanceof NotFoundError) {
-        const result = await executeQuery(
+        const result = await executeQuery<Token>(
           this._db,
           "saveRefreshToken",
-          `INSERT INTO tokens(user_id, refreshToken) VALUES($1, $2) RETURNING *`,
+          `INSERT INTO tokens (user_id, "refreshToken") VALUES ($1, $2) RETURNING *`,
           [userId, refreshToken],
         );
         return result;
       }
+      // Пробрасываем другие ошибки
+      throw e;
     }
   }
 
@@ -61,7 +76,7 @@ export class TokenService {
     await executeQuery(
       this._db,
       "deleteRefreshToken",
-      `DELETE FROM tokens WHERE refreshToken = $1`,
+      `DELETE FROM tokens WHERE "refreshToken" = $1`,
       [refreshToken],
     );
   }
@@ -101,7 +116,7 @@ export class TokenService {
       const token = await getSingleResult<Token>(
         this._db,
         "findRefreshToken",
-        `SELECT * FROM tokens WHERE refreshToken = $1`,
+        `SELECT * FROM tokens WHERE "refreshToken" = $1`,
         [refreshToken],
       );
       return token;
