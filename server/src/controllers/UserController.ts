@@ -220,16 +220,14 @@ export class UserController {
     }
   }
 
-  async register(
-    req: Request<
-      {},
-      {},
-      CreateUserDTO
-    >,
-    res: Response,
-  ) {
+  async register(req: Request<{}, {}, CreateUserDTO>, res: Response) {
     try {
-      const { password, name, organization_id = null, is_admin = false } = req.body;
+      const {
+        password,
+        name,
+        organization_id = null,
+        is_admin = false,
+      } = req.body;
 
       if (!password || !name) {
         return res.status(400).json({
@@ -281,7 +279,6 @@ export class UserController {
     }
   }
 
-  // В контроллере (UserController.ts)
   async refreshToken(
     req: Request<{}, {}, { refreshToken: string }>,
     res: Response,
@@ -291,7 +288,7 @@ export class UserController {
       const result = await this._userService.refreshToken(refreshToken);
       res.cookie("refreshToken", result.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
+      }); 
       res.status(200).json({
         data: result,
         message: "Refreshed successful",

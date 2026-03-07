@@ -43,7 +43,7 @@ export function WarehousesList() {
 		},
 	});
 
-	const { mutate: updateMutate, isPending: isUpdating } = useMutation({
+	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {
@@ -76,8 +76,8 @@ export function WarehousesList() {
 		}, 50);
 	};
 
-	const handleUpdate = (id: number, data: UpdateWarehouseDTO) => {
-		updateMutate({ id, data });
+	const handleUpdate = async (id: number, data: UpdateWarehouseDTO) => {
+		await updateMutate({ id, data });
 	};
 
 	const actions: Action<(typeof elements)[0]>[] = [

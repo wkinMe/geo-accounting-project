@@ -15,14 +15,23 @@ export function authMiddleware(
 ) {
   try {
     const authHeader = req.headers.authorization;
+    console.log(req.headers);
 
     if (!authHeader) {
-      throw new UnauthorizedError("Invalid or expired token", "auth");
+      throw new UnauthorizedError(
+        "Invalid or expired token",
+        "auth",
+        "middleware auth",
+      );
     }
 
     const token = authHeader.split(" ")[1];
     if (!token) {
-      throw new UnauthorizedError("Invalid or expired token", "auth");
+      throw new UnauthorizedError(
+        "Invalid or expired token",
+        "auth",
+        "middleware",
+      );
     }
 
     const tokenService = new TokenService(pool);

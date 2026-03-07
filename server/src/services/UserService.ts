@@ -329,7 +329,7 @@ export class UserService {
       const tokens = await tokenService.generateTokens(userDataWithoutOrg);
       await tokenService.saveRefreshToken(
         userDataWithoutOrg.id,
-        tokenFromDb.refreshToken,
+        tokens.refreshToken,
       );
 
       return {

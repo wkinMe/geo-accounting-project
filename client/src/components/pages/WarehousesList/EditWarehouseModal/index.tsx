@@ -50,7 +50,6 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 
 	const {
 		register,
-		handleSubmit,
 		reset,
 		formState: { errors },
 		setValue,
@@ -132,7 +131,6 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 			const data = {
 				...formData,
 				organization_id: formData.organization_id === null ? undefined : formData.organization_id,
-				manager_id: formData.manager_id === null ? undefined : formData.manager_id,
 				latitude: formData.latitude === null ? undefined : formData.latitude,
 				longitude: formData.longitude === null ? undefined : formData.longitude,
 			};
@@ -179,7 +177,7 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 				<SearchableSelect
 					label="Организация"
 					value={selectedOrgId}
-					onChange={(id) => setValue('organization_id', id ?? -1, { shouldValidate: true })}
+					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
 					options={organizations}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
