@@ -20,17 +20,22 @@ instance.interceptors.response.use(
 			try {
 				const response = await axios.post(
 					`${import.meta.env.VITE_API_URL}/users/refresh`,
-					() => {},
+					{},
 					{
 						withCredentials: true,
 					}
 				);
-				if (response.status === 200) {
+
+				if (response.status === 200 && response.data.data.tokens.accessToken) {
+					originalResponse.headers.Authorization = `Bearer ${response.data.data.tokens.accessToken}`;
+					localStorage.setItem(`token`, response.data.data.tokens.accessToken);
 					return instance.request(originalResponse);
 				}
 			} catch (e) {
-				throw new Error('Не авторизован');
+				// Если обновление токена не удалось, выбрасываем ошибку авторизации
+				return Promise.reject(new Error('Не авторизован'));
 			}
 		}
+		return Promise.reject(error);
 	}
 );

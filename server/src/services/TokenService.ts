@@ -42,7 +42,7 @@ export class TokenService {
         const result = await executeQuery<Token>(
           this._db,
           "saveRefreshToken",
-          `UPDATE tokens SET "refreshToken" = $1 WHERE user_id = $2 RETURNING *`,
+          `UPDATE tokens SET "refreshToken"=$1 WHERE user_id = $2 RETURNING *`,
           [refreshToken, userId],
         );
         return result;
@@ -83,15 +83,77 @@ export class TokenService {
 
   verifyAccessToken(token: string): UserDataDTO {
     try {
+      console.log("=== Token Verification ===");
+      console.log("Token to verify:", token.substring(0, 30) + "...");
+      console.log("Current server time:", new Date().toISOString());
+      console.log("Current server time (locale):", new Date().toString());
+
+      // Проверим, что секретный ключ вообще есть
+      if (!process.env.JWT_ACCESS_TOKEN_SECRET) {
+        console.error("JWT_ACCESS_TOKEN_SECRET is not set!");
+        throw new Error("Secret not configured");
+      }
+
+      // Декодируем без проверки чтобы посмотреть время истечения
+      const decodedWithoutVerify = jwt.decode(token, { complete: true });
+      if (decodedWithoutVerify) {
+        console.log(
+          "Token payload (without verify):",
+          decodedWithoutVerify.payload,
+        );
+        console.log(
+          "Token expiration time:",
+          new Date(
+            (decodedWithoutVerify.payload as any).exp * 1000,
+          ).toISOString(),
+        );
+        console.log(
+          "Token issued at:",
+          new Date(
+            (decodedWithoutVerify.payload as any).iat * 1000,
+          ).toISOString(),
+        );
+      }
+
       const decoded = jwt.verify(
         token,
         process.env.JWT_ACCESS_TOKEN_SECRET,
       ) as UserDataDTO;
+
+      console.log("Token verified successfully");
       return decoded;
     } catch (error) {
+      console.error("=== Token Verification Failed ===");
+      console.error("Error:", error);
+      console.error("Current server time:", new Date().toISOString());
+      console.error("Current server time (locale):", new Date().toString());
+
+      if (error instanceof jwt.TokenExpiredError) {
+        console.error("Token expired at:", error.expiredAt.toISOString());
+        console.error(
+          "Time difference:",
+          (new Date().getTime() - error.expiredAt.getTime()) / 1000,
+          "seconds ago",
+        );
+        throw new UnauthorizedError(
+          "Access token expired",
+          "verifyAccessToken",
+          "TokenService",
+        );
+      }
+      if (error instanceof jwt.JsonWebTokenError) {
+        console.error("JWT Error:", error.message);
+        throw new UnauthorizedError(
+          "Invalid access token",
+          "verifyAccessToken",
+          "TokenService",
+        );
+      }
+
       throw new UnauthorizedError(
         "Invalid or expired access token",
         "verifyAccessToken",
+        "TokenService",
       );
     }
   }
@@ -107,6 +169,7 @@ export class TokenService {
       throw new UnauthorizedError(
         "Invalid or expired refresh token",
         "verifyRefreshToken",
+        "TokenService",
       );
     }
   }

@@ -13,13 +13,11 @@ export async function executeQuery<T extends QueryResultRow>(
     return result.rows;
   } catch (error) {
     // Обертываем все ошибки базы данных в DatabaseError
-
-    console.log(error);
     throw new DatabaseError(
       `Database operation failed: ${operation}`,
       operation,
       query,
-      error instanceof Error ? error : new Error(String(error)),
+      error,
     );
   }
 }
@@ -41,7 +39,6 @@ export async function getSingleResult<T extends QueryResultRow>(
         ? `${entityName} with id ${entityId} not found`
         : "Record not found",
       entityName || "Record",
-      entityId,
     );
   }
 

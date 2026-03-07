@@ -151,7 +151,7 @@ export function SearchableSelect<T extends Option>({
 
 			<div ref={containerRef} className="relative">
 				<div className="relative">
-					<input
+					<Field.Control
 						ref={inputRef}
 						type="text"
 						value={searchQuery}
