@@ -10,12 +10,15 @@ import { FaRegTrashAlt } from 'react-icons/fa';
 import { TbReportAnalytics } from 'react-icons/tb';
 import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
+import { mapWarehouseToTableItem } from './utils';
 
 const headers = ['id', 'name', 'manager', 'organization', 'created_at', 'updated_at'] as const;
 
 export function WarehousesList() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+
+	const [searchQuery, setSearchQuery] = useState('');
 
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [selectedWarehouse, setSelectedWarehouse] = useState<{
@@ -34,6 +37,13 @@ export function WarehousesList() {
 	const { data: warehouses } = useQuery({
 		queryKey: ['warehouses'],
 		queryFn: () => warehouseService.findAll(),
+	});
+
+	const { data: searchedWarehouses } = useQuery({
+		queryKey: ['warehouses', searchQuery],
+		queryFn: () => warehouseService.search(searchQuery),
+		enabled: searchQuery.length > 0,
+		retry: false,
 	});
 
 	const { mutateAsync: deleteMutate } = useMutation({
@@ -56,18 +66,9 @@ export function WarehousesList() {
 	});
 
 	const elements =
-		warehouses?.data.map((w) => ({
-			id: w.id,
-			name: w.name,
-			manager: w.manager?.name || '-',
-			managerId: w.manager?.id,
-			organization: w.organization.name,
-			organization_id: w.organization.id,
-			latitude: w.latitude,
-			longitude: w.longitude,
-			created_at: new Date(w.created_at).toLocaleDateString(),
-			updated_at: new Date(w.updated_at).toLocaleDateString(),
-		})) || [];
+		searchQuery && searchedWarehouses
+			? searchedWarehouses.data.map(mapWarehouseToTableItem)
+			: warehouses?.data.map(mapWarehouseToTableItem) || [];
 
 	const openEditModal = (warehouse: (typeof elements)[0]) => {
 		setSelectedWarehouse(warehouse);
@@ -110,9 +111,25 @@ export function WarehousesList() {
 		},
 	];
 
+	const handleSearch = (query: string) => {
+		if (query) {
+			setSearchQuery(query);
+		} else {
+			return;
+		}
+	};
+
 	return (
 		<>
-			<Table itemName="Склад" headers={headers} elements={elements} actions={actions} />
+			<Table
+				searchValue={searchQuery}
+				onSearch={handleSearch}
+				debounceMs={300}
+				itemName="Склад"
+				headers={headers}
+				elements={elements}
+				actions={actions}
+			/>
 
 			{selectedWarehouse && (
 				<EditWarehouseModal

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
+import { SearchInput } from '../SearchInput';
 
 export type ActionName = 'details' | 'edit' | 'delete' | 'special';
 
@@ -16,6 +17,10 @@ interface Props<T extends { id: number }> {
 	itemName: string; // Название элемента, для которого нужна таблица, по типу склад/отчёт/пользователь и т.д.
 	elements: T[];
 	actions?: Action<T>[];
+
+	searchValue?: string;
+	debounceMs?: number;
+	onSearch?: (query: string) => void;
 }
 
 export function Table<T extends { id: number }>({
@@ -23,16 +28,11 @@ export function Table<T extends { id: number }>({
 	itemName,
 	elements,
 	actions,
-}: Props<T>) {
-	// Если нет данных, показываем пустую таблицу или сообщение
-	if (!elements || elements.length === 0) {
-		return (
-			<div className="text-center py-8 text-gray-500 dark:text-gray-400">
-				Нет данных для отображения
-			</div>
-		);
-	}
 
+	searchValue,
+	debounceMs,
+	onSearch,
+}: Props<T>) {
 	const [openModal, setOpenModal] = useState(false);
 	const [currentAction, setCurrentAction] = useState<null | Action<T>>(null);
 	const [currentItem, setCurrentItem] = useState<null | T>(null);
@@ -63,6 +63,9 @@ export function Table<T extends { id: number }>({
 				</ConfirmModal>
 			)}
 			<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+				{onSearch && (
+					<SearchInput value={searchValue ?? ''} ms={debounceMs ?? 300} onSearch={onSearch} />
+				)}
 				<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 					<thead className="bg-gray-50 dark:bg-gray-900">
 						<tr>
