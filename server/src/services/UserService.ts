@@ -629,36 +629,64 @@ export class UserService {
     }
   }
 
-  async search(input: string): Promise<UserWithOrganization[]> {
+  async searchAvailableManagers(
+    input: string,
+    organizationId?: number,
+  ): Promise<UserWithOrganization[]> {
     try {
       if (!input || input.trim().length === 0) {
         throw new ValidationError(
           "Search query is required",
-          "search",
+          "searchAvailableManagers",
+          "UserService",
           "input",
           input,
         );
       }
 
-      // Сначала получаем всех пользователей с организациями
-      const query = `
-        SELECT 
-          u.*,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-      `;
+      const results = (await this.search(input, organizationId)).filter(
+        (i) => i.organization_id === null,
+      );
 
-      const result = await executeQuery<{
-        id: number;
-        name: string;
-        organization_id: number;
-        password: string;
-        is_admin: boolean;
-        created_at: Date;
-        updated_at: Date;
-        organization: Organization | null;
-      }>(this._db, "search", query);
+      return results;
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to search users",
+        "UserService",
+        "search",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async search(
+    input: string,
+    organization_id?: number,
+  ): Promise<UserWithOrganization[]> {
+    try {
+      if (!input || input.trim().length === 0) {
+        throw new ValidationError(
+          "Search query is required",
+          "search",
+          "UserService",
+          "input",
+          input,
+        );
+      }
+
+      let result: UserWithOrganization[];
+      if (organization_id) {
+        result = await this.findByOrganizationId(organization_id);
+      } else {
+        result = await this.findAll();
+      }
 
       const allUsers = result.map((row) => {
         const { organization, ...userData } = row;

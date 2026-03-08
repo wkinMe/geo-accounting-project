@@ -44,7 +44,7 @@ export function SearchableSelect<T extends Option>({
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	// Find selected option by value
+	// Найти выбранный элемент при изменении value
 	useEffect(() => {
 		if (value && options.length > 0) {
 			const found = options.find((opt) => opt.id === value);
@@ -52,11 +52,16 @@ export function SearchableSelect<T extends Option>({
 				setSelectedOption(found);
 				setSearchQuery(getOptionLabel(found));
 			}
-		} else if (!value) {
+		}
+	}, [value]); // Убрали options из зависимостей!
+
+	// Очистка только когда value явно становится null/undefined
+	useEffect(() => {
+		if (value === null || value === undefined) {
 			setSelectedOption(null);
 			setSearchQuery('');
 		}
-	}, [value, options, getOptionLabel]);
+	}, [value]); // Убрали options из зависимостей!
 
 	// Close on click outside
 	useEffect(() => {
@@ -125,6 +130,7 @@ export function SearchableSelect<T extends Option>({
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const query = e.target.value;
+		console.log(query);
 		setSearchQuery(query);
 		setIsOpen(true);
 		setHighlightedIndex(-1);
@@ -174,7 +180,7 @@ export function SearchableSelect<T extends Option>({
 						<button
 							type="button"
 							onClick={handleClear}
-							className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+							className="cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
 						>
 							<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
@@ -228,9 +234,7 @@ export function SearchableSelect<T extends Option>({
 				</Field.Description>
 			)}
 
-			{error && (
-				<Field.Error className="text-sm text-red-600 dark:text-red-400">{error}</Field.Error>
-			)}
+			{error && <span className="text-sm text-red-600 dark:text-red-400">{error}</span>}
 		</Field.Root>
 	);
 }

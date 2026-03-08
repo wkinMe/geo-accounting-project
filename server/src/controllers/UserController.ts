@@ -132,9 +132,12 @@ export class UserController {
     }
   }
 
-  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
+  async search(
+    req: Request<{}, {}, {}, { q?: string; organization_id?: number }>,
+    res: Response,
+  ) {
     try {
-      const { q } = req.query;
+      const { q, organization_id } = req.query;
 
       if (!q || q.trim() === "") {
         return res.status(400).json({
@@ -142,7 +145,7 @@ export class UserController {
         });
       }
 
-      const searchedUsers = await this._userService.search(q);
+      const searchedUsers = await this._userService.search(q, organization_id);
 
       res.status(200).json({
         data: searchedUsers,
@@ -288,7 +291,7 @@ export class UserController {
       const result = await this._userService.refreshToken(refreshToken);
       res.cookie("refreshToken", result.tokens.refreshToken, {
         maxAge: 30 * 24 * 60 * 60 * 1000,
-      }); 
+      });
       res.status(200).json({
         data: result,
         message: "Refreshed successful",

@@ -34,7 +34,7 @@ export function NumberField({
 				</Field.Description>
 			)}
 			{error && (
-				<Field.Error className="text-sm text-red-600 dark:text-red-400">{error}</Field.Error>
+				<span className="text-sm text-red-600 dark:text-red-400">{error}</span>
 			)}
 		</Field.Root>
 	);
