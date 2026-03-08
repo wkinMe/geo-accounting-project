@@ -1,9 +1,8 @@
 // client/src/pages/warehouses/WarehousesList.tsx
 import { useState } from 'react';
 import { Table, type Action } from '@/components/shared/Table';
-import { EditWarehouseModal } from './EditWarehouseModal';
 import { warehouseService } from '@/services/warehouseService';
-import type { UpdateWarehouseDTO } from '@shared/dto';
+import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
@@ -11,6 +10,7 @@ import { TbReportAnalytics } from 'react-icons/tb';
 import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
 import { mapWarehouseToTableItem } from './utils';
+import { WarehouseModal } from './WarehouseModal';
 
 const headers = ['id', 'name', 'manager', 'organization', 'created_at', 'updated_at'] as const;
 
@@ -20,7 +20,7 @@ export function WarehousesList() {
 
 	const [searchQuery, setSearchQuery] = useState('');
 
-	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedWarehouse, setSelectedWarehouse] = useState<{
 		id: number;
 		name: string;
@@ -53,13 +53,24 @@ export function WarehousesList() {
 		},
 	});
 
+	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
+		mutationFn: async (data: CreateWarehouseDTO) => warehouseService.create(data),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			setTimeout(() => {
+				setIsModalOpen(false);
+				setSelectedWarehouse(null);
+			}, 300);
+		},
+	});
+
 	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
 			setTimeout(() => {
-				setIsEditModalOpen(false);
+				setIsModalOpen(false);
 				setSelectedWarehouse(null);
 			}, 300);
 		},
@@ -73,101 +84,82 @@ export function WarehousesList() {
 	const openEditModal = (warehouse: (typeof elements)[0]) => {
 		setSelectedWarehouse(warehouse);
 		setTimeout(() => {
-			setIsEditModalOpen(true);
+			setIsModalOpen(true);
 		}, 50);
 	};
 
-	const handleUpdate = async (id: number, data: UpdateWarehouseDTO) => {
-		await updateMutate({ id, data });
+	const openCreateModal = () => {
+		setSelectedWarehouse(null);
+		setIsModalOpen(true);
+	};
+
+	const handleSubmit = async (data: CreateWarehouseDTO | UpdateWarehouseDTO) => {
+		if (selectedWarehouse) {
+			// Режим редактирования
+			await updateMutate({ id: selectedWarehouse.id, data: data as UpdateWarehouseDTO });
+		} else {
+			// Режим создания
+			await createMutate(data as CreateWarehouseDTO);
+		}
 	};
 
 	const actions: Action<(typeof elements)[0]>[] = [
 		{
-			name: 'details',
+			name: 'Просмотреть',
 			action: (item) => navigate(`${item.id}`),
 			icon: <FaRegEye />,
-			popupName: 'Просмотреть',
 		},
 		{
-			name: 'edit',
+			name: 'Редактировать',
 			action: (item) => openEditModal(item),
 			icon: <MdEdit />,
-			popupName: 'Редактировать',
 		},
 		{
-			name: 'special',
+			name: 'Сформировать отчёт',
 			action: (item) => navigate(`/report/${item.id}`),
 			icon: <TbReportAnalytics />,
-			popupName: 'Сформировать отчёт',
 		},
 		{
-			name: 'delete',
+			name: 'Удалить',
 			action: async (item) => {
 				await deleteMutate(item.id);
 			},
 			icon: <FaRegTrashAlt />,
-			popupName: 'Удалить',
 			needConfirmation: true,
 		},
 	];
-
-	const handleSearch = (query: string) => {
-		if (query) {
-			setSearchQuery(query);
-		} else {
-			return;
-		}
-	};
 
 	return (
 		<>
 			<Table
 				searchValue={searchQuery}
-				onSearch={handleSearch}
+				onSearch={setSearchQuery}
 				debounceMs={300}
 				itemName="Склад"
 				headers={headers}
 				elements={elements}
 				actions={actions}
+				onCreate={openCreateModal}
 			/>
 
-			{selectedWarehouse && (
-				<EditWarehouseModal
-					open={isEditModalOpen}
-					setOpen={setIsEditModalOpen}
-					warehouse={{
-						id: selectedWarehouse.id,
-						name: selectedWarehouse.name,
-						organization_id: selectedWarehouse.organization_id,
-						manager_id: selectedWarehouse.managerId,
-						latitude: selectedWarehouse.latitude,
-						longitude: selectedWarehouse.longitude,
-					}}
-					onUpdate={handleUpdate}
-				/>
-			)}
-
-			{isUpdating && (
-				<div className="fixed bottom-4 right-4 bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-lg shadow-lg flex items-center gap-2">
-					<svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-						<circle
-							className="opacity-25"
-							cx="12"
-							cy="12"
-							r="10"
-							stroke="currentColor"
-							strokeWidth="4"
-							fill="none"
-						/>
-						<path
-							className="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-						/>
-					</svg>
-					<span>Сохранение...</span>
-				</div>
-			)}
+			<WarehouseModal
+				open={isModalOpen}
+				setOpen={setIsModalOpen}
+				warehouse={
+					selectedWarehouse
+						? {
+								id: selectedWarehouse.id,
+								name: selectedWarehouse.name,
+								organization_id: selectedWarehouse.organization_id,
+								manager_id: selectedWarehouse.managerId,
+								latitude: selectedWarehouse.latitude,
+								longitude: selectedWarehouse.longitude,
+							}
+						: null
+				}
+				onSubmit={handleSubmit}
+				isLoading={isCreating || isUpdating}
+			/>
 		</>
 	);
 }

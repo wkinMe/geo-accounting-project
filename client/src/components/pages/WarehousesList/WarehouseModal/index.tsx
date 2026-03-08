@@ -1,4 +1,4 @@
-// components/modals/EditWarehouseModal.tsx
+// components/modals/WarehouseModal.tsx
 
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -9,22 +9,24 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { TextField, NumberField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
-import type { UpdateWarehouseDTO } from '@shared/dto';
+import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
-	organization_id: z.number().positive('Выберите организацию').nullable(),
+	organization_id: z.number().positive('Выберите организацию'),
 	manager_id: z.number().optional().nullable(),
 	latitude: z
 		.number()
 		.min(-90, 'Широта должна быть от -90 до 90')
 		.max(90, 'Широта должна быть от -90 до 90')
-		.optional(),
+		.optional()
+		.nullable(),
 	longitude: z
 		.number()
 		.min(-180, 'Долгота должна быть от -180 до 180')
 		.max(180, 'Долгота должна быть от -180 до 180')
-		.optional(),
+		.optional()
+		.nullable(),
 });
 
 type WarehouseFormData = z.infer<typeof warehouseSchema>;
@@ -32,21 +34,24 @@ type WarehouseFormData = z.infer<typeof warehouseSchema>;
 interface Props {
 	open: boolean;
 	setOpen: (open: boolean) => void;
-	warehouse: {
+	warehouse?: {
 		id: number;
 		name: string;
 		organization_id: number;
 		manager_id?: number | null;
 		latitude?: number | null;
 		longitude?: number | null;
-	};
-	onUpdate: (id: number, data: UpdateWarehouseDTO) => void | Promise<void>;
+	} | null; // null = режим создания
+	onSubmit: (data: CreateWarehouseDTO | UpdateWarehouseDTO, id?: number) => void | Promise<void>;
+	isLoading?: boolean;
 }
 
-export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props) {
+export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const queryClient = useQueryClient();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
 	const [managerSearchQuery, setManagerSearchQuery] = useState('');
+
+	const isEditing = !!warehouse?.id;
 
 	const {
 		register,
@@ -54,15 +59,15 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 		formState: { errors },
 		setValue,
 		watch,
-		trigger, // Добавляем trigger
+		trigger,
 	} = useForm<WarehouseFormData>({
 		resolver: zodResolver(warehouseSchema),
 		defaultValues: {
-			name: warehouse.name,
-			organization_id: warehouse.organization_id,
-			manager_id: warehouse.manager_id ?? null,
-			latitude: warehouse.latitude ?? undefined,
-			longitude: warehouse.longitude ?? undefined,
+			name: warehouse?.name ?? '',
+			organization_id: warehouse?.organization_id ?? 0,
+			manager_id: warehouse?.manager_id ?? null,
+			latitude: warehouse?.latitude ?? undefined,
+			longitude: warehouse?.longitude ?? undefined,
 		},
 		mode: 'onSubmit',
 	});
@@ -99,11 +104,11 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 	useEffect(() => {
 		if (open) {
 			reset({
-				name: warehouse.name,
-				organization_id: warehouse.organization_id,
-				manager_id: warehouse.manager_id ?? null,
-				latitude: warehouse.latitude ?? undefined,
-				longitude: warehouse.longitude ?? undefined,
+				name: warehouse?.name ?? '',
+				organization_id: warehouse?.organization_id ?? 0,
+				manager_id: warehouse?.manager_id ?? null,
+				latitude: warehouse?.latitude ?? undefined,
+				longitude: warehouse?.longitude ?? undefined,
 			});
 			// Сбрасываем поисковые запросы
 			setOrgSearchQuery('');
@@ -111,15 +116,7 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 		}
 	}, [open, warehouse, reset]);
 
-	const onSubmit = async (data: UpdateWarehouseDTO) => {
-		await onUpdate(warehouse.id, data);
-		// Инвалидируем кэш после обновления
-		await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-		setOpen(false); // Закрываем модалку только после успешного обновления
-	};
-
-	// Создаем функцию для onConfirm с ручной валидацией
-	const handleConfirm = async () => {
+	const handleSubmit = async () => {
 		// Запускаем валидацию всех полей
 		const isValid = await trigger();
 
@@ -127,17 +124,22 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 			// Получаем текущие значения формы
 			const formData = watch();
 
-			// Фильтруем null значения, оставляем только undefined для опциональных полей
+			// Преобразуем null в undefined для опциональных полей
 			const data = {
 				...formData,
-				organization_id: formData.organization_id === null ? undefined : formData.organization_id,
 				latitude: formData.latitude === null ? undefined : formData.latitude,
 				longitude: formData.longitude === null ? undefined : formData.longitude,
 			};
 
-			setTimeout(async () => {
-				await onSubmit(data);
-			});
+			if (isEditing) {
+				await onSubmit(data as UpdateWarehouseDTO, warehouse.id);
+			} else {
+				await onSubmit(data as CreateWarehouseDTO);
+			}
+
+			// Инвалидируем кэш после обновления
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			setOpen(false);
 		} else {
 			// Если есть ошибки валидации, выбрасываем ошибку, чтобы модалка не закрылась
 			throw new Error('Пожалуйста, исправьте ошибки в форме');
@@ -161,9 +163,9 @@ export function EditWarehouseModal({ open, setOpen, warehouse, onUpdate }: Props
 		<ConfirmModal
 			open={open}
 			setOpen={setOpen}
-			actionName="редактирование склада"
-			onConfirm={handleConfirm}
-			confirmText="Сохранить"
+			actionName={isEditing ? 'редактирование склада' : 'создание склада'}
+			onConfirm={handleSubmit}
+			confirmText={isEditing ? 'Сохранить' : 'Создать'}
 			cancelText="Отмена"
 		>
 			<div className="space-y-4">
