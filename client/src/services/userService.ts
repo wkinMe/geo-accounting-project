@@ -93,9 +93,9 @@ class UserService {
 	/**
 	 * Поиск и фильтрация
 	 */
-	async search(query: string): Promise<SuccessResponse<User[]>> {
+	async search(query: string, organization_id?: number): Promise<SuccessResponse<User[]>> {
 		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/search`, {
-			params: { q: query },
+			params: { q: query, organization_id },
 		});
 		return response.data;
 	}

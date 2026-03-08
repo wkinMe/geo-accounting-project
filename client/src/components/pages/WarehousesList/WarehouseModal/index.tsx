@@ -16,17 +16,13 @@ const warehouseSchema = z.object({
 	organization_id: z.number().positive('Выберите организацию'),
 	manager_id: z.number().optional().nullable(),
 	latitude: z
-		.number()
+		.number('Должно содержать число от -90 до 90')
 		.min(-90, 'Широта должна быть от -90 до 90')
-		.max(90, 'Широта должна быть от -90 до 90')
-		.optional()
-		.nullable(),
+		.max(90, 'Широта должна быть от -90 до 90'),
 	longitude: z
-		.number()
+		.number('Должно содержать число от -180 до 180')
 		.min(-180, 'Долгота должна быть от -180 до 180')
-		.max(180, 'Долгота должна быть от -180 до 180')
-		.optional()
-		.nullable(),
+		.max(180, 'Долгота должна быть от -180 до 180'),
 });
 
 type WarehouseFormData = z.infer<typeof warehouseSchema>;
@@ -69,7 +65,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			latitude: warehouse?.latitude ?? undefined,
 			longitude: warehouse?.longitude ?? undefined,
 		},
-		mode: 'onSubmit',
+		mode: 'onChange',
 	});
 
 	// Загружаем все организации для начального отображения
@@ -158,6 +154,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 		managerSearchQuery.length > 0
 			? managerSearchData?.data || []
 			: availableManagersData?.data || [];
+
+	console.log(errors);
 
 	return (
 		<ConfirmModal

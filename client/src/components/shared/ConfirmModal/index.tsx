@@ -65,15 +65,17 @@ export function ConfirmModal({
 						<div className="mt-4 text-gray-600 dark:text-gray-400">{children}</div>
 
 						<div className="flex justify-between gap-3 mt-6">
-							<Dialog.Close>
-								<button
-									onClick={handleCancel}
-									disabled={isLoading}
-									className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-								>
-									{cancelText}
-								</button>
-							</Dialog.Close>
+							<Dialog.Close
+								render={
+									<button
+										onClick={handleCancel}
+										disabled={isLoading}
+										className="cursor-pointer px-4 py-2 bg-gray-100 dark:bg-gray-900 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors border border-gray-200 dark:border-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+									>
+										{cancelText}
+									</button>
+								}
+							/>
 
 							<button
 								onClick={handleConfirm}

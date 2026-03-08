@@ -53,7 +53,11 @@ export function WarehousesList() {
 		},
 	});
 
-	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
+	const {
+		mutateAsync: createMutate,
+		isPending: isCreating,
+		error: creatingError,
+	} = useMutation({
 		mutationFn: async (data: CreateWarehouseDTO) => warehouseService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
@@ -64,7 +68,11 @@ export function WarehousesList() {
 		},
 	});
 
-	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
+	const {
+		mutateAsync: updateMutate,
+		isPending: isUpdating,
+		error: updateError,
+	} = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {

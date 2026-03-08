@@ -549,13 +549,13 @@ export class WarehouseService {
 
       const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
         keys: [
-          { name: "name", weight: 0.6 },
+          { name: "name", weight: 0.9 },
           { name: "organization.name", weight: 0.4 },
           { name: "manager.name", weight: 0.3 },
         ],
         includeScore: true,
-        threshold: 0.4,
-        minMatchCharLength: 2,
+        threshold: 0.2,
+        minMatchCharLength: 1,
         findAllMatches: true,
         ignoreLocation: true,
         useExtendedSearch: true,
