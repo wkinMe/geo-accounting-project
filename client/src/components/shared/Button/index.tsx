@@ -31,6 +31,7 @@ export function Button({
       text-white dark:text-gray-900
       hover:bg-gray-800 dark:hover:bg-gray-200
       border border-transparent
+			cursor-pointer
     `,
 		secondary: `
       bg-gray-100 dark:bg-gray-800
@@ -71,6 +72,7 @@ export function Button({
         transition-all duration-200
         focus:outline-none
         disabled:opacity-50 disabled:cursor-not-allowed
+				cursor-pointer
         ${variants[variant]}
         ${sizes[size]}
         ${width}

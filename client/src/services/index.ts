@@ -1,3 +1,4 @@
 export * from './userService';
 export * from './warehouseService';
-export * from './organiztionService';
+export * from './organizationService';
+export * from "./materialService";

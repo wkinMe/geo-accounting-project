@@ -6,12 +6,12 @@ import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { Auth } from './components/pages/Auth';
-import { Warehouse } from './components/pages/Warehouse';
 import { WarehousesList } from './components/pages/WarehousesList';
 import { ManagersList } from './components/pages/ManagersList';
 import { Manager } from './components/pages/Manager';
 import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
+import { Warehouse } from './components/pages/Warehouse';
 
 const queryClient = new QueryClient();
 

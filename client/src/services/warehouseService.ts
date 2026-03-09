@@ -2,7 +2,12 @@
 
 import { instance } from '@/api/instance';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import type { Warehouse, WarehouseWithMaterialsAndOrganization } from '@shared/models';
+import type {
+	Warehouse,
+	WarehouseWithMaterialsAndOrganization,
+	WarehouseMaterial,
+	Material,
+} from '@shared/models';
 import type { SuccessResponse } from '@shared/types';
 
 class WarehouseService {
@@ -99,6 +104,76 @@ class WarehouseService {
 			`${this.baseUrl}/${warehouseId}/assign-manager`,
 			{ managerId }
 		);
+		return response.data;
+	}
+
+	/**
+	 * Добавление материала на склад
+	 */
+	async addMaterial(
+		warehouseId: number,
+		materialId: number,
+		amount: number
+	): Promise<SuccessResponse<WarehouseMaterial>> {
+		const response = await instance.post<SuccessResponse<WarehouseMaterial>>(
+			`${this.baseUrl}/${warehouseId}/materials`,
+			{ materialId, amount }
+		);
+		return response.data;
+	}
+
+	/**
+	 * Обновление количества материала на складе
+	 */
+	async updateMaterialAmount(
+		warehouseId: number,
+		materialId: number,
+		amount: number
+	): Promise<SuccessResponse<WarehouseMaterial>> {
+		const response = await instance.patch<SuccessResponse<WarehouseMaterial>>(
+			`${this.baseUrl}/${warehouseId}/materials/${materialId}`,
+			{ amount }
+		);
+		return response.data;
+	}
+
+	/**
+	 * Удаление материала со склада
+	 */
+	async removeMaterial(
+		warehouseId: number,
+		materialId: number
+	): Promise<SuccessResponse<WarehouseMaterial>> {
+		const response = await instance.delete<SuccessResponse<WarehouseMaterial>>(
+			`${this.baseUrl}/${warehouseId}/materials/${materialId}`
+		);
+		return response.data;
+	}
+
+	/**
+	 * Получение всех материалов на складе
+	 */
+	async getMaterials(
+		warehouseId: number
+	): Promise<SuccessResponse<(WarehouseMaterial & { material: Material })[]>> {
+		const response = await instance.get<
+			SuccessResponse<(WarehouseMaterial & { material: Material })[]>
+		>(`${this.baseUrl}/${warehouseId}/materials`);
+		return response.data;
+	}
+
+	/**
+	 * Поиск материалов на складе
+	 */
+	async searchMaterials(
+		warehouseId: number,
+		query: string
+	): Promise<SuccessResponse<(WarehouseMaterial & { material: Material })[]>> {
+		const response = await instance.get<
+			SuccessResponse<(WarehouseMaterial & { material: Material })[]>
+		>(`${this.baseUrl}/${warehouseId}/materials/search`, {
+			params: { q: query },
+		});
 		return response.data;
 	}
 }

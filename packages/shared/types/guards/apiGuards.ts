@@ -1,5 +1,5 @@
-import { ErrorResponse } from "@t/api";
-import { SuccessResponse } from "../api/response";
+import type { ErrorResponse } from "@shared/types";
+import type { SuccessResponse } from "@shared/types";
 
 export function isSuccessResponse<T>(obj: any): obj is SuccessResponse<T> {
   return (

@@ -1,3 +1,3 @@
 export type * from "./api";
-export type * from "./guards";
+export * from "./guards";
 export type * from "./services";

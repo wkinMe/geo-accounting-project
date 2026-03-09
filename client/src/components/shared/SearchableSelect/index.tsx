@@ -130,7 +130,6 @@ export function SearchableSelect<T extends Option>({
 
 	const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const query = e.target.value;
-		console.log(query);
 		setSearchQuery(query);
 		setIsOpen(true);
 		setHighlightedIndex(-1);

@@ -44,4 +44,5 @@ export const ERROR_MESSAGES = {
     `${entity} with ID ${id} not found`,
   INVALID_LATITUDE: "Latitude must be between -90 and 90 degrees",
   INVALID_LONGITUDE: "Longitude must be between -180 and 180 degrees",
+  INVALID_AMOUNT: "Amount must be positive",
 };

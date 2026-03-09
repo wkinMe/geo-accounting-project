@@ -394,7 +394,7 @@ export class AgreementService {
                   ERROR_MESSAGES.INVALID_ID_FORMAT("Material"),
                   "create",
                   "material_id",
-                  material.material_id,
+                  material.material_id.toString(),
                 );
               }
 
@@ -407,7 +407,7 @@ export class AgreementService {
                 throw new NotFoundError(
                   ERROR_MESSAGES.NOT_FOUND("Material", material.material_id),
                   "Material",
-                  material.material_id,
+                  material.material_id.toString(),
                 );
               }
 
@@ -417,7 +417,7 @@ export class AgreementService {
                   "Amount must be positive",
                   "create",
                   "amount",
-                  material.amount,
+                  material.amount.toString(),
                 );
               }
 
@@ -679,7 +679,7 @@ export class AgreementService {
                   ERROR_MESSAGES.INVALID_ID_FORMAT("Material"),
                   "update",
                   "material_id",
-                  material.material_id,
+                  material.material_id.toString(),
                 );
               }
 
@@ -692,7 +692,7 @@ export class AgreementService {
                 throw new NotFoundError(
                   ERROR_MESSAGES.NOT_FOUND("Material", material.material_id),
                   "Material",
-                  material.material_id,
+                  material.material_id.toString(),
                 );
               }
 
@@ -702,7 +702,7 @@ export class AgreementService {
                   "Amount must be positive",
                   "update",
                   "amount",
-                  material.amount,
+                  material.amount.toString(),
                 );
               }
 
@@ -771,7 +771,7 @@ export class AgreementService {
           throw new NotFoundError(
             ERROR_MESSAGES.NOT_FOUND(this.entityName, id),
             this.entityName,
-            id,
+            id.toString(),
           );
         }
 

@@ -155,8 +155,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			? managerSearchData?.data || []
 			: availableManagersData?.data || [];
 
-	console.log(errors);
-
 	return (
 		<ConfirmModal
 			open={open}

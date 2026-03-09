@@ -16,6 +16,10 @@
   "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:server": "cd server && npm test",
+    "test:server:watch": "cd server && npm run test:watch",
+    "test:server:coverage": "cd server && npm run test:coverage",
+    "test:server:verbose": "cd server && npm run test:verbose",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",

@@ -8,7 +8,10 @@
     "start": "node dist/app.js",
     "dev": "tsx watch src/app.ts",
     "build": "tsc",
-    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --runInBand"
+    "test": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --runInBand",
+    "test:watch": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --watch --runInBand",
+    "test:coverage": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --coverage --runInBand",
+    "test:verbose": "NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules --no-warnings\" jest --verbose --runInBand"
   },
   "keywords": [],
   "author": "",

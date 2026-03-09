@@ -71,4 +71,49 @@ warehousesRouter.delete(
   },
 );
 
+// POST /api/warehouses/:id/materials - добавить материал на склад
+warehousesRouter.post(
+  "/:id/materials",
+  authMiddleware,
+  (req: Request<{ id: string }>, res: Response) => {
+    warehouseController.addMaterial(req, res);
+  },
+);
+
+// GET /api/warehouses/:id/materials - получить все материалы со склада
+warehousesRouter.get(
+  "/:id/materials",
+  authMiddleware,
+  (req: Request<{ id: string }>, res: Response) => {
+    warehouseController.getMaterials(req, res);
+  },
+);
+
+// GET /api/warehouses/:id/materials/search - поиск материалов на складе
+warehousesRouter.get(
+  "/:id/materials/search",
+  authMiddleware,
+  (req: Request<{ id: string }>, res: Response) => {
+    warehouseController.searchMaterialByWarehouse(req, res);
+  },
+);
+
+// PATCH /api/warehouses/:id/materials/:materialId - обновить количество материала
+warehousesRouter.patch(
+  "/:id/materials/:materialId",
+  authMiddleware,
+  (req: Request<{ id: string; materialId: string }>, res: Response) => {
+    warehouseController.updateMaterialAmount(req, res);
+  },
+);
+
+// DELETE /api/warehouses/:id/materials/:materialId - удалить материал со склада
+warehousesRouter.delete(
+  "/:id/materials/:materialId",
+  authMiddleware,
+  (req: Request<{ id: string; materialId: string }>, res: Response) => {
+    warehouseController.removeMaterial(req, res);
+  },
+);
+
 export default warehousesRouter;
