@@ -55,7 +55,7 @@ export function WarehouseMaterials({ id }: Props) {
 	});
 
 	// Мутация для удаления материала со склада
-	const { mutateAsync: removeMaterialMutate, isPending: isRemoving } = useMutation({
+	const { mutateAsync: removeMaterialMutate } = useMutation({
 		mutationFn: ({ materialId }: { materialId: number }) =>
 			warehouseService.removeMaterial(id, materialId),
 		onSuccess: async () => {
@@ -66,7 +66,7 @@ export function WarehouseMaterials({ id }: Props) {
 	});
 
 	// Мутация для обновления количества
-	const { mutateAsync: updateAmountMutate, isPending: isUpdating } = useMutation({
+	const { mutateAsync: updateAmountMutate } = useMutation({
 		mutationFn: ({ materialId, amount }: { materialId: number; amount: number }) =>
 			warehouseService.updateMaterialAmount(id, materialId, amount),
 		onSuccess: async () => {
@@ -123,22 +123,15 @@ export function WarehouseMaterials({ id }: Props) {
 
 	return (
 		<>
-			<div className="mt-12 space-y-4">
-				<div className="flex justify-between items-center">
+			<div className="mt-12">
+				<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center">
 					<h2 className="text-xl font-semibold text-gray-900 dark:text-white">
 						Материалы на складе
 					</h2>
-					<Button
-						variant="primary"
-						size="sm"
-						onClick={() => setIsAddModalOpen(true)}
-						startIcon={<IoAdd />}
-					>
-						Добавить материал
-					</Button>
 				</div>
 
 				<Table
+					roundedT={false}
 					searchValue={searchQuery}
 					onSearch={setSearchQuery}
 					debounceMs={300}
@@ -146,6 +139,7 @@ export function WarehouseMaterials({ id }: Props) {
 					headers={headers}
 					elements={elements}
 					actions={actions}
+					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
 

@@ -11,6 +11,10 @@ export interface Action<T> {
 }
 
 interface Props<T extends { id: number }> {
+	// Для управления закруглением вершин
+	roundedT?: boolean;
+	roundedB?: boolean;
+
 	headers: readonly (keyof T)[];
 	itemName: string; // Название элемента, для которого нужна таблица, по типу склад/отчёт/пользователь и т.д.
 	elements: T[];
@@ -24,6 +28,9 @@ interface Props<T extends { id: number }> {
 }
 
 export function Table<T extends { id: number }>({
+	roundedB = true,
+	roundedT = true,
+
 	headers,
 	itemName,
 	elements,
@@ -64,7 +71,7 @@ export function Table<T extends { id: number }>({
 					</div>
 				</ConfirmModal>
 			)}
-			<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+			<div className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 dark:border-gray-800`}>
 				<div className="flex items-center p-3 gap-3">
 					{onSearch && (
 						<SearchInput value={searchValue ?? ''} ms={debounceMs ?? 300} onSearch={onSearch} className="flex-1"/>
