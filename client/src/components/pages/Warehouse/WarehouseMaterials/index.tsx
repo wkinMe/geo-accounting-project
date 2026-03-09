@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
 import { RemoveMaterialConfirmModal } from './RemoveMaterialConfirmModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
+import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
 
 const headers = ['id', 'name', 'amount'] as const;
 
@@ -25,6 +26,7 @@ export function WarehouseMaterials({ id }: Props) {
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
+
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 	const [selectedMaterial, setSelectedMaterial] = useState<{
@@ -38,13 +40,18 @@ export function WarehouseMaterials({ id }: Props) {
 		amount: number;
 	} | null>(null);
 
-	// Получение материалов со склада
-	const { data: materialsData, isLoading } = useQuery({
+	// Получение всех материалов со склада
+	const { data: materials } = useQuery({
+		queryKey: ['warehouse-materials', id],
+		queryFn: () => warehouseService.getMaterials(id),
+	});
+
+	// Поиск материалов на складе
+	const { data: searchedMaterials } = useQuery({
 		queryKey: ['warehouse-materials', id, searchQuery],
-		queryFn: () =>
-			searchQuery
-				? warehouseService.searchMaterials(id, searchQuery)
-				: warehouseService.getMaterials(id),
+		queryFn: () => warehouseService.searchMaterials(id, searchQuery),
+		enabled: searchQuery.length > 0,
+		retry: false,
 	});
 
 	// Мутация для удаления материала со склада
@@ -68,7 +75,10 @@ export function WarehouseMaterials({ id }: Props) {
 		},
 	});
 
-	const materials = materialsData?.data || [];
+	const elements =
+		searchQuery && searchedMaterials
+			? searchedMaterials.data.map(mapWarehouseMaterialToTableItem)
+			: materials?.data.map(mapWarehouseMaterialToTableItem) || [];
 
 	const handleRemoveMaterial = async () => {
 		if (selectedMaterial) {
@@ -80,7 +90,7 @@ export function WarehouseMaterials({ id }: Props) {
 		await updateAmountMutate({ materialId, amount });
 	};
 
-	const actions: Action<(typeof materials)[0]>[] = [
+	const actions: Action<TableMaterial>[] = [
 		{
 			name: 'Просмотреть',
 			action: (item) => navigate(`/materials/${item.material.id}`),
@@ -111,14 +121,6 @@ export function WarehouseMaterials({ id }: Props) {
 		},
 	];
 
-	if (isLoading) {
-		return (
-			<div className="flex justify-center items-center p-8">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
-			</div>
-		);
-	}
-
 	return (
 		<>
 			<div className="mt-12 space-y-4">
@@ -142,15 +144,7 @@ export function WarehouseMaterials({ id }: Props) {
 					debounceMs={300}
 					itemName="Материал"
 					headers={headers}
-					elements={materials.map((m) => ({
-						id: m.material_id,
-						name: m.material.name,
-						amount: m.amount,
-						// unit: m.material.unit || '-',
-						// price: m.material.price || '-',
-						material: m.material,
-						material_id: m.material_id,
-					}))}
+					elements={elements}
 					actions={actions}
 				/>
 			</div>

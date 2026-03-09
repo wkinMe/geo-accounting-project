@@ -56,7 +56,6 @@ export function WarehousesList() {
 	const {
 		mutateAsync: createMutate,
 		isPending: isCreating,
-		error: creatingError,
 	} = useMutation({
 		mutationFn: async (data: CreateWarehouseDTO) => warehouseService.create(data),
 		onSuccess: async () => {
@@ -71,7 +70,6 @@ export function WarehousesList() {
 	const {
 		mutateAsync: updateMutate,
 		isPending: isUpdating,
-		error: updateError,
 	} = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
