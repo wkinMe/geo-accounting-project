@@ -3,15 +3,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, type Action } from '@/components/shared/Table';
-import { Button } from '@/components/shared/Button';
 import { warehouseService } from '@/services/warehouseService';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { IoAdd } from 'react-icons/io5';
 import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
-import { RemoveMaterialConfirmModal } from './RemoveMaterialConfirmModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
 
@@ -80,12 +77,6 @@ export function WarehouseMaterials({ id }: Props) {
 			? searchedMaterials.data.map(mapWarehouseMaterialToTableItem)
 			: materials?.data.map(mapWarehouseMaterialToTableItem) || [];
 
-	const handleRemoveMaterial = async () => {
-		if (selectedMaterial) {
-			await removeMaterialMutate({ materialId: selectedMaterial.id });
-		}
-	};
-
 	const handleUpdateAmount = async (materialId: number, amount: number) => {
 		await updateAmountMutate({ materialId, amount });
 	};
@@ -107,16 +98,19 @@ export function WarehouseMaterials({ id }: Props) {
 			icon: <MdEdit />,
 		},
 		{
-			name: 'Удалить со склада',
-			action: (item) => {
-				setSelectedMaterial({
-					id: item.material_id,
-					name: item.material.name,
-					amount: item.amount,
-				});
-				setIsDeleteModalOpen(true);
+			name: 'Удалить материал со склада',
+
+			action: async (item) => {
+				await removeMaterialMutate({ materialId: item.material_id });
 			},
 			icon: <FaRegTrashAlt />,
+			confirmationBody: (item) => (
+				<div className="space-y-2">
+					<p>Вы уверены, что хотите удалить материал со склада?</p>
+					<p className="font-medium">{item.name}</p>
+					<p>Количество: {item.amount}</p>
+				</div>
+			),
 			needConfirmation: true,
 		},
 	];
@@ -164,15 +158,6 @@ export function WarehouseMaterials({ id }: Props) {
 					onSubmit={handleUpdateAmount}
 				/>
 			)}
-
-			{/* Модалка подтверждения удаления */}
-			<RemoveMaterialConfirmModal
-				open={isDeleteModalOpen}
-				setOpen={setIsDeleteModalOpen}
-				materialName={selectedMaterial?.name || ''}
-				currentAmount={selectedMaterial?.amount || 0}
-				onConfirm={handleRemoveMaterial}
-			/>
 		</>
 	);
 }

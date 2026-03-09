@@ -1,3 +1,5 @@
+// client/src/components/shared/Table/index.tsx
+
 import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 import { SearchInput } from '../SearchInput';
@@ -8,6 +10,7 @@ export interface Action<T> {
 	action: (item: T) => void | Promise<void>;
 	icon: string | React.ReactNode;
 	needConfirmation?: boolean;
+	confirmationBody?: (item: T) => React.ReactNode; // Функция для кастомного текста подтверждения
 }
 
 interface Props<T extends { id: number }> {
@@ -66,17 +69,34 @@ export function Table<T extends { id: number }>({
 					setOpen={setOpenModal}
 				>
 					<div className="h-30">
-						Вы уверены, что хотите {currentAction?.name?.toLocaleLowerCase()}{' '}
-						{itemName.toLocaleLowerCase()}?{' '}
+						{currentAction?.confirmationBody && currentItem ? (
+							currentAction.confirmationBody(currentItem)
+						) : (
+							<>
+								Вы уверены, что хотите {currentAction?.name?.toLocaleLowerCase()}{' '}
+								{itemName.toLocaleLowerCase()}?
+							</>
+						)}
 					</div>
 				</ConfirmModal>
 			)}
-			<div className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 dark:border-gray-800`}>
+			<div
+				className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 dark:border-gray-800`}
+			>
 				<div className="flex items-center p-3 gap-3">
 					{onSearch && (
-						<SearchInput value={searchValue ?? ''} ms={debounceMs ?? 300} onSearch={onSearch} className="flex-1"/>
+						<SearchInput
+							value={searchValue ?? ''}
+							ms={debounceMs ?? 300}
+							onSearch={onSearch}
+							className="flex-1"
+						/>
 					)}
-					{onCreate && <Button className="cursor-pointer" onClick={onCreate}>Добавить {itemName}</Button>}
+					{onCreate && (
+						<Button className="cursor-pointer" onClick={onCreate}>
+							Добавить {itemName}
+						</Button>
+					)}
 				</div>
 				{elements && elements.length === 0 ? (
 					<div className="divide-y divide-gray-200 dark:divide-gray-800 flex justify-center items-center min-h-48">

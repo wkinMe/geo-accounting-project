@@ -72,7 +72,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const { data: organizationsData } = useQuery({
 		queryKey: ['organizations'],
 		queryFn: () => organizationService.findAll(),
-		enabled: open,
 	});
 
 	// Поиск организаций
@@ -93,7 +92,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const { data: availableManagersData } = useQuery({
 		queryKey: ['available-managers'],
 		queryFn: () => userService.getAvailableManagers(),
-		enabled: open,
 	});
 
 	// Сброс формы при открытии с новыми данными
