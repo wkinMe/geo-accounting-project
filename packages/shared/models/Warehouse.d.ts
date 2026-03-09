@@ -1,5 +1,5 @@
 import type { BaseModel } from "./Base";
-import { Material } from "./Material";
+import { Material, type WarehouseMaterial } from "./Material";
 import { Organization } from "./Organization";
 import { User } from "./User";
 
@@ -17,7 +17,7 @@ export interface WarehouseWithOrganization extends Warehouse {
 }
 
 export interface WarehouseWithMaterialsAndOrganization extends WarehouseWithOrganization {
-  materials?: Material[] | null;
+  materials?: WarehouseMaterial[] | null;
   materials_count?: number;
   manager?: User | null;
 }

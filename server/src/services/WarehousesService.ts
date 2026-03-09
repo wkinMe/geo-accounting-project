@@ -7,6 +7,7 @@ import {
   Warehouse,
   WarehouseWithMaterialsAndOrganization,
   User,
+  WarehouseMaterial,
 } from "@shared/models";
 
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
@@ -44,7 +45,7 @@ export class WarehouseService {
 
       const rows = await executeQuery<{
         warehouse: Warehouse;
-        materials: Material[] | null;
+        materials: WarehouseMaterial[] | null;
         organization: Organization;
         manager: User | null;
       }>(this._db, "findAll", query);
@@ -88,7 +89,7 @@ export class WarehouseService {
 
       const warehouseData = await getSingleResult<{
         warehouse: Warehouse;
-        materials: Material[] | null;
+        materials: WarehouseMaterial[] | null;
         organization: Organization;
         manager: User | null;
       }>(this._db, "findById", query, [id], "Warehouse", id);
@@ -171,6 +172,7 @@ export class WarehouseService {
         throw new NotFoundError(
           `Organization with id ${createData.organization_id} not found`,
           "Organization",
+          "WarehouseService",
           createData.organization_id,
         );
       }
@@ -190,6 +192,7 @@ export class WarehouseService {
           throw new NotFoundError(
             `Manager with id ${createData.manager_id} not found`,
             "User",
+            "WarehouseService",
             createData.manager_id,
           );
         }
@@ -335,6 +338,7 @@ export class WarehouseService {
           throw new NotFoundError(
             `Organization with id ${updateData.organization_id} not found`,
             "Organization",
+            "WarehouseService",
             updateData.organization_id,
           );
         }
@@ -355,6 +359,7 @@ export class WarehouseService {
           throw new NotFoundError(
             `Manager with id ${updateData.manager_id} not found`,
             "User",
+            "WarehouseService",
             updateData.manager_id,
           );
         }
@@ -594,7 +599,8 @@ export class WarehouseService {
       if (managerCheck.length === 0) {
         throw new NotFoundError(
           `Manager with id ${managerId} not found`,
-          "User",
+          "findByManagerId",
+          "WarehouseService",
           managerId,
         );
       }
@@ -617,7 +623,7 @@ export class WarehouseService {
 
       const rows = await executeQuery<{
         warehouse: Warehouse;
-        materials: Material[] | null;
+        materials: WarehouseMaterial[] | null;
         organization: Organization;
         manager: User | null;
       }>(this._db, "findByManagerId", query, [managerId]);
@@ -662,6 +668,7 @@ export class WarehouseService {
           throw new NotFoundError(
             `Manager with id ${managerId} not found`,
             "User",
+            "WarehouseService",
             managerId,
           );
         }
@@ -697,6 +704,315 @@ export class WarehouseService {
         `Failed to assign manager to warehouse with id ${warehouseId}`,
         "WarehouseService",
         "assignManager",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // Добавление материала на склад (или увеличение количества если уже существует)
+  async addMaterial(
+    warehouseId: number,
+    materialId: number,
+    amount: number,
+  ): Promise<WarehouseMaterial> {
+    try {
+      // Проверяем существование склада
+      await this.findById(warehouseId);
+
+      // Проверяем существование материала
+      const materialCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkMaterialExists",
+        "SELECT id FROM materials WHERE id = $1",
+        [materialId],
+      );
+
+      if (materialCheck.length === 0) {
+        throw new NotFoundError(
+          `Material with id ${materialId} not found`,
+          "Material",
+          "WarehouseService",
+          materialId,
+        );
+      }
+
+      // Пытаемся обновить количество, если материал уже есть на складе
+      const updateResult = await executeQuery<WarehouseMaterial>(
+        this._db,
+        "updateExistingMaterial",
+        `UPDATE warehouse_material 
+         SET amount = amount + $1, updated_at = CURRENT_TIMESTAMP
+         WHERE warehouse_id = $2 AND material_id = $3
+         RETURNING *`,
+        [amount, warehouseId, materialId],
+      );
+
+      // Если обновление затронуло строки, значит материал уже был - возвращаем обновленную запись
+      if (updateResult.length > 0) {
+        return updateResult[0];
+      }
+
+      // Если материал не найден - добавляем новую запись
+      const insertResult = await executeQuery<WarehouseMaterial>(
+        this._db,
+        "addNewMaterial",
+        `INSERT INTO warehouse_material (warehouse_id, material_id, amount)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+        [warehouseId, materialId, amount],
+      );
+
+      if (insertResult.length === 0) {
+        throw new ServiceError(
+          "Failed to add material to warehouse - no data returned",
+          "WarehouseService",
+          "addMaterial",
+          new Error("No data returned from INSERT query"),
+        );
+      }
+
+      return insertResult[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to add material to warehouse ${warehouseId}`,
+        "WarehouseService",
+        "addMaterial",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // Обновление количества материала на складе (замена, а не прибавление)
+  async updateMaterialAmount(
+    warehouseId: number,
+    materialId: number,
+    amount: number,
+  ): Promise<WarehouseMaterial> {
+    try {
+      // Проверяем существование склада
+      await this.findById(warehouseId);
+
+      // Проверяем существование материала
+      const materialCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkMaterialExists",
+        "SELECT id FROM materials WHERE id = $1",
+        [materialId],
+      );
+
+      if (materialCheck.length === 0) {
+        throw new NotFoundError(
+          `Material with id ${materialId} not found`,
+          "Material",
+          "WarehouseService",
+          materialId,
+        );
+      }
+
+      // Проверяем, что материал есть на складе
+      const existingCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkMaterialInWarehouse",
+        "SELECT id FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
+        [warehouseId, materialId],
+      );
+
+      if (existingCheck.length === 0) {
+        throw new NotFoundError(
+          `Material with id ${materialId} not found in warehouse ${warehouseId}`,
+          "WarehouseMaterial",
+          "WarehouseService",
+          materialId,
+        );
+      }
+
+      const rows = await executeQuery<WarehouseMaterial>(
+        this._db,
+        "updateMaterialAmount",
+        `UPDATE warehouse_material 
+         SET amount = $1, updated_at = CURRENT_TIMESTAMP
+         WHERE warehouse_id = $2 AND material_id = $3
+         RETURNING *`,
+        [amount, warehouseId, materialId],
+      );
+
+      if (rows.length === 0) {
+        throw new ServiceError(
+          `Failed to update material amount - no data returned`,
+          "WarehouseService",
+          "updateMaterialAmount",
+          new Error("No data returned from UPDATE query"),
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to update material amount in warehouse ${warehouseId}`,
+        "WarehouseService",
+        "updateMaterialAmount",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // Удаление материала со склада
+  async removeMaterial(
+    warehouseId: number,
+    materialId: number,
+  ): Promise<WarehouseMaterial> {
+    try {
+      // Проверяем существование склада
+      await this.findById(warehouseId);
+
+      // Проверяем, что материал есть на складе
+      const existingCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkMaterialInWarehouse",
+        "SELECT id FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
+        [warehouseId, materialId],
+      );
+
+      if (existingCheck.length === 0) {
+        throw new NotFoundError(
+          `Material with id ${materialId} not found in warehouse ${warehouseId}`,
+          "WarehouseMaterial",
+          "WarehouseService",
+          materialId,
+        );
+      }
+
+      const rows = await executeQuery<WarehouseMaterial>(
+        this._db,
+        "removeMaterial",
+        `DELETE FROM warehouse_material 
+       WHERE warehouse_id = $1 AND material_id = $2
+       RETURNING *`,
+        [warehouseId, materialId],
+      );
+
+      if (rows.length === 0) {
+        throw new ServiceError(
+          `Failed to remove material from warehouse - no data returned`,
+          "WarehouseService",
+          "removeMaterial",
+          new Error("No data returned from DELETE query"),
+        );
+      }
+
+      return rows[0];
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to remove material from warehouse ${warehouseId}`,
+        "WarehouseService",
+        "removeMaterial",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // Получение всех материалов на складе (без поиска)
+  async getMaterials(
+    warehouseId: number,
+  ): Promise<(WarehouseMaterial & { material: Material })[]> {
+    try {
+      // Проверяем существование склада
+      await this.findById(warehouseId);
+
+      const query = `
+      SELECT 
+        wm.*,
+        row_to_json(m.*) as material
+      FROM warehouse_material wm
+      INNER JOIN materials m ON wm.material_id = m.id
+      WHERE wm.warehouse_id = $1
+      ORDER BY m.name
+    `;
+
+      const rows = await executeQuery<
+        WarehouseMaterial & { material: Material }
+      >(this._db, "getMaterials", query, [warehouseId]);
+
+      return rows;
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to get materials for warehouse ${warehouseId}`,
+        "WarehouseService",
+        "getMaterials",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  // Поиск материалов на складе
+  async searchMaterials(
+    warehouseId: number,
+    input: string,
+  ): Promise<(WarehouseMaterial & { material: Material })[]> {
+    try {
+      // Проверяем существование склада
+      await this.findById(warehouseId);
+
+      // Получаем все материалы со склада
+      const allMaterials = await this.getMaterials(warehouseId);
+
+      const fuseConfig: IFuseOptions<
+        WarehouseMaterial & { material: Material }
+      > = {
+        keys: [
+          { name: "material.name", weight: 0.9 },
+          { name: "material.description", weight: 0.3 },
+          { name: "material.unit", weight: 0.2 },
+        ],
+        includeScore: true,
+        threshold: 0.2,
+        minMatchCharLength: 1,
+        findAllMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        shouldSort: true,
+      };
+
+      const fuse = new Fuse(allMaterials, fuseConfig);
+      const searchResult = fuse.search(input);
+
+      return searchResult.map((i) => i.item);
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to search materials in warehouse ${warehouseId}`,
+        "WarehouseService",
+        "searchMaterials",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

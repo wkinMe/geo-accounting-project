@@ -1,3 +1,16 @@
+import { useParams } from 'react-router';
+import { WarehouseInfo } from './WarehouseInfo';
+import { WarehouseMaterials } from './WarehouseMaterials';
+
 export function Warehouse() {
-  return <h1>WarehousePage</h1>
+	const params = useParams();
+
+	const id = Number(params?.id);
+
+	return (
+		<>
+			<WarehouseInfo id={id} />
+			<WarehouseMaterials id={id} />
+		</>
+	);
 }

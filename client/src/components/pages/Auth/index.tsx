@@ -58,7 +58,6 @@ export function Auth() {
 
 	// Если пользователь уже авторизован - редиректим
 	if (profile?.data) {
-		console.log('Проходит дата');
 		return <Navigate to={from} replace />;
 	}
 

@@ -286,4 +286,177 @@ export class WarehouseController {
       baseErrorHandling(e, res);
     }
   }
+
+  // Добавление материала на склад
+  async addMaterial(
+    req: Request<{ id: string }, {}, { materialId: number; amount: number }>,
+    res: Response,
+  ) {
+    try {
+      const warehouseId = Number(req.params.id);
+      const { materialId, amount } = req.body;
+
+      if (isNaN(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      if (isNaN(materialId) || materialId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
+        });
+      }
+
+      if (isNaN(amount) || amount <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_AMOUNT,
+        });
+      }
+
+      const result = await this._warehouseService.addMaterial(
+        warehouseId,
+        materialId,
+        amount,
+      );
+
+      res.status(201).json({
+        data: result,
+        message: SUCCESS_MESSAGES.CREATE("warehouse material"),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  // Обновление количества материала на складе
+  async updateMaterialAmount(
+    req: Request<{ id: string; materialId: string }, {}, { amount: number }>,
+    res: Response,
+  ) {
+    try {
+      const warehouseId = Number(req.params.id);
+      const materialId = Number(req.params.materialId);
+      const { amount } = req.body;
+
+      if (isNaN(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      if (isNaN(materialId) || materialId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
+        });
+      }
+
+      if (isNaN(amount) || amount < 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_AMOUNT,
+        });
+      }
+
+      const result = await this._warehouseService.updateMaterialAmount(
+        warehouseId,
+        materialId,
+        amount,
+      );
+
+      res.status(200).json({
+        data: result,
+        message: SUCCESS_MESSAGES.UPDATE("warehouse material amount"),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  // Удаление материала со склада
+  async removeMaterial(
+    req: Request<{ id: string; materialId: string }>,
+    res: Response,
+  ) {
+    try {
+      const warehouseId = Number(req.params.id);
+      const materialId = Number(req.params.materialId);
+
+      if (isNaN(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+        });
+      }
+
+      if (isNaN(materialId) || materialId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
+        });
+      }
+
+      const result = await this._warehouseService.removeMaterial(
+        warehouseId,
+        materialId,
+      );
+
+      res.status(200).json({
+        data: result,
+        message: SUCCESS_MESSAGES.DELETE("warehouse material"),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  // Получение всех материалов на складе
+  async getMaterials(req: Request<{ id: string }, {}, {}, {}>, res: Response) {
+    try {
+      const warehouseId = Number(req.params.id);
+
+      if (isNaN(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("warehouse material"),
+        });
+      }
+
+      const materials = await this._warehouseService.getMaterials(warehouseId);
+
+      res.status(200).json({
+        data: materials,
+        message: SUCCESS_MESSAGES.FIND_ALL("warehouse material"),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async searchMaterialByWarehouse(
+    req: Request<{ id: string }, {}, {}, { q?: string }>,
+    res: Response,
+  ) {
+    try {
+      const warehouseId = Number(req.params.id);
+      const { q } = req.query;
+
+      if (isNaN(warehouseId) || warehouseId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("warehouse material"),
+        });
+      }
+
+      const materials = await this._warehouseService.searchMaterials(
+        warehouseId,
+        q.trim(),
+      );
+
+      res.status(200).json({
+        data: materials,
+        message: SUCCESS_MESSAGES.SEARCH(
+          "warehouse materials",
+          materials.length,
+        ),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
 }

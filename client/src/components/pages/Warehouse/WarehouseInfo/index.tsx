@@ -1,0 +1,129 @@
+import { warehouseService } from '@/services';
+import type { UpdateWarehouseDTO } from '@shared/dto';
+import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
+import { useState } from 'react';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { Button } from '@/components/shared/Button';
+import { formatDateToDDMMYYYY, getDaysAgoText } from '@/components/shared/utils/dateFormatters';
+import { Link } from 'react-router';
+
+interface Props {
+	id: number;
+}
+
+export function WarehouseInfo({ id }: Props) {
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+	const queryClient = useQueryClient();
+	const { data: warehouseQuery } = useQuery({
+		queryKey: ['warehouse', id],
+		queryFn: () => warehouseService.findById(id),
+	});
+
+	const { mutateAsync: deleteMutate } = useMutation({
+		mutationFn: async (id: number) => warehouseService.delete(id),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+		},
+	});
+
+	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
+		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
+			warehouseService.update(id, data),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+			setTimeout(() => {
+				setIsModalOpen(false);
+			}, 300);
+		},
+	});
+
+	const warehouseData = warehouseQuery?.data;
+
+	const handleSubmit = async (data: UpdateWarehouseDTO) => {
+		if (warehouseData) {
+			await updateMutate({ id: warehouseData?.id, data: data as UpdateWarehouseDTO });
+		}
+	};
+
+	const handleConfirm = async () => {
+		if (warehouseData) {
+			await deleteMutate(id);
+		}
+	};
+
+	if (!warehouseData) {
+		return <h1>Информация о данном складе не найдена</h1>;
+	}
+
+	return (
+		<>
+			<div className="flex justify-between">
+				<div className="w-full">
+					<div className="flex items-center justify-between">
+						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
+						<div className="flex gap-5">
+							<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
+								Изменить
+							</Button>
+
+							<Button
+								className={'bg-red-500 hover:bg-red-600'}
+								onClick={() => setIsConfirmOpen(true)}
+							>
+								Удалить
+							</Button>
+						</div>
+					</div>
+
+					<table className="w-full border-collapse">
+						<tbody>
+							<tr className="border-b border-gray-200">
+								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец:</td>
+								<td className="py-3">{warehouseData.organization.name}</td>
+							</tr>
+							<tr className="border-b border-gray-200">
+								<td className="py-3 font-medium text-gray-600">Менеджер склада:</td>
+								<td className="py-3">
+									{warehouseData.manager ? (
+										<Link replace={true} to={`managers/${warehouseData.manager?.id}`}>
+											{warehouseData.manager?.name}
+										</Link>
+									) : (
+										'Не назначен'
+									)}
+								</td>
+							</tr>
+							<tr className="border-b border-gray-200">
+								<td className="py-3 font-medium text-gray-600">Дата создания:</td>
+								<td className="py-3">{formatDateToDDMMYYYY(warehouseData.created_at)}</td>
+							</tr>
+							<tr className="border-b border-gray-200">
+								<td className="py-3 font-medium text-gray-600">Последнее обновление:</td>
+								<td className="py-3">{getDaysAgoText(warehouseData.updated_at)}</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<ConfirmModal
+				onConfirm={handleConfirm}
+				actionName={'удаление'}
+				open={isConfirmOpen}
+				setOpen={setIsConfirmOpen}
+			>
+				<div className="h-30">Вы уверены, что хотите удалить склад?</div>
+			</ConfirmModal>
+			<WarehouseModal
+				open={isModalOpen}
+				setOpen={setIsModalOpen}
+				warehouse={warehouseData}
+				onSubmit={handleSubmit}
+				isLoading={isUpdating}
+			/>
+		</>
+	);
+}
