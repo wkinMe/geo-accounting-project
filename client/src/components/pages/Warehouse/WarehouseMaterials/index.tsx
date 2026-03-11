@@ -118,8 +118,8 @@ export function WarehouseMaterials({ id }: Props) {
 	return (
 		<>
 			<div className="mt-12">
-				<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center">
-					<h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+				<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center bg-white">
+					<h2 className="text-xl font-semibold text-gray-900 dark:text-white ">
 						Материалы на складе
 					</h2>
 				</div>

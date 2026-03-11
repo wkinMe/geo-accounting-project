@@ -97,6 +97,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const { data: availableManagersData } = useQuery({
 		queryKey: ['available-managers'],
 		queryFn: () => userService.getAvailableManagers(),
+		enabled: isAdminRole(profile?.role),
 	});
 
 	// Сброс формы при открытии с новыми данными
@@ -180,9 +181,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					value={selectedOrgId}
 					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
 					options={organizations}
-					disabled={
-						!(isAdminRole(profile?.role) && profile.organization_id === warehouse?.organization_id)
-					}
+					disabled={!isAdminRole(profile?.role)}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
 					getOptionLabel={(org) => org.name}

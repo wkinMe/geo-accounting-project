@@ -86,7 +86,7 @@ export function Table<T extends { id: number }>({
 			)}
 
 			<div
-				className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 dark:border-gray-800`}
+				className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 bg-white dark:border-gray-800`}
 			>
 				<div className="flex items-center p-3 gap-3">
 					{onSearch && (
@@ -99,7 +99,7 @@ export function Table<T extends { id: number }>({
 					)}
 					{onCreate && (
 						<Button className="cursor-pointer" onClick={onCreate}>
-							Добавить {itemName}
+							Добавить {itemName.toLocaleLowerCase()}
 						</Button>
 					)}
 				</div>

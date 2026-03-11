@@ -7,6 +7,8 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
 import { formatDateToDDMMYYYY, getDaysAgoText } from '@/components/shared/utils/dateFormatters';
 import { Link } from 'react-router';
+import { useRole } from '@/hooks/useRole';
+import { isAdminRole } from '@/components/shared/utils';
 
 interface Props {
 	id: number;
@@ -15,6 +17,8 @@ interface Props {
 export function WarehouseInfo({ id }: Props) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+	const role = useRole();
 
 	const queryClient = useQueryClient();
 	const { data: warehouseQuery } = useQuery({
@@ -61,7 +65,7 @@ export function WarehouseInfo({ id }: Props) {
 	return (
 		<>
 			<div className="flex justify-between">
-				<div className="w-full">
+				<div className="w-full bg-white p-5 rounded-2xl pb-10">
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
 						<div className="flex gap-5">
@@ -69,12 +73,14 @@ export function WarehouseInfo({ id }: Props) {
 								Изменить
 							</Button>
 
-							<Button
-								className={'bg-red-500 hover:bg-red-600'}
-								onClick={() => setIsConfirmOpen(true)}
-							>
-								Удалить
-							</Button>
+							{role && isAdminRole(role) && (
+								<Button
+									className={'bg-red-500 hover:bg-red-600'}
+									onClick={() => setIsConfirmOpen(true)}
+								>
+									Удалить
+								</Button>
+							)}
 						</div>
 					</div>
 
@@ -88,7 +94,7 @@ export function WarehouseInfo({ id }: Props) {
 								<td className="py-3 font-medium text-gray-600">Менеджер склада:</td>
 								<td className="py-3">
 									{warehouseData.manager ? (
-										<Link replace={true} to={`managers/${warehouseData.manager?.id}`}>
+										<Link to={`/managers/${warehouseData.manager?.id}`}>
 											{warehouseData.manager?.name}
 										</Link>
 									) : (
