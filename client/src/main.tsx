@@ -7,7 +7,7 @@ import { BrowserRouter, Route, Routes } from 'react-router';
 import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { Auth } from './components/pages/Auth';
 import { WarehousesList } from './components/pages/WarehousesList';
-import { ManagersList } from './components/pages/ManagersList';
+import { UsersList } from './components/pages/UsersList';
 import { Manager } from './components/pages/Manager';
 import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
@@ -35,8 +35,8 @@ createRoot(document.getElementById('root')!).render(
 							<Route index element={<WarehousesList />} />
 							<Route path=":id" element={<Warehouse />} />
 						</Route>
-						<Route path="managers">
-							<Route index element={<ManagersList />} />
+						<Route path="users">
+							<Route index element={<UsersList />} />
 							<Route path=":id" element={<Manager />} />
 						</Route>
 						<Route path="reports">

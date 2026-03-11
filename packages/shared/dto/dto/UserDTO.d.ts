@@ -1,24 +1,26 @@
-// packages/shared/dto/user.dto.ts
+// shared/dto/UserDTO.ts
+import { UserRole } from "../models";
+
 export interface CreateUserDTO {
   name: string;
-  organization_id?: number;
+  organization_id: number;
   password: string;
-  is_admin: boolean;
+  role?: UserRole; // Опционально, по умолчанию 'user'
 }
 
 export interface UpdateUserDTO {
-  id: number; 
+  id: number;
   name?: string;
-  organization_id?: string;
+  organization_id?: number;
   password?: string;
-  is_admin?: boolean;
+  role?: UserRole;
 }
 
 export interface UserDataDTO {
   id: number;
   name: string;
   organization_id: number;
-  is_admin: boolean;
+  role: UserRole;
 }
 
 export interface LoginDTO {

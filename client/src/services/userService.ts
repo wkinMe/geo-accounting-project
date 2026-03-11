@@ -18,7 +18,10 @@ class UserService {
 	 * Аутентификация
 	 */
 	async login(data: LoginDTO): Promise<SuccessResponse<AuthResponse>> {
-		const response = await instance.post<SuccessResponse<AuthResponse>>(`${this.baseUrl}/login/`, data);
+		const response = await instance.post<SuccessResponse<AuthResponse>>(
+			`${this.baseUrl}/login/`,
+			data
+		);
 
 		if (response.data?.data?.tokens?.accessToken) {
 			localStorage.setItem('token', response.data.data.tokens.accessToken);
@@ -53,7 +56,10 @@ class UserService {
 	}
 
 	async refreshToken(): Promise<SuccessResponse<AuthResponse>> {
-		const response = await instance.post<SuccessResponse<AuthResponse>>(`${this.baseUrl}/refresh`, {});
+		const response = await instance.post<SuccessResponse<AuthResponse>>(
+			`${this.baseUrl}/refresh`,
+			{}
+		);
 
 		if (response.data?.data?.tokens?.accessToken) {
 			localStorage.setItem('token', response.data.data.tokens.accessToken);
@@ -80,8 +86,11 @@ class UserService {
 		return response.data;
 	}
 
-	async update(id: number, data: Omit<UpdateUserDTO, 'id'>): Promise<SuccessResponse<User>> {
-		const response = await instance.patch<SuccessResponse<User>>(`${this.baseUrl}/${id}`, data);
+	async update(data: UpdateUserDTO): Promise<SuccessResponse<User>> {
+		const response = await instance.patch<SuccessResponse<User>>(
+			`${this.baseUrl}/${data.id}`,
+			data
+		);
 		return response.data;
 	}
 
@@ -105,7 +114,9 @@ class UserService {
 		return response.data;
 	}
 
-	async findByOrganizationId(organizationId: number): Promise<SuccessResponse<UserWithOrganization[]>> {
+	async findByOrganizationId(
+		organizationId: number
+	): Promise<SuccessResponse<UserWithOrganization[]>> {
 		const response = await instance.get<SuccessResponse<UserWithOrganization[]>>(
 			`${this.baseUrl}/organization/${organizationId}`
 		);
@@ -113,7 +124,9 @@ class UserService {
 	}
 
 	async getAvailableManagers(): Promise<SuccessResponse<User[]>> {
-		const response = await instance.get<SuccessResponse<User[]>>(`${this.baseUrl}/available-managers`);
+		const response = await instance.get<SuccessResponse<User[]>>(
+			`${this.baseUrl}/available-managers`
+		);
 		return response.data;
 	}
 

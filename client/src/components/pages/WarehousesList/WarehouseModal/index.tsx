@@ -10,6 +10,9 @@ import { TextField, NumberField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
+import { useRole } from '@/hooks/useRole';
+import { isAdminRole } from '@/components/shared/utils';
+import { useProfile } from '@/hooks';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
@@ -46,6 +49,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const queryClient = useQueryClient();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
 	const [managerSearchQuery, setManagerSearchQuery] = useState('');
+
+	const profile = useProfile();
 
 	const isEditing = !!warehouse?.id;
 
@@ -175,6 +180,9 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					value={selectedOrgId}
 					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
 					options={organizations}
+					disabled={
+						!(isAdminRole(profile?.role) && profile.organization_id === warehouse?.organization_id)
+					}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
 					getOptionLabel={(org) => org.name}
@@ -183,31 +191,31 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					required
 				/>
 
-				<div className="space-y-2">
-					<SearchableSelect
-						label="Менеджер"
-						value={selectedManagerId}
-						onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
-						options={managers}
-						onSearch={setManagerSearchQuery}
-						isLoading={isManagerSearching}
-						getOptionLabel={(manager) =>
-							`${manager.name} ${manager.is_admin ? '(Администратор)' : ''}`
-						}
-						placeholder="Поиск менеджера..."
-						error={errors.manager_id?.message}
-					/>
+				{isAdminRole(profile?.role) && profile.organization_id === warehouse?.organization_id && (
+					<div className="space-y-2">
+						<SearchableSelect
+							label="Менеджер"
+							value={selectedManagerId}
+							onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
+							options={managers}
+							onSearch={setManagerSearchQuery}
+							isLoading={isManagerSearching}
+							getOptionLabel={(manager) => `${manager.name} ${manager.role}`}
+							placeholder="Поиск менеджера..."
+							error={errors.manager_id?.message}
+						/>
 
-					{selectedManagerId && (
-						<button
-							type="button"
-							onClick={() => setValue('manager_id', null, { shouldValidate: true })}
-							className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-						>
-							Снять менеджера
-						</button>
-					)}
-				</div>
+						{selectedManagerId && (
+							<button
+								type="button"
+								onClick={() => setValue('manager_id', null, { shouldValidate: true })}
+								className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+							>
+								Снять менеджера
+							</button>
+						)}
+					</div>
+				)}
 
 				<div className="grid grid-cols-2 gap-4">
 					<NumberField

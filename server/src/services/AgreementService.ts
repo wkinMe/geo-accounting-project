@@ -1,13 +1,5 @@
 import { Pool } from "pg";
 import {
-  Agreement,
-  AgreementWithDetails,
-  Material,
-  Organization,
-  User,
-  Warehouse,
-} from "@shared/models";
-import {
   DatabaseError,
   NotFoundError,
   ServiceError,
@@ -15,6 +7,7 @@ import {
 } from "@src/errors/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 import Fuse, { IFuseOptions } from "fuse.js";
+import { Agreement, AgreementWithDetails, Material, Organization, User, Warehouse } from "@shared/models";
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
 import { ERROR_MESSAGES } from "@shared/constants";
 
