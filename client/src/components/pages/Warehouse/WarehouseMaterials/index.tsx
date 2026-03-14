@@ -12,14 +12,17 @@ import { AddMaterialModal } from './AddMaterialModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
 import { useRole } from '@/hooks';
+import { userService } from '@/services';
 
 const headers = ['id', 'name', 'amount'] as const;
 
 interface Props {
 	id: number;
+	role: UserRole;
+	isCurrentUserOrg: boolean;
 }
 
-export function WarehouseMaterials({ id }: Props) {
+export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
@@ -32,17 +35,15 @@ export function WarehouseMaterials({ id }: Props) {
 		amount: number;
 	} | null>(null);
 
-	const role = useRole();
-
 	// Получение всех материалов со склада
 	const { data: materials } = useQuery({
-		queryKey: ['warehouse-materials', id],
+		queryKey: ['warehouseMaterials', id],
 		queryFn: () => warehouseService.getMaterials(id),
 	});
 
 	// Поиск материалов на складе
 	const { data: searchedMaterials } = useQuery({
-		queryKey: ['warehouse-materials', id, searchQuery],
+		queryKey: ['warehouseMaterials', id, searchQuery],
 		queryFn: () => warehouseService.searchMaterials(id, searchQuery),
 		enabled: searchQuery.length > 0,
 		retry: false,
@@ -53,7 +54,7 @@ export function WarehouseMaterials({ id }: Props) {
 		mutationFn: ({ materialId }: { materialId: number }) =>
 			warehouseService.removeMaterial(id, materialId),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 		},
 	});
 
@@ -62,7 +63,7 @@ export function WarehouseMaterials({ id }: Props) {
 		mutationFn: ({ materialId, amount }: { materialId: number; amount: number }) =>
 			warehouseService.updateMaterialAmount(id, materialId, amount),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 			setEditingMaterial(null);
 		},
 	});
@@ -74,6 +75,10 @@ export function WarehouseMaterials({ id }: Props) {
 
 	const handleUpdateAmount = async (materialId: number, amount: number) => {
 		await updateAmountMutate({ materialId, amount });
+	};
+
+	const interactionDeprecated = () => {
+		return role === 'user' || !isCurrentUserOrg;
 	};
 
 	const actions: Action<TableMaterial>[] = [
@@ -91,7 +96,7 @@ export function WarehouseMaterials({ id }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
-			hidden: () => role === 'user',
+			hidden: () => interactionDeprecated(),
 		},
 		{
 			name: 'Удалить материал со склада',
@@ -108,7 +113,7 @@ export function WarehouseMaterials({ id }: Props) {
 				</div>
 			),
 			needConfirmation: true,
-			hidden: () => role === 'user',
+			hidden: () => interactionDeprecated(),
 		},
 	];
 
@@ -130,7 +135,7 @@ export function WarehouseMaterials({ id }: Props) {
 					headers={headers}
 					elements={elements}
 					actions={actions}
-					isCreateDisabled={role === 'user'}
+					isCreateDisabled={interactionDeprecated()}
 					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
@@ -141,7 +146,7 @@ export function WarehouseMaterials({ id }: Props) {
 				setOpen={setIsAddModalOpen}
 				warehouseId={id}
 				onSuccess={() => {
-					queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
+					queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 				}}
 			/>
 

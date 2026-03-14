@@ -1,4 +1,4 @@
-import { warehouseService } from '@/services';
+import { userService, warehouseService } from '@/services';
 import type { UpdateWarehouseDTO } from '@shared/dto';
 import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
@@ -9,19 +9,20 @@ import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
 import { useRole } from '@/hooks/useRole';
 import { atLeastManager, isAdminRole } from '@/utils';
+import type { UserRole } from '@shared/models';
 
 interface Props {
 	id: number;
+	role: UserRole;
+	isCurrentUserOrg: boolean;
 }
 
-export function WarehouseInfo({ id }: Props) {
+export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
-	const role = useRole();
-
 	const queryClient = useQueryClient();
-	const { data: warehouseQuery } = useQuery({
+	const { data: warehouse } = useQuery({
 		queryKey: ['warehouse', id],
 		queryFn: () => warehouseService.findById(id),
 	});
@@ -44,7 +45,7 @@ export function WarehouseInfo({ id }: Props) {
 		},
 	});
 
-	const warehouseData = warehouseQuery?.data;
+	const warehouseData = warehouse?.data;
 
 	const handleSubmit = async (data: UpdateWarehouseDTO) => {
 		if (warehouseData) {
@@ -69,12 +70,12 @@ export function WarehouseInfo({ id }: Props) {
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
 						<div className="flex gap-5">
-							{role && atLeastManager(role) && (
+							{role && isCurrentUserOrg && atLeastManager(role) && (
 								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
 									Изменить
 								</Button>
 							)}
-							{role && isAdminRole(role) && (
+							{role && isCurrentUserOrg && isAdminRole(role) && (
 								<Button
 									className={'bg-red-500 hover:bg-red-600'}
 									onClick={() => setIsConfirmOpen(true)}
