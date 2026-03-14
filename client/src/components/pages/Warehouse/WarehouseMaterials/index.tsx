@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
+import { useRole } from '@/hooks';
 
 const headers = ['id', 'name', 'amount'] as const;
 
@@ -25,17 +26,13 @@ export function WarehouseMaterials({ id }: Props) {
 	const [searchQuery, setSearchQuery] = useState('');
 
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-	const [selectedMaterial, setSelectedMaterial] = useState<{
-		id: number;
-		name: string;
-		amount: number;
-	} | null>(null);
 	const [editingMaterial, setEditingMaterial] = useState<{
 		id: number;
 		name: string;
 		amount: number;
 	} | null>(null);
+
+	const role = useRole();
 
 	// Получение всех материалов со склада
 	const { data: materials } = useQuery({
@@ -57,8 +54,6 @@ export function WarehouseMaterials({ id }: Props) {
 			warehouseService.removeMaterial(id, materialId),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
-			setIsDeleteModalOpen(false);
-			setSelectedMaterial(null);
 		},
 	});
 
@@ -96,6 +91,7 @@ export function WarehouseMaterials({ id }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
+			hidden: () => role === 'user',
 		},
 		{
 			name: 'Удалить материал со склада',
@@ -112,6 +108,7 @@ export function WarehouseMaterials({ id }: Props) {
 				</div>
 			),
 			needConfirmation: true,
+			hidden: () => role === 'user',
 		},
 	];
 
@@ -133,6 +130,7 @@ export function WarehouseMaterials({ id }: Props) {
 					headers={headers}
 					elements={elements}
 					actions={actions}
+					isCreateDisabled={role === 'user'}
 					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>

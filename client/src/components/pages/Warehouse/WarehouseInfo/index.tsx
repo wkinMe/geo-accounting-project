@@ -5,10 +5,10 @@ import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
-import { formatDateToDDMMYYYY, getDaysAgoText } from '@/components/shared/utils/dateFormatters';
+import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
 import { useRole } from '@/hooks/useRole';
-import { isAdminRole } from '@/components/shared/utils';
+import { atLeastManager, isAdminRole } from '@/utils';
 
 interface Props {
 	id: number;
@@ -69,10 +69,11 @@ export function WarehouseInfo({ id }: Props) {
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
 						<div className="flex gap-5">
-							<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
-								Изменить
-							</Button>
-
+							{role && atLeastManager(role) && (
+								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
+									Изменить
+								</Button>
+							)}
 							{role && isAdminRole(role) && (
 								<Button
 									className={'bg-red-500 hover:bg-red-600'}

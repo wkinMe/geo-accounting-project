@@ -11,7 +11,7 @@ import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { useRole } from '@/hooks/useRole';
-import { isAdminRole } from '@/components/shared/utils';
+import { isAdminRole } from '@/utils';
 import { useProfile } from '@/hooks';
 
 const warehouseSchema = z.object({

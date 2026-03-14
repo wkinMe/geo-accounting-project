@@ -17,11 +17,7 @@ export function Auth() {
 	// Получаем путь, с которого пришли, или '/' по умолчанию
 	const from = location.state?.from?.pathname || '/';
 
-	const {
-		data: profile,
-		isLoading,
-		isError,
-	} = useQuery({
+	const { data: profile, isLoading } = useQuery({
 		queryKey: ['profile'],
 		queryFn: () => userService.getProfile(),
 		retry: false,
@@ -53,7 +49,16 @@ export function Auth() {
 
 	// Показываем спиннер во время загрузки профиля
 	if (isLoading) {
-		return <Spinner fullScreen blur />;
+		return (
+			<Spinner
+				fullScreen
+				blur
+				show={isLoading}
+				fadeIn
+				delay={2000} // спиннер через 2 секунды
+				blurDelay={0} // блюр сразу
+			/>
+		);
 	}
 
 	// Если пользователь уже авторизован - редиректим

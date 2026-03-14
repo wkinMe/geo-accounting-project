@@ -11,7 +11,7 @@ export interface Action<T> {
 	icon: string | React.ReactNode;
 	needConfirmation?: boolean;
 	confirmationBody?: (item: T) => React.ReactNode;
-	hidden?: (item: T) => boolean; // сделал опциональным
+	hidden?: (item: T) => boolean;
 }
 
 interface Props<T extends { id: number }> {
@@ -23,6 +23,7 @@ interface Props<T extends { id: number }> {
 	actions?: Action<T>[];
 	searchValue?: string;
 	debounceMs?: number;
+	isCreateDisabled?: boolean;
 	onSearch?: (query: string) => void;
 	onCreate?: () => void;
 }
@@ -36,6 +37,7 @@ export function Table<T extends { id: number }>({
 	actions,
 	searchValue,
 	debounceMs,
+	isCreateDisabled = false,
 	onSearch,
 	onCreate,
 }: Props<T>) {
@@ -97,7 +99,7 @@ export function Table<T extends { id: number }>({
 							className="flex-1"
 						/>
 					)}
-					{onCreate && (
+					{onCreate && !isCreateDisabled  && (
 						<Button className="cursor-pointer" onClick={onCreate}>
 							Добавить {itemName.toLocaleLowerCase()}
 						</Button>

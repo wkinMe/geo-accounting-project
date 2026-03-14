@@ -11,6 +11,7 @@ import { organizationService } from '@/services';
 import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
 import type { UserRole } from '@shared/models';
 import CustomSelect from '@/components/shared/Select';
+import { isAxiosError } from 'axios';
 
 const userSchema = z.object({
 	name: z.string().min(1, 'Имя пользователя обязательно'),
@@ -157,8 +158,20 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 
 				await queryClient.invalidateQueries({ queryKey: ['users'] });
 				setOpen(false);
-			} catch (error: any) {
-				setServerError(error.message || 'Произошла ошибка при сохранении');
+			} catch (error: unknown) {
+				if (isAxiosError(error)) {
+					const serverMessage = error.response?.data?.message || error.message;
+
+					if (serverMessage?.includes('Password') && serverMessage?.includes('at least')) {
+						const match = serverMessage.match(/at least (\d+)/i);
+						const minLength = match ? match[1] : '6'; // по умолчанию 6, если не найдено
+
+						setServerError(`Пароль должен содержать минимум ${minLength} символов`);
+					} else {
+						setServerError(error.message || 'Произошла ошибка при сохранении');
+					}
+				}
+
 				throw error;
 			}
 		} else {

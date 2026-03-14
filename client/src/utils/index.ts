@@ -1,2 +1,2 @@
 export * from "./dateFormatters";
-export * from "./isAdminRole"
+export * from "./roleCheckers"
