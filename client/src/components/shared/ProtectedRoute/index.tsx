@@ -13,8 +13,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	});
 
 	if (isLoading) {
-		// fullScreen={true} и blur={true} (так как blur по умолчанию true)
-		return <Spinner fullScreen blur />;
+		return (
+			<Spinner
+				fullScreen
+				blur
+				show={isLoading}
+				fadeIn
+				delay={2000} // спиннер через 2 секунды
+				blurDelay={0} // блюр сразу
+			/>
+		);
 	}
 
 	if (!profile?.data) {

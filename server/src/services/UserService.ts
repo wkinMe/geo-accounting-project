@@ -1,9 +1,15 @@
+// server/src/services/UserService.ts
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
 import Fuse, { IFuseOptions } from "fuse.js";
 
 import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@shared/dto";
-import { Organization, User, UserWithOrganization } from "@shared/models";
+import {
+  Organization,
+  User,
+  UserWithOrganization,
+  UserRole,
+} from "@shared/models";
 import { executeQuery, getSingleResult } from "@src/utils";
 import {
   DatabaseError,
@@ -11,6 +17,7 @@ import {
   ValidationError,
   ServiceError,
   UnauthorizedError,
+  ForbiddenError,
 } from "@src/errors/service";
 import { TokenService } from "./TokenService";
 
@@ -87,7 +94,76 @@ export class UserService {
     }
   }
 
-  async register(userData: CreateUserDTO): Promise<{
+  async findSuperAdmins(): Promise<UserWithOrganization[]> {
+    try {
+      const query = `
+        SELECT 
+          row_to_json(u.*) as user,
+          row_to_json(o.*) as organization
+        FROM app_users u
+        LEFT JOIN organizations o ON u.organization_id = o.id
+        WHERE u.role = 'super_admin'
+        ORDER BY u.id
+      `;
+
+      const result = await executeQuery<{
+        user: User;
+        organization: Organization;
+      }>(this._db, "findSuperAdmins", query);
+
+      return result.map((row) => ({
+        ...row.user,
+        organization: row.organization,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to retrieve super admins",
+        "UserService",
+        "findSuperAdmins",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async checkOrganizationHasSuperAdmin(
+    organizationId: number,
+  ): Promise<boolean> {
+    try {
+      const query = `
+        SELECT EXISTS(
+          SELECT 1 FROM app_users 
+          WHERE organization_id = $1 AND role = 'super_admin'
+        ) as has_super_admin
+      `;
+
+      const result = await executeQuery<{ has_super_admin: boolean }>(
+        this._db,
+        "checkOrganizationHasSuperAdmin",
+        query,
+        [organizationId],
+      );
+
+      return result[0]?.has_super_admin || false;
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Failed to check if organization has super admin",
+        "UserService",
+        "checkOrganizationHasSuperAdmin",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async register(
+    userData: CreateUserDTO,
+    requesterRole?: UserRole,
+  ): Promise<{
     user: User;
     tokens: { accessToken: string; refreshToken: string };
   }> {
@@ -110,6 +186,7 @@ export class UserService {
         );
       }
 
+      // Проверка существующего пользователя
       const existingUserQuery = "SELECT id FROM app_users WHERE name = $1";
       const existingUser = await executeQuery<User>(
         this._db,
@@ -127,25 +204,66 @@ export class UserService {
         );
       }
 
+      // Определяем роль для нового пользователя
+      let role: UserRole = "user";
+
+      if (userData.role) {
+        // Проверка прав на назначение ролей
+        if (userData.role === "super_admin") {
+          // Только super_admin может создавать других super_admin
+          if (requesterRole !== "super_admin") {
+            throw new ForbiddenError(
+              "Only super administrators can create other super administrators",
+              "register",
+            );
+          }
+          role = "super_admin";
+        } else if (userData.role === "admin") {
+          // Admin может создавать других admin (но не super_admin)
+          if (requesterRole !== "super_admin" && requesterRole !== "admin") {
+            throw new ForbiddenError(
+              "Only administrators can create other administrators",
+              "register",
+            );
+          }
+
+          // Проверяем, есть ли уже super_admin в этой организации
+          if (userData.organization_id) {
+            const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
+              userData.organization_id,
+            );
+            if (!hasSuperAdmin) {
+              throw new ValidationError(
+                "Cannot create admin: organization must have at least one super admin first",
+                "register",
+                "role",
+                userData.role,
+              );
+            }
+          }
+
+          role = "admin";
+        } else if (userData.role === "manager") {
+          role = "manager";
+        } else {
+          role = "user";
+        }
+      }
+
       const salt = await bcrypt.genSalt(8);
       const hashedPassword = await bcrypt.hash(userData.password, salt);
 
       const createQuery = `
-      INSERT INTO app_users (name, organization_id, password, is_admin) 
-      VALUES ($1, $2, $3, $4)
-      RETURNING *
-    `;
+        INSERT INTO app_users (name, organization_id, password, role) 
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
 
       const createResult = await executeQuery<User>(
         this._db,
         "register",
         createQuery,
-        [
-          userData.name.trim(),
-          userData.organization_id,
-          hashedPassword,
-          userData.is_admin || false,
-        ],
+        [userData.name.trim(), userData.organization_id, hashedPassword, role],
       );
 
       if (createResult.length === 0) {
@@ -165,7 +283,7 @@ export class UserService {
         id: newUser.id,
         name: newUser.name,
         organization_id: newUser.organization_id,
-        is_admin: newUser.is_admin,
+        role: newUser.role,
       };
 
       const tokens = await tokenService.generateTokens(userDataForToken);
@@ -179,6 +297,7 @@ export class UserService {
       if (
         error instanceof DatabaseError ||
         error instanceof ValidationError ||
+        error instanceof ForbiddenError ||
         error instanceof ServiceError
       ) {
         throw error;
@@ -219,10 +338,10 @@ export class UserService {
       }
 
       const query = `
-      SELECT id, name, organization_id, password, is_admin, created_at, updated_at
-      FROM app_users 
-      WHERE name = $1
-    `;
+        SELECT id, name, organization_id, password, role, created_at, updated_at
+        FROM app_users 
+        WHERE name = $1
+      `;
 
       const result = await executeQuery<User & { password: string }>(
         this._db,
@@ -249,7 +368,7 @@ export class UserService {
         id: user.id,
         name: user.name,
         organization_id: user.organization_id,
-        is_admin: user.is_admin,
+        role: user.role,
       };
 
       const tokens = await tokenService.generateTokens(userDataForToken);
@@ -358,11 +477,78 @@ export class UserService {
     name,
     organization_id,
     password,
-    is_admin,
-  }: UpdateUserDTO): Promise<User> {
+    role,
+    requesterRole,
+  }: UpdateUserDTO & {
+    requesterRole?: UserRole;
+  }): Promise<User> {
     try {
       // Проверяем существование пользователя
-      await this.findById(id);
+      const targetUser = await this.findById(id);
+
+      // Валидация прав на изменение роли
+      if (role !== undefined) {
+        // Проверка прав на изменение роли
+        if (!requesterRole) {
+          throw new ForbiddenError(
+            "Requester role is required for role modification",
+            "update",
+          );
+        }
+
+        // Правила изменения ролей:
+        // 1. Только super_admin может назначать/снимать роль super_admin
+        // 2. super_admin и admin могут назначать/снимать роли admin, manager, user
+        // 3. Никто не может изменить роль super_admin, кроме другого super_admin
+        // 4. Нельзя удалить последнего super_admin в организации
+
+        if (
+          targetUser.role === "super_admin" &&
+          requesterRole !== "super_admin"
+        ) {
+          throw new ForbiddenError(
+            "Only super administrators can modify super administrator roles",
+            "update",
+          );
+        }
+
+        if (role === "super_admin" && requesterRole !== "super_admin") {
+          throw new ForbiddenError(
+            "Only super administrators can assign super administrator role",
+            "update",
+          );
+        }
+
+        // Проверка на удаление последнего super_admin в организации
+        if (targetUser.role === "super_admin" && role !== "super_admin") {
+          const superAdminsCount = await this.countSuperAdminsInOrganization(
+            targetUser.organization_id,
+          );
+          if (superAdminsCount <= 1) {
+            throw new ValidationError(
+              "Cannot remove the last super administrator in the organization",
+              "update",
+              "role",
+              role,
+            );
+          }
+        }
+
+        // При назначении admin проверяем наличие super_admin в организации
+        if (role === "admin" && targetUser.role !== "admin") {
+          const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
+            organization_id || targetUser.organization_id,
+          );
+          if (!hasSuperAdmin) {
+            throw new ValidationError(
+              "Cannot assign admin role: organization must have at least one super admin",
+              "update",
+              "role",
+              role,
+            );
+          }
+        }
+      }
 
       // Валидация входных данных
       if (name !== undefined && name.trim().length === 0) {
@@ -427,15 +613,15 @@ export class UserService {
         paramIndex++;
       }
 
-      if (is_admin !== undefined) {
-        updates.push(`is_admin = $${paramIndex}`);
-        values.push(is_admin);
+      if (role !== undefined) {
+        updates.push(`role = $${paramIndex}`);
+        values.push(role);
         paramIndex++;
       }
 
       // Если нет полей для обновления, возвращаем текущего пользователя
       if (updates.length === 0) {
-        return await this.findById(id);
+        return targetUser;
       }
 
       values.push(id);
@@ -468,6 +654,7 @@ export class UserService {
         error instanceof DatabaseError ||
         error instanceof NotFoundError ||
         error instanceof ValidationError ||
+        error instanceof ForbiddenError ||
         error instanceof ServiceError
       ) {
         throw error;
@@ -481,10 +668,81 @@ export class UserService {
     }
   }
 
-  async delete(id: number): Promise<User> {
+  private async countSuperAdminsInOrganization(
+    organizationId: number,
+  ): Promise<number> {
+    try {
+      const query = `
+        SELECT COUNT(*) as count
+        FROM app_users
+        WHERE organization_id = $1 AND role = 'super_admin'
+      `;
+
+      const result = await executeQuery<{ count: string }>(
+        this._db,
+        "countSuperAdminsInOrganization",
+        query,
+        [organizationId],
+      );
+
+      return parseInt(result[0]?.count || "0", 10);
+    } catch (error) {
+      throw new ServiceError(
+        "Failed to count super admins in organization",
+        "UserService",
+        "countSuperAdminsInOrganization",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async delete(
+    id: number,
+    requesterRole?: UserRole,
+    requesterId?: number,
+  ): Promise<User> {
     try {
       // Проверяем существование пользователя перед удалением
-      await this.findById(id);
+      const targetUser = await this.findById(id);
+
+      // Проверка прав на удаление
+      if (!requesterRole) {
+        throw new ForbiddenError(
+          "Requester role is required for user deletion",
+          "delete",
+        );
+      }
+
+      // Нельзя удалить самого себя (безопасность)
+      if (requesterId === id) {
+        throw new ForbiddenError("Cannot delete your own account", "delete");
+      }
+
+      // Проверка на удаление super_admin
+      if (
+        targetUser.role === "super_admin" &&
+        requesterRole !== "super_admin"
+      ) {
+        throw new ForbiddenError(
+          "Only super administrators can delete other super administrators",
+          "delete",
+        );
+      }
+
+      // Проверка на удаление последнего super_admin в организации
+      if (targetUser.role === "super_admin") {
+        const superAdminsCount = await this.countSuperAdminsInOrganization(
+          targetUser.organization_id,
+        );
+        if (superAdminsCount <= 1) {
+          throw new ValidationError(
+            "Cannot delete the last super administrator in the organization",
+            "delete",
+            "id",
+            id.toString(),
+          );
+        }
+      }
 
       const deleteQuery = "DELETE FROM app_users WHERE id = $1 RETURNING *";
       const deleteResult = await executeQuery<User>(
@@ -508,6 +766,8 @@ export class UserService {
       if (
         error instanceof DatabaseError ||
         error instanceof NotFoundError ||
+        error instanceof ForbiddenError ||
+        error instanceof ValidationError ||
         error instanceof ServiceError
       ) {
         throw error;
@@ -557,22 +817,30 @@ export class UserService {
     }
   }
 
-  async findAdmins(): Promise<UserWithOrganization[]> {
+  async findAdmins(organizationId?: number): Promise<UserWithOrganization[]> {
     try {
-      const query = `
+      let query = `
         SELECT 
           row_to_json(u.*) as user,
           row_to_json(o.*) as organization
         FROM app_users u
         LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.is_admin = true
-        ORDER BY u.id
+        WHERE u.role IN ('super_admin', 'admin')
       `;
+
+      const values: any[] = [];
+
+      if (organizationId !== undefined) {
+        query += " AND u.organization_id = $1";
+        values.push(organizationId);
+      }
+
+      query += " ORDER BY u.id";
 
       const result = await executeQuery<{
         user: User;
         organization: Organization;
-      }>(this._db, "findAdmins", query);
+      }>(this._db, "findAdmins", query, values);
 
       return result.map((row) => ({
         ...row.user,
@@ -596,7 +864,7 @@ export class UserService {
       let query = `
         SELECT u.*
         FROM app_users u
-        WHERE u.is_admin = false
+        WHERE u.role = 'manager'
       `;
 
       const values: any[] = [];
@@ -645,7 +913,7 @@ export class UserService {
       }
 
       const results = (await this.search(input, organizationId)).filter(
-        (i) => i.organization_id === null,
+        (i) => i.role === "manager",
       );
 
       return results;

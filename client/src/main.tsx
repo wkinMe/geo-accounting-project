@@ -1,3 +1,4 @@
+// client/src/main.tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
@@ -5,13 +6,15 @@ import App from './App';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { ProtectedRoute } from './components/shared/ProtectedRoute';
+import { RoleRoute } from './components/shared/RoleRoute';
 import { Auth } from './components/pages/Auth';
 import { WarehousesList } from './components/pages/WarehousesList';
-import { ManagersList } from './components/pages/ManagersList';
+import { UsersList } from './components/pages/UsersList';
 import { Manager } from './components/pages/Manager';
 import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
 import { Warehouse } from './components/pages/Warehouse';
+import { USER_ROLES } from './constants';
 
 const queryClient = new QueryClient();
 
@@ -31,15 +34,38 @@ createRoot(document.getElementById('root')!).render(
 						}
 					>
 						<Route index element={<div>Главная страница</div>} />
+
+						{/* Склады - доступны всем авторизованным */}
 						<Route path="warehouses">
 							<Route index element={<WarehousesList />} />
 							<Route path=":id" element={<Warehouse />} />
 						</Route>
-						<Route path="managers">
-							<Route index element={<ManagersList />} />
+
+						{/* Пользователи - только для admin и super_admin */}
+						<Route
+							path="users"
+							element={
+								<RoleRoute
+									allowedRoles={[USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
+									fallbackPath="/warehouses"
+								>
+									<UsersList />
+								</RoleRoute>
+							}
+						>
+							<Route index element={<UsersList />} />
 							<Route path=":id" element={<Manager />} />
 						</Route>
-						<Route path="reports">
+
+						{/* Отчёты - доступны всем авторизованным */}
+						<Route
+							path="reports"
+							element={
+								<RoleRoute fallbackPath="/warehouses" deniedRoles={[USER_ROLES.USER]}>
+									<ReportsList />
+								</RoleRoute>
+							}
+						>
 							<Route index element={<ReportsList />} />
 							<Route path=":id" element={<Report />} />
 						</Route>

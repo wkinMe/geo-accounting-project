@@ -1,16 +1,29 @@
+// client/src/App.tsx
+import { useState, memo } from 'react';
 import { Outlet } from 'react-router';
+import { BurgerMenu } from '@/components/shared/BurgerMenu';
 
-function App() {
+// Отдельный компонент для контента
+const Content = memo(({ isMenuOpen }: { isMenuOpen: boolean }) => (
+	<main>
+		<div className={`pt-6 max-w-7xl mx-auto p-4 transition-all duration-300 ${isMenuOpen ? 'blur-sm' : ''}`}>
+			<Outlet />
+		</div>
+	</main>
+));
+
+export default function App() {
+	const [isMenuOpen, setIsMenuOpen] = useState(false);
+
 	return (
-		<div className="min-h-screen bg-white dark:bg-black">
-			
-			{/* Основной контент */}
-			<main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-				{/* Здесь будет отображаться содержимое дочерних маршрутов */}
-				<Outlet />
-			</main>
+		<div className="min-h-screen bg-gray-50 dark:bg-gray-900 relative">
+			<BurgerMenu
+				isOpen={isMenuOpen}
+				onClose={() => setIsMenuOpen(false)}
+				onToggle={() => setIsMenuOpen((prev) => !prev)}
+			/>
+
+			<Content isMenuOpen={isMenuOpen} />
 		</div>
 	);
 }
-
-export default App;

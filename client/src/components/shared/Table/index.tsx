@@ -1,3 +1,5 @@
+// client/src/components/shared/Table/index.tsx
+
 import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 import { SearchInput } from '../SearchInput';
@@ -8,31 +10,35 @@ export interface Action<T> {
 	action: (item: T) => void | Promise<void>;
 	icon: string | React.ReactNode;
 	needConfirmation?: boolean;
+	confirmationBody?: (item: T) => React.ReactNode;
+	hidden?: (item: T) => boolean;
 }
 
 interface Props<T extends { id: number }> {
+	roundedT?: boolean;
+	roundedB?: boolean;
 	headers: readonly (keyof T)[];
-	itemName: string; // Название элемента, для которого нужна таблица, по типу склад/отчёт/пользователь и т.д.
+	itemName: string;
 	elements: T[];
 	actions?: Action<T>[];
-
 	searchValue?: string;
 	debounceMs?: number;
+	isCreateDisabled?: boolean;
 	onSearch?: (query: string) => void;
-
 	onCreate?: () => void;
 }
 
 export function Table<T extends { id: number }>({
+	roundedB = true,
+	roundedT = true,
 	headers,
 	itemName,
 	elements,
 	actions,
-
 	searchValue,
 	debounceMs,
+	isCreateDisabled = false,
 	onSearch,
-
 	onCreate,
 }: Props<T>) {
 	const [openModal, setOpenModal] = useState(false);
@@ -40,6 +46,16 @@ export function Table<T extends { id: number }>({
 	const [currentItem, setCurrentItem] = useState<null | T>(null);
 
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
+
+	// Фильтруем actions для каждого элемента
+	const getVisibleActions = (item: T) => {
+		return (
+			actions?.filter((action) => {
+				// Если hidden не указан или возвращает false - показываем
+				return !action.hidden?.(item);
+			}) || []
+		);
+	};
 
 	return (
 		<>
@@ -59,18 +75,37 @@ export function Table<T extends { id: number }>({
 					setOpen={setOpenModal}
 				>
 					<div className="h-30">
-						Вы уверены, что хотите {currentAction?.name?.toLocaleLowerCase()}{' '}
-						{itemName.toLocaleLowerCase()}?{' '}
+						{currentAction?.confirmationBody && currentItem ? (
+							currentAction.confirmationBody(currentItem)
+						) : (
+							<>
+								Вы уверены, что хотите {currentAction?.name?.toLocaleLowerCase()}{' '}
+								{itemName.toLocaleLowerCase()}?
+							</>
+						)}
 					</div>
 				</ConfirmModal>
 			)}
-			<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-800">
+
+			<div
+				className={`overflow-x-auto ${roundedB && `rounded-b-2xl`} ${roundedT && `rounded-t-2xl`} border border-gray-200 bg-white dark:border-gray-800`}
+			>
 				<div className="flex items-center p-3 gap-3">
 					{onSearch && (
-						<SearchInput value={searchValue ?? ''} ms={debounceMs ?? 300} onSearch={onSearch} className="flex-1"/>
+						<SearchInput
+							value={searchValue ?? ''}
+							ms={debounceMs ?? 300}
+							onSearch={onSearch}
+							className="flex-1"
+						/>
 					)}
-					{onCreate && <Button className="cursor-pointer" onClick={onCreate}>Добавить {itemName}</Button>}
+					{onCreate && !isCreateDisabled  && (
+						<Button className="cursor-pointer" onClick={onCreate}>
+							Добавить {itemName.toLocaleLowerCase()}
+						</Button>
+					)}
 				</div>
+
 				{elements && elements.length === 0 ? (
 					<div className="divide-y divide-gray-200 dark:divide-gray-800 flex justify-center items-center min-h-48">
 						<span className="text-xl">Элементы не найдены</span>
@@ -79,7 +114,6 @@ export function Table<T extends { id: number }>({
 					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 						<thead className="bg-gray-50 dark:bg-gray-900">
 							<tr>
-								{/* Заголовки */}
 								{headers.map((header, idx) => (
 									<th
 										key={idx}
@@ -90,7 +124,6 @@ export function Table<T extends { id: number }>({
 									</th>
 								))}
 
-								{/* Столбец для действий */}
 								{actions && actions.length > 0 && (
 									<th
 										scope="col"
@@ -103,26 +136,45 @@ export function Table<T extends { id: number }>({
 						</thead>
 
 						<tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
-							{elements.map((item) => (
-								<tr
-									key={item.id}
-									className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-								>
-									{/* Ячейки с данными */}
-									{headers.map((header, colIdx) => (
-										<td
-											key={colIdx}
-											className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100"
-										>
-											{String(item[header] ?? '')}
-										</td>
-									))}
+							{elements.map((item) => {
+								const visibleActions = getVisibleActions(item);
 
-									{/* Ячейка с действиями */}
-									{actions && actions.length > 0 && (
+								// Если нет видимых действий для этого элемента, не показываем ячейку с действиями
+								if (visibleActions.length === 0) {
+									return (
+										<tr
+											key={item.id}
+											className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+										>
+											{headers.map((header, colIdx) => (
+												<td
+													key={colIdx}
+													className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100"
+												>
+													{String(item[header] ?? '')}
+												</td>
+											))}
+										</tr>
+									);
+								}
+
+								return (
+									<tr
+										key={item.id}
+										className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
+									>
+										{headers.map((header, colIdx) => (
+											<td
+												key={colIdx}
+												className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100"
+											>
+												{String(item[header] ?? '')}
+											</td>
+										))}
+
 										<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 											<div className="flex justify-end gap-2">
-												{actions.map((action, actionIdx) => (
+												{visibleActions.map((action, actionIdx) => (
 													<button
 														key={actionIdx}
 														onClick={() => {
@@ -146,9 +198,9 @@ export function Table<T extends { id: number }>({
 												))}
 											</div>
 										</td>
-									)}
-								</tr>
-							))}
+									</tr>
+								);
+							})}
 						</tbody>
 					</table>
 				)}

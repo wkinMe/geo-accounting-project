@@ -3,84 +3,85 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, type Action } from '@/components/shared/Table';
-import { Button } from '@/components/shared/Button';
 import { warehouseService } from '@/services/warehouseService';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { IoAdd } from 'react-icons/io5';
 import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
-import { RemoveMaterialConfirmModal } from './RemoveMaterialConfirmModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
+import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
+import { useRole } from '@/hooks';
+import { userService } from '@/services';
 
 const headers = ['id', 'name', 'amount'] as const;
 
 interface Props {
 	id: number;
+	role: UserRole;
+	isCurrentUserOrg: boolean;
 }
 
-export function WarehouseMaterials({ id }: Props) {
+export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
+
 	const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-	const [selectedMaterial, setSelectedMaterial] = useState<{
-		id: number;
-		name: string;
-		amount: number;
-	} | null>(null);
 	const [editingMaterial, setEditingMaterial] = useState<{
 		id: number;
 		name: string;
 		amount: number;
 	} | null>(null);
 
-	// Получение материалов со склада
-	const { data: materialsData, isLoading } = useQuery({
-		queryKey: ['warehouse-materials', id, searchQuery],
-		queryFn: () =>
-			searchQuery
-				? warehouseService.searchMaterials(id, searchQuery)
-				: warehouseService.getMaterials(id),
+	// Получение всех материалов со склада
+	const { data: materials } = useQuery({
+		queryKey: ['warehouseMaterials', id],
+		queryFn: () => warehouseService.getMaterials(id),
+	});
+
+	// Поиск материалов на складе
+	const { data: searchedMaterials } = useQuery({
+		queryKey: ['warehouseMaterials', id, searchQuery],
+		queryFn: () => warehouseService.searchMaterials(id, searchQuery),
+		enabled: searchQuery.length > 0,
+		retry: false,
 	});
 
 	// Мутация для удаления материала со склада
-	const { mutateAsync: removeMaterialMutate, isPending: isRemoving } = useMutation({
+	const { mutateAsync: removeMaterialMutate } = useMutation({
 		mutationFn: ({ materialId }: { materialId: number }) =>
 			warehouseService.removeMaterial(id, materialId),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
-			setIsDeleteModalOpen(false);
-			setSelectedMaterial(null);
+			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 		},
 	});
 
 	// Мутация для обновления количества
-	const { mutateAsync: updateAmountMutate, isPending: isUpdating } = useMutation({
+	const { mutateAsync: updateAmountMutate } = useMutation({
 		mutationFn: ({ materialId, amount }: { materialId: number; amount: number }) =>
 			warehouseService.updateMaterialAmount(id, materialId, amount),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 			setEditingMaterial(null);
 		},
 	});
 
-	const materials = materialsData?.data || [];
-
-	const handleRemoveMaterial = async () => {
-		if (selectedMaterial) {
-			await removeMaterialMutate({ materialId: selectedMaterial.id });
-		}
-	};
+	const elements =
+		searchQuery && searchedMaterials
+			? searchedMaterials.data.map(mapWarehouseMaterialToTableItem)
+			: materials?.data.map(mapWarehouseMaterialToTableItem) || [];
 
 	const handleUpdateAmount = async (materialId: number, amount: number) => {
 		await updateAmountMutate({ materialId, amount });
 	};
 
-	const actions: Action<(typeof materials)[0]>[] = [
+	const interactionDeprecated = () => {
+		return role === 'user' || !isCurrentUserOrg;
+	};
+
+	const actions: Action<TableMaterial>[] = [
 		{
 			name: 'Просмотреть',
 			action: (item) => navigate(`/materials/${item.material.id}`),
@@ -95,63 +96,47 @@ export function WarehouseMaterials({ id }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
+			hidden: () => interactionDeprecated(),
 		},
 		{
-			name: 'Удалить со склада',
-			action: (item) => {
-				setSelectedMaterial({
-					id: item.material_id,
-					name: item.material.name,
-					amount: item.amount,
-				});
-				setIsDeleteModalOpen(true);
+			name: 'Удалить материал со склада',
+
+			action: async (item) => {
+				await removeMaterialMutate({ materialId: item.material_id });
 			},
 			icon: <FaRegTrashAlt />,
+			confirmationBody: (item) => (
+				<div className="space-y-2">
+					<p>Вы уверены, что хотите удалить материал со склада?</p>
+					<p className="font-medium">{item.name}</p>
+					<p>Количество: {item.amount}</p>
+				</div>
+			),
 			needConfirmation: true,
+			hidden: () => interactionDeprecated(),
 		},
 	];
 
-	if (isLoading) {
-		return (
-			<div className="flex justify-center items-center p-8">
-				<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-white" />
-			</div>
-		);
-	}
-
 	return (
 		<>
-			<div className="mt-12 space-y-4">
-				<div className="flex justify-between items-center">
-					<h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+			<div className="mt-12">
+				<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center bg-white">
+					<h2 className="text-xl font-semibold text-gray-900 dark:text-white ">
 						Материалы на складе
 					</h2>
-					<Button
-						variant="primary"
-						size="sm"
-						onClick={() => setIsAddModalOpen(true)}
-						startIcon={<IoAdd />}
-					>
-						Добавить материал
-					</Button>
 				</div>
 
 				<Table
+					roundedT={false}
 					searchValue={searchQuery}
 					onSearch={setSearchQuery}
 					debounceMs={300}
 					itemName="Материал"
 					headers={headers}
-					elements={materials.map((m) => ({
-						id: m.material_id,
-						name: m.material.name,
-						amount: m.amount,
-						// unit: m.material.unit || '-',
-						// price: m.material.price || '-',
-						material: m.material,
-						material_id: m.material_id,
-					}))}
+					elements={elements}
 					actions={actions}
+					isCreateDisabled={interactionDeprecated()}
+					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
 
@@ -161,7 +146,7 @@ export function WarehouseMaterials({ id }: Props) {
 				setOpen={setIsAddModalOpen}
 				warehouseId={id}
 				onSuccess={() => {
-					queryClient.invalidateQueries({ queryKey: ['warehouse-materials', id] });
+					queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
 				}}
 			/>
 
@@ -176,15 +161,6 @@ export function WarehouseMaterials({ id }: Props) {
 					onSubmit={handleUpdateAmount}
 				/>
 			)}
-
-			{/* Модалка подтверждения удаления */}
-			<RemoveMaterialConfirmModal
-				open={isDeleteModalOpen}
-				setOpen={setIsDeleteModalOpen}
-				materialName={selectedMaterial?.name || ''}
-				currentAmount={selectedMaterial?.amount || 0}
-				onConfirm={handleRemoveMaterial}
-			/>
 		</>
 	);
 }

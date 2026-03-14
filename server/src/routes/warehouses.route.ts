@@ -3,6 +3,7 @@ import { pool } from "@src/db";
 import { authMiddleware } from "@src/middleware/auth-middleware";
 import { Router } from "express";
 import { Request, Response } from "express";
+import { roleMiddleware } from "../middleware";
 
 const warehousesRouter = Router();
 const warehouseController = new WarehouseController(pool);
@@ -40,14 +41,20 @@ warehousesRouter.get(
 );
 
 // POST /api/warehouses - создать новый склад
-warehousesRouter.post("/", (req: Request, res: Response) => {
-  warehouseController.create(req, res);
-});
+warehousesRouter.post(
+  "/",
+  authMiddleware,
+  roleMiddleware(["admin", "super_admin"]),
+  (req: Request, res: Response) => {
+    warehouseController.create(req, res);
+  },
+);
 
 // PATCH /api/warehouses/:id - обновить склад
 warehousesRouter.patch(
   "/:id",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string }>, res: Response) => {
     warehouseController.update(req, res);
   },
@@ -57,6 +64,7 @@ warehousesRouter.patch(
 warehousesRouter.patch(
   "/:id/assign-manager",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin"]),
   (req: Request<{ id: string }>, res: Response) => {
     warehouseController.assignManager(req, res);
   },
@@ -66,6 +74,7 @@ warehousesRouter.patch(
 warehousesRouter.delete(
   "/:id",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin"]),
   (req: Request<{ id: string }>, res: Response) => {
     warehouseController.delete(req, res);
   },
@@ -75,6 +84,7 @@ warehousesRouter.delete(
 warehousesRouter.post(
   "/:id/materials",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string }>, res: Response) => {
     warehouseController.addMaterial(req, res);
   },
@@ -102,6 +112,7 @@ warehousesRouter.get(
 warehousesRouter.patch(
   "/:id/materials/:materialId",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string; materialId: string }>, res: Response) => {
     warehouseController.updateMaterialAmount(req, res);
   },
@@ -111,6 +122,7 @@ warehousesRouter.patch(
 warehousesRouter.delete(
   "/:id/materials/:materialId",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string; materialId: string }>, res: Response) => {
     warehouseController.removeMaterial(req, res);
   },

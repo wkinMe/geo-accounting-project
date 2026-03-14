@@ -25,7 +25,7 @@ export function NumberField({
 			<Field.Control
 				type="number"
 				step="any"
-				className={`w-full px-3 py-2 bg-white dark:bg-black border ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+				className={`w-full px-3 py-2 bg-white dark:bg-black border ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white ${className}`}
 				{...props}
 			/>
 			{description && (
