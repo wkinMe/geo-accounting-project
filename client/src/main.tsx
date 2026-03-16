@@ -10,7 +10,6 @@ import { RoleRoute } from './components/shared/RoleRoute';
 import { Auth } from './components/pages/Auth';
 import { WarehousesList } from './components/pages/WarehousesList';
 import { UsersList } from './components/pages/UsersList';
-import { Manager } from './components/pages/Manager';
 import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
 import { Warehouse } from './components/pages/Warehouse';
@@ -56,7 +55,6 @@ createRoot(document.getElementById('root')!).render(
 							}
 						>
 							<Route index element={<UsersList />} />
-							<Route path=":id" element={<Manager />} />
 						</Route>
 
 						{/* Отчёты - доступны всем авторизованным */}

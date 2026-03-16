@@ -26,8 +26,6 @@ export function MaterialsSection() {
 		formState: { errors, isSubmitted },
 	} = useFormContext<AgreementFormValues>();
 
-	console.log(errors);
-
 	return (
 		<div className="space-y-4">
 			<h2 className="text-lg font-semibold">Материалы</h2>

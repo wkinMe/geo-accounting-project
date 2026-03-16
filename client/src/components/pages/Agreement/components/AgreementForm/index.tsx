@@ -7,6 +7,7 @@ import Spinner from '@/components/shared/Spinner';
 import { PartySection } from '../PartySection';
 import { MaterialsSection } from '../MaterialsSection';
 import { FormActions } from '../FormActions';
+import { StatusSelect } from '../StatusSelect';
 
 export function AgreementForm() {
 	const { id } = useParams();
@@ -41,6 +42,11 @@ export function AgreementForm() {
 
 				<PartySection type="supplier" />
 				<PartySection type="customer" />
+
+				<div className="max-w-md">
+					<StatusSelect />
+				</div>
+
 				<MaterialsSection />
 
 				<FormActions

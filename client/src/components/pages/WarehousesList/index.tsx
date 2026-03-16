@@ -1,6 +1,6 @@
 // client/src/pages/warehouses/WarehousesList.tsx
 import { useState } from 'react';
-import { Table, type Action } from '@/components/shared/Table';
+import { Table, type Action, type Column } from '@/components/shared/Table';
 import { warehouseService } from '@/services/warehouseService';
 import { userService } from '@/services/userService';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
@@ -15,7 +15,14 @@ import { WarehouseModal } from './WarehouseModal';
 
 type TableWarehouse = ReturnType<typeof mapWarehouseToTableItem>;
 
-const headers = ['id', 'name', 'manager', 'organization', 'created_at', 'updated_at'] as const;
+const columns: Column<TableWarehouse>[] = [
+	{ key: 'id', label: 'ID' },
+	{ key: 'name', label: 'Название' },
+	{ key: 'manager', label: 'Менеджер' },
+	{ key: 'organization', label: 'Организация' },
+	{ key: 'created_at', label: 'Дата создания' },
+	{ key: 'updated_at', label: 'Дата обновления' },
+];
 
 export function WarehousesList() {
 	const navigate = useNavigate();
@@ -202,7 +209,7 @@ export function WarehousesList() {
 				onSearch={setSearchQuery}
 				debounceMs={300}
 				itemName="Склад"
-				headers={headers}
+				columns={columns}
 				elements={elements}
 				actions={actions}
 				onCreate={canCreate() ? openCreateModal : undefined}

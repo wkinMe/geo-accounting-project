@@ -1,6 +1,6 @@
 // client/src/pages/agreements/AgreementsList.tsx
 import { useState } from 'react';
-import { Table, type Action } from '@/components/shared/Table';
+import { Table, type Action, type Column } from '@/components/shared/Table';
 import { agreementService } from '@/services/agreementService';
 import { userService } from '@/services/userService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -12,15 +12,22 @@ import { mapAgreementToTableItem } from './utils';
 import type { TableAgreement } from './types';
 import { useAgreementPermissions } from './hooks/useAgreementPermissions';
 
-// Заголовки таблицы - используем поля из TableAgreement
-const headers = [
-	'id',
-	'supplier',
-	'customer',
-	'status_display',
-	'created_at',
-	'updated_at',
-] as const;
+const columns: Column<TableAgreement>[] = [
+	{ key: 'id', label: 'ID' },
+	{ key: 'supplier_organization', label: 'Поставщик' },
+	{ key: 'customer_organization', label: 'Покупатель' },
+	{
+		key: 'status_display',
+		label: 'Статус',
+		render: (value, item) => (
+			<span className={`px-2 py-1 rounded-full text-xs font-medium ${item.status_color}`}>
+				{value}
+			</span>
+		),
+	},
+	{ key: 'created_at', label: 'Дата создания' },
+	{ key: 'updated_at', label: 'Дата обновления' },
+];
 
 export function AgreementsList() {
 	const navigate = useNavigate();
@@ -101,7 +108,7 @@ export function AgreementsList() {
 				onSearch={setSearchQuery}
 				debounceMs={300}
 				itemName="Договор"
-				headers={headers}
+				columns={columns}
 				elements={elements}
 				actions={actions}
 				onCreate={canCreate ? handleCreate : undefined}

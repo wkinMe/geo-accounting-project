@@ -1,4 +1,5 @@
 // client/src/pages/Agreements/types/validation.ts
+import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
 import { z } from 'zod';
 
 export const agreementSchema = z.object({
@@ -23,6 +24,17 @@ export const agreementSchema = z.object({
 	customerWarehouse: z
 		.number({ error: 'Выберите склад покупателя' })
 		.min(1, 'Выберите склад покупателя'),
+
+	// Статус - убираем default
+	status: z.enum([
+		AGREEMENT_STATUS.DRAFT,
+		AGREEMENT_STATUS.PENDING,
+		AGREEMENT_STATUS.ACTIVE,
+		AGREEMENT_STATUS.IN_PROGRESS,
+		AGREEMENT_STATUS.COMPLETED,
+		AGREEMENT_STATUS.CANCELLED,
+		AGREEMENT_STATUS.EXPIRED,
+	]),
 
 	// Материалы
 	materials: z

@@ -14,10 +14,21 @@ export interface Action<T> {
 	hidden?: (item: T) => boolean;
 }
 
+// Новый тип для колонки
+export interface Column<T> {
+	key: keyof T; // Ключ для доступа к данным
+	label: string; // Отображаемый заголовок
+	width?: string; // Опциональная ширина
+	align?: 'left' | 'center' | 'right';
+	render?: (value: any, item: T) => React.ReactNode;
+}
+
 interface Props<T extends { id: number }> {
 	roundedT?: boolean;
 	roundedB?: boolean;
-	headers: readonly (keyof T)[];
+	// Поддерживаем оба варианта для обратной совместимости
+	headers?: readonly (keyof T)[];
+	columns?: Column<T>[]; // Новый пропс
 	itemName: string;
 	elements: T[];
 	actions?: Action<T>[];
@@ -32,6 +43,7 @@ export function Table<T extends { id: number }>({
 	roundedB = true,
 	roundedT = true,
 	headers,
+	columns,
 	itemName,
 	elements,
 	actions,
@@ -49,13 +61,11 @@ export function Table<T extends { id: number }>({
 
 	// Фильтруем actions для каждого элемента
 	const getVisibleActions = (item: T) => {
-		return (
-			actions?.filter((action) => {
-				// Если hidden не указан или возвращает false - показываем
-				return !action.hidden?.(item);
-			}) || []
-		);
+		return actions?.filter((action) => !action.hidden?.(item)) || [];
 	};
+
+	const useColumns: Column<T>[] =
+		columns || (headers?.map((key) => ({ key, label: String(key) })) as Column<T>[]) || [];
 
 	return (
 		<>
@@ -99,7 +109,7 @@ export function Table<T extends { id: number }>({
 							className="flex-1"
 						/>
 					)}
-					{onCreate && !isCreateDisabled  && (
+					{onCreate && !isCreateDisabled && (
 						<Button className="cursor-pointer" onClick={onCreate}>
 							Добавить {itemName.toLocaleLowerCase()}
 						</Button>
@@ -114,13 +124,13 @@ export function Table<T extends { id: number }>({
 					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 						<thead className="bg-gray-50 dark:bg-gray-900">
 							<tr>
-								{headers.map((header, idx) => (
+								{useColumns.map((col, idx) => (
 									<th
 										key={idx}
 										scope="col"
-										className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+										className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${col.width ? `w-${col.width}` : ''}`}
 									>
-										{String(header)}
+										{col.label}
 									</th>
 								))}
 
@@ -139,65 +149,51 @@ export function Table<T extends { id: number }>({
 							{elements.map((item) => {
 								const visibleActions = getVisibleActions(item);
 
-								// Если нет видимых действий для этого элемента, не показываем ячейку с действиями
-								if (visibleActions.length === 0) {
-									return (
-										<tr
-											key={item.id}
-											className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-										>
-											{headers.map((header, colIdx) => (
-												<td
-													key={colIdx}
-													className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100"
-												>
-													{String(item[header] ?? '')}
-												</td>
-											))}
-										</tr>
-									);
-								}
-
 								return (
 									<tr
 										key={item.id}
 										className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
 									>
-										{headers.map((header, colIdx) => (
-											<td
-												key={colIdx}
-												className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100"
-											>
-												{String(item[header] ?? '')}
-											</td>
-										))}
+										{useColumns.map((col, colIdx) => {
+											const value = item[col.key];
+											return (
+												<td
+													key={colIdx}
+													className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
+												>
+													{col.render ? col.render(value, item) : String(value ?? '')}
+												</td>
+											);
+										})}
 
-										<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-											<div className="flex justify-end gap-2">
-												{visibleActions.map((action, actionIdx) => (
-													<button
-														key={actionIdx}
-														onClick={() => {
-															if (!action.needConfirmation) {
-																action.action(item);
-															} else {
-																setOpenModal(true);
-																setCurrentItem(item);
-																setCurrentAction(action);
-															}
-														}}
-														className="text-gray-600 cursor-pointer dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-														title={action.name}
-													>
-														{typeof action.icon === 'string' ? (
-															<img className="sr-only" src={action.icon} />
-														) : (
-															action.icon
-														)}
-													</button>
-												))}
-											</div>
-										</td>
+										{visibleActions.length > 0 && (
+											<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+												<div className="flex justify-end gap-2">
+													{visibleActions.map((action, actionIdx) => (
+														<button
+															key={actionIdx}
+															onClick={() => {
+																if (!action.needConfirmation) {
+																	action.action(item);
+																} else {
+																	setOpenModal(true);
+																	setCurrentItem(item);
+																	setCurrentAction(action);
+																}
+															}}
+															className="text-gray-600 cursor-pointer dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+															title={action.name}
+														>
+															{typeof action.icon === 'string' ? (
+																<img className="sr-only" src={action.icon} />
+															) : (
+																action.icon
+															)}
+														</button>
+													))}
+												</div>
+											</td>
+										)}
 									</tr>
 								);
 							})}

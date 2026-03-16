@@ -1,3 +1,5 @@
+import type { AgreementStatus } from "../constants";
+
 export interface MaterialRow {
 	id: string;
 	material_id: number;
@@ -27,6 +29,8 @@ export interface AgreementFormState {
 
 	// Материалы
 	materials: MaterialRow[];
+
+	status: AgreementStatus
 }
 
 export type PartyType = 'supplier' | 'customer';

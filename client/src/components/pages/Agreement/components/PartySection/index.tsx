@@ -61,8 +61,8 @@ export function PartySection({ type }: PartySectionProps) {
 		setOrg(id);
 		setManager(null);
 		setWarehouse(null);
-		setValue(isSupplier ? 'supplierManager' : 'customerManager', undefined);
-		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', undefined);
+		setValue(isSupplier ? 'supplierManager' : 'customerManager', -1);
+		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', -1);
 	};
 
 	const getUserLabel = (user: User) => {

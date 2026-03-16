@@ -1,6 +1,7 @@
 // client/src/pages/Agreements/store/index.ts
 import { create } from 'zustand';
 import type { AgreementFormState, MaterialRow } from '../types';
+import { AGREEMENT_STATUS, type AgreementStatus } from '@shared/constants/agreementStatuses';
 
 const initialState: AgreementFormState = {
 	supplierOrg: null,
@@ -18,6 +19,7 @@ const initialState: AgreementFormState = {
 	materialSearchQuery: '',
 
 	materials: [],
+	status: AGREEMENT_STATUS.DRAFT, // Добавляем статус
 };
 
 type AgreementFormStore = AgreementFormState & {
@@ -36,6 +38,7 @@ type AgreementFormStore = AgreementFormState & {
 	addMaterial: (material: Omit<MaterialRow, 'id'>) => void;
 	removeMaterial: (id: string) => void;
 	updateMaterialAmount: (id: string, amount: number) => void;
+	setStatus: (status: AgreementStatus) => void; // Добавляем сеттер для статуса
 	resetForm: () => void;
 };
 
@@ -74,6 +77,8 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 		set((state) => ({
 			materials: state.materials.map((m) => (m.id === id ? { ...m, amount } : m)),
 		})),
+
+	setStatus: (status) => set({ status }), // Добавляем сеттер
 
 	resetForm: () => set(initialState),
 }));

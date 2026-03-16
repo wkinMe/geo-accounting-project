@@ -14,7 +14,8 @@ import {
 	type AgreementFormValues,
 	type MaterialRow,
 } from '../types';
-
+import { warehouseService } from '@/services';
+import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
 type AgreementFormStore = AgreementFormState & {
 	setSupplierOrg: (id: number | null) => void;
 	setSupplierManager: (id: number | null) => void;
@@ -58,6 +59,12 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		staleTime: 0,
 	});
 
+	const { data: warehouseMaterials } = useQuery({
+		queryKey: ['warehouse-materials', agreement?.data?.supplier_warehouse_id],
+		queryFn: () => warehouseService.getMaterials(agreement?.data?.supplier_warehouse_id!),
+		enabled: !!agreement?.data?.supplier_warehouse_id,
+	});
+
 	const form = useForm<AgreementFormValues>({
 		resolver: zodResolver(agreementSchema),
 		defaultValues: {
@@ -67,6 +74,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			customerOrg: undefined,
 			customerManager: undefined,
 			customerWarehouse: undefined,
+			status: AGREEMENT_STATUS.DRAFT,
 			materials: [],
 		},
 		mode: 'onSubmit', // валидация только при отправке
@@ -97,17 +105,20 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 			store.setSupplierManager(data.supplier_id);
 			store.setCustomerManager(data.customer_id);
+			store.setStatus(data.status);
 
 			store.setSupplierWarehouse(data.supplier_warehouse_id);
 			store.setCustomerWarehouse(data.customer_warehouse_id);
 
-			if (data.materials) {
+			if (data.materials && warehouseMaterials?.data) {
+				const materialsMap = new Map(warehouseMaterials.data.map((m) => [m.material_id, m.amount]));
+
 				data.materials.forEach((material) => {
 					store.addMaterial({
 						material_id: material.material.id,
 						name: material.material?.name || 'Материал',
 						amount: material.amount,
-						maxAmount: material.amount,
+						maxAmount: materialsMap.get(material.material.id) || material.amount,
 					});
 				});
 			}
@@ -121,10 +132,11 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 					supplierWarehouse: data.supplier_warehouse_id,
 					customerWarehouse: data.customer_warehouse_id,
 					materials: store.materials,
+					status: store.status,
 				});
 			}
 		}
-	}, [agreement, isEditing, form]);
+	}, [agreement, isEditing, form, warehouseMaterials]);
 
 	// Мутация для создания/обновления
 	const { mutateAsync, isPending: isSubmitting } = useMutation({
@@ -138,6 +150,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 						customer_id: data.customerManager!,
 						supplier_warehouse_id: data.supplierWarehouse!,
 						customer_warehouse_id: data.customerWarehouse!,
+						status: data.status,
 					},
 					materials: data.materials.map((m) => ({
 						material_id: m.material_id,

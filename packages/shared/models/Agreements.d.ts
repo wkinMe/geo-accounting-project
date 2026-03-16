@@ -1,5 +1,4 @@
 // types/agreement.types.ts
-
 import { BaseModel } from "./Base";
 import { Material } from "./Material";
 import { UserWithOrganization } from "./User";
@@ -10,7 +9,7 @@ export interface Agreement extends BaseModel {
   customer_id: number; // закачик (organization)
   supplier_warehouse_id: number; // склад поставщика
   customer_warehouse_id: number; // склад закачика
-  status?: string; // статус договора
+  status: AgreementStatus; // статус договора
 }
 
 // With типы
@@ -20,7 +19,7 @@ export interface AgreementWithDetails extends Agreement {
   supplier_warehouse?: Warehouse;
   customer_warehouse?: Warehouse;
   materials: {
-    material: Material,
+    material: Material;
     amount: number;
-  }[]
+  }[];
 }
