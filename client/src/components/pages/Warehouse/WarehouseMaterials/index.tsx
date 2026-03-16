@@ -11,8 +11,7 @@ import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
-import { useRole } from '@/hooks';
-import { userService } from '@/services';
+import type { UserRole } from '@shared/models';
 
 const headers = ['id', 'name', 'amount'] as const;
 

@@ -176,6 +176,34 @@ class WarehouseService {
 		});
 		return response.data;
 	}
+
+	/**
+	 * Получение складов по организации
+	 */
+	async findByOrganizationId(
+		organizationId: number
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
+		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
+			`${this.baseUrl}/organization/${organizationId}`
+		);
+		return response.data;
+	}
+
+	/**
+	 * Поиск складов по организации
+	 */
+	async searchByOrganizationId(
+		organizationId: number,
+		query: string
+	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
+		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
+			`${this.baseUrl}/organization/${organizationId}/search`,
+			{
+				params: { q: query },
+			}
+		);
+		return response.data;
+	}
 }
 
 // Создаем и экспортируем единственный экземпляр

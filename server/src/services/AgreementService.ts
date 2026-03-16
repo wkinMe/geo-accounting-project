@@ -7,7 +7,14 @@ import {
 } from "@src/errors/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 import Fuse, { IFuseOptions } from "fuse.js";
-import { Agreement, AgreementWithDetails, Material, Organization, User, Warehouse } from "@shared/models";
+import {
+  Agreement,
+  AgreementWithDetails,
+  Material,
+  Organization,
+  User,
+  Warehouse,
+} from "@shared/models";
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
 import { ERROR_MESSAGES } from "@shared/constants";
 
@@ -467,6 +474,15 @@ export class AgreementService {
     try {
       // Проверяем существование соглашения
       const existingAgreement = await this.findById(id);
+
+      if (!existingAgreement) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("agreement", id),
+          "update",
+          "AgreementService",
+          id,
+        );
+      }
 
       // Проверка статуса, если он передан
       if (status !== undefined && status.trim() === "") {

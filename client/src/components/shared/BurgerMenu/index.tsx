@@ -1,5 +1,5 @@
 // client/src/components/shared/BurgerMenu.tsx
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import {
 	FaBars,
@@ -9,9 +9,10 @@ import {
 	FaFileAlt,
 	FaHome,
 	FaSignOutAlt,
+	FaFileContract,
 } from 'react-icons/fa';
 import { userService } from '@/services/userService';
-import { useProfile } from '@/hooks';
+import { useRole } from '@/hooks';
 import { USER_ROLES } from '@/constants';
 import { type UserRole } from '@shared/models';
 
@@ -30,8 +31,7 @@ interface BurgerMenuProps {
 
 export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 	const navigate = useNavigate();
-	const { data: profile } = useProfile();
-	const userRole = profile?.role;
+	const userRole = useRole();
 
 	useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,22 +56,12 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 		}
 	};
 
-	// Определяем пункты меню с правами доступа
 	const menuItems: MenuItem[] = [
-		{ path: '/', label: 'Главная', icon: <FaHome /> }, // доступно всем
-		{ path: '/warehouses', label: 'Склады', icon: <FaWarehouse /> }, // доступно всем
-		{
-			path: '/users',
-			label: 'Пользователи',
-			icon: <FaUsers />,
-			allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN],
-		},
-		{
-			path: '/reports',
-			label: 'Отчёты',
-			icon: <FaFileAlt />,
-			allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.MANAGER, USER_ROLES.SUPER_ADMIN],
-		},
+		{ path: '/', label: 'Главная', icon: <FaHome /> },
+		{ path: '/warehouses', label: 'Склады', icon: <FaWarehouse /> },
+		{ path: '/agreements', label: 'Договоры', icon: <FaFileContract /> },
+		{ path: '/users', label: 'Пользователи', icon: <FaUsers /> },
+		// { path: '/reports', label: 'Отчёты', icon: <FaFileAlt /> },
 	];
 
 	// Фильтруем пункты меню по роли

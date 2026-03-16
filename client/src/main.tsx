@@ -15,6 +15,8 @@ import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
 import { Warehouse } from './components/pages/Warehouse';
 import { USER_ROLES } from './constants';
+import { AgreementsList } from './components/pages/AgreementsList';
+import { AgreementForm } from './components/pages/Agreement/components';
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,13 @@ createRoot(document.getElementById('root')!).render(
 						>
 							<Route index element={<ReportsList />} />
 							<Route path=":id" element={<Report />} />
+						</Route>
+
+						<Route path="agreements">
+							<Route index element={<AgreementsList />} />
+							<Route path="new" element={<AgreementForm />} />
+							<Route path=":id" element={<div>Просмотр договора (заглушка)</div>} />
+							<Route path=":id/edit" element={<AgreementForm />} />
 						</Route>
 					</Route>
 				</Routes>

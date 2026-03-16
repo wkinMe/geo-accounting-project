@@ -1,3 +1,4 @@
+// server/src/routes/warehouses.ts
 import { WarehouseController } from "@src/controllers";
 import { pool } from "@src/db";
 import { authMiddleware } from "@src/middleware/auth-middleware";
@@ -28,6 +29,24 @@ warehousesRouter.get(
   authMiddleware,
   (req: Request<{ managerId: string }>, res: Response) => {
     warehouseController.findByManagerId(req, res);
+  },
+);
+
+// GET /api/warehouses/organization/:organizationId - получить склады по организации
+warehousesRouter.get(
+  "/organization/:organizationId",
+  authMiddleware,
+  (req: Request<{ organizationId: string }>, res: Response) => {
+    warehouseController.findByOrganizationId(req, res);
+  },
+);
+
+// GET /api/warehouses/organization/:organizationId/search - поиск складов по организации
+warehousesRouter.get(
+  "/organization/:organizationId/search",
+  authMiddleware,
+  (req: Request<{ organizationId: string }>, res: Response) => {
+    warehouseController.searchByOrganizationId(req, res);
   },
 );
 

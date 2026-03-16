@@ -1017,4 +1017,124 @@ export class WarehouseService {
       );
     }
   }
+
+  async findByOrganizationId(
+    organizationId: number,
+  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
+    try {
+      // Проверяем существование организации
+      const orgCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkOrganizationExists",
+        "SELECT id FROM organizations WHERE id = $1",
+        [organizationId],
+      );
+
+      if (orgCheck.length === 0) {
+        throw new NotFoundError(
+          `Organization with id ${organizationId} not found`,
+          "findByOrganizationId",
+          "WarehouseService",
+          organizationId,
+        );
+      }
+
+      const query = `
+      SELECT 
+        row_to_json(w.*) as warehouse,
+        COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
+        row_to_json(o.*) as organization,
+        row_to_json(u.*) as manager
+      FROM warehouses w 
+      INNER JOIN organizations o ON w.organization_id = o.id
+      LEFT JOIN app_users u ON w.manager_id = u.id
+      LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
+      LEFT JOIN materials m ON wm.material_id = m.id 
+      WHERE w.organization_id = $1
+      GROUP BY w.id, o.id, u.id
+      ORDER BY w.id
+    `;
+
+      const rows = await executeQuery<{
+        warehouse: Warehouse;
+        materials: WarehouseMaterial[] | null;
+        organization: Organization;
+        manager: User | null;
+      }>(this._db, "findByOrganizationId", query, [organizationId]);
+
+      return rows.map((row) => ({
+        ...row.warehouse,
+        materials: row.materials || [],
+        organization: row.organization,
+        manager: row.manager,
+        materials_count: row.materials?.length || 0,
+      }));
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to find warehouses for organization with id ${organizationId}`,
+        "WarehouseService",
+        "findByOrganizationId",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async searchByOrganizationId(
+    organizationId: number,
+    input: string,
+  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
+    try {
+      // Проверяем существование организации
+      const orgCheck = await executeQuery<{ id: number }>(
+        this._db,
+        "checkOrganizationExists",
+        "SELECT id FROM organizations WHERE id = $1",
+        [organizationId],
+      );
+
+      if (orgCheck.length === 0) {
+        throw new NotFoundError(
+          `Organization with id ${organizationId} not found`,
+          "searchByOrganizationId",
+          "WarehouseService",
+          organizationId,
+        );
+      }
+
+      // Получаем все склады организации
+      const warehouses = await this.findByOrganizationId(organizationId);
+
+      const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
+        keys: [
+          { name: "name", weight: 0.9 },
+          { name: "manager.name", weight: 0.3 },
+        ],
+        includeScore: true,
+        threshold: 0.2,
+        minMatchCharLength: 1,
+        findAllMatches: true,
+        ignoreLocation: true,
+        useExtendedSearch: true,
+        shouldSort: true,
+      };
+
+      const fuse = new Fuse(warehouses, fuseConfig);
+      const searchResult = fuse.search(input);
+
+      return searchResult.map((i) => i.item);
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to search warehouses for organization with id ${organizationId}`,
+        "WarehouseService",
+        "searchByOrganizationId",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
 }
