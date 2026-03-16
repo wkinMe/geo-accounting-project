@@ -3,6 +3,8 @@ import { useMaterialsByWarehouse } from '@/hooks/useMaterialsByWarehouse';
 import { SearchInput } from '@/components/shared/SearchInput';
 import { MaterialRow } from '../MaterialRow';
 import { useAgreementFormStore } from '../../store';
+import { useFormContext } from 'react-hook-form';
+import type { AgreementFormValues } from '../../types';
 
 export function MaterialsSection() {
 	const {
@@ -19,6 +21,12 @@ export function MaterialsSection() {
 		supplierWarehouse,
 		materialSearchQuery
 	);
+
+	const {
+		formState: { errors, isSubmitted },
+	} = useFormContext<AgreementFormValues>();
+
+	console.log(errors);
 
 	return (
 		<div className="space-y-4">
@@ -62,7 +70,7 @@ export function MaterialsSection() {
 			</div>
 
 			{/* Таблица материалов */}
-			{materials.length > 0 && (
+			{materials.length > 0 ? (
 				<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 					<thead className="bg-gray-50 dark:bg-gray-900">
 						<tr>
@@ -91,6 +99,11 @@ export function MaterialsSection() {
 						))}
 					</tbody>
 				</table>
+			) : (
+				errors.materials &&
+				isSubmitted && (
+					<p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.materials.message}</p>
+				)
 			)}
 		</div>
 	);

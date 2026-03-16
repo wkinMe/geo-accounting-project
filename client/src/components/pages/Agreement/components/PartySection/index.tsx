@@ -24,11 +24,6 @@ export function PartySection({ type }: PartySectionProps) {
 		setValue,
 	} = useFormContext<AgreementFormValues>();
 
-	// Ключи для принудительного обновления компонентов
-	const [orgKey, setOrgKey] = useState(0);
-	const [managerKey, setManagerKey] = useState(0);
-	const [warehouseKey, setWarehouseKey] = useState(0);
-
 	// Получаем состояния из стора
 	const {
 		[isSupplier ? 'supplierOrg' : 'customerOrg']: orgId,
@@ -47,19 +42,6 @@ export function PartySection({ type }: PartySectionProps) {
 		[isSupplier ? 'setSupplierWarehouseSearchQuery' : 'setCustomerWarehouseSearchQuery']:
 			setWarehouseSearchQuery,
 	} = useAgreementFormStore();
-
-	// Обновляем ключи при изменении ID
-	useEffect(() => {
-		setOrgKey((prev) => prev + 1);
-	}, [orgId]);
-
-	useEffect(() => {
-		setManagerKey((prev) => prev + 1);
-	}, [managerId]);
-
-	useEffect(() => {
-		setWarehouseKey((prev) => prev + 1);
-	}, [warehouseId]);
 
 	// Запросы
 	const { data: organizations, isLoading: isLoadingOrgs } = useOrganizations(orgSearchQuery);
@@ -125,7 +107,6 @@ export function PartySection({ type }: PartySectionProps) {
 					control={control}
 					render={({ field }) => (
 						<SearchableSelect<Organization>
-							key={`org-${orgKey}`}
 							label="Организация"
 							value={orgId}
 							onChange={(id) => {
@@ -148,7 +129,6 @@ export function PartySection({ type }: PartySectionProps) {
 					control={control}
 					render={({ field }) => (
 						<SearchableSelect<User>
-							key={`manager-${managerKey}`}
 							label="Ответственное лицо"
 							value={managerId}
 							onChange={(id) => {
@@ -172,7 +152,6 @@ export function PartySection({ type }: PartySectionProps) {
 					control={control}
 					render={({ field }) => (
 						<SearchableSelect<Warehouse>
-							key={`warehouse-${warehouseKey}`}
 							label="Склад"
 							value={warehouseId}
 							onChange={(id) => {

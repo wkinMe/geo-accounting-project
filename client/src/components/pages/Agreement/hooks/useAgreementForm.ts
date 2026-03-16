@@ -46,7 +46,7 @@ interface UseAgreementFormReturn {
 export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const store = useAgreementFormStore() as AgreementFormStore;
+	const store = useAgreementFormStore();
 	const [error, setError] = useState<string | null>(null);
 	const isEditing = !!agreementId;
 
@@ -69,6 +69,8 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			customerWarehouse: undefined,
 			materials: [],
 		},
+		mode: 'onSubmit', // валидация только при отправке
+		reValidateMode: 'onChange', // ревалидация при изменении после первой ошибки
 	});
 
 	useEffect(() => {
