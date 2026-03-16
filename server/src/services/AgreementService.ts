@@ -1,6 +1,7 @@
 import { Pool } from "pg";
 import {
   DatabaseError,
+  ForbiddenError,
   NotFoundError,
   ServiceError,
   ValidationError,
@@ -462,7 +463,10 @@ export class AgreementService {
     id,
     updateData,
     materials,
-  }: AgreementUpdateParams): Promise<AgreementWithDetails> {
+    userId, // Добавляем userId для проверки прав
+  }: AgreementUpdateParams & {
+    userId?: number;
+  }): Promise<AgreementWithDetails> {
     const {
       supplier_id,
       supplier_warehouse_id,
@@ -482,6 +486,90 @@ export class AgreementService {
           "AgreementService",
           id,
         );
+      }
+
+      // Получаем информацию о пользователе для проверки прав
+      let user;
+      if (userId) {
+        const userResult = await executeQuery<{ role: string }>(
+          this._db,
+          "getUserRole",
+          "SELECT role FROM app_users WHERE id = $1",
+          [userId],
+        );
+        user = userResult[0];
+      }
+
+      // --- ПРОВЕРКИ СТАТУСА ---
+      const irreversibleStatuses = ["active", "in_progress", "completed"];
+      const activeStatuses = ["active", "in_progress", "completed"];
+
+      // Проверка на откат статуса (нельзя вернуться назад)
+      if (
+        status !== undefined &&
+        irreversibleStatuses.includes(existingAgreement.status) &&
+        !irreversibleStatuses.includes(status)
+      ) {
+        throw new ForbiddenError(
+          "Нельзя откатить статус после начала выполнения",
+          "update",
+          "AgreementService",
+          existingAgreement.status,
+          status,
+        );
+      }
+
+      // Проверка на изменение завершённого договора
+      if (
+        existingAgreement.status === "completed" &&
+        status !== existingAgreement.status
+      ) {
+        if (!user || user.role !== "super_admin") {
+          throw new ForbiddenError(
+            "Только суперадминистратор может изменять завершённые договоры",
+            "update",
+            "AgreementService",
+          );
+        }
+      }
+
+      // --- ПРОВЕРКА ДОСТУПНОСТИ МАТЕРИАЛОВ ПЕРЕД АКТИВАЦИЕЙ ---
+      if (status && activeStatuses.includes(status)) {
+        // Проверяем, что материалы переданы
+        if (!materials || materials.length === 0) {
+          throw new ValidationError(
+            "Нельзя активировать договор без материалов",
+            "update",
+            "materials",
+            `${materials[0].amount} - ${materials[0].material_id}`,
+          );
+        }
+
+        // Определяем склад поставщика (новый или существующий)
+        const warehouseId =
+          supplier_warehouse_id || existingAgreement.supplier_warehouse_id;
+
+        // Проверяем наличие каждого материала на складе
+        for (const material of materials) {
+          const availabilityResult = await executeQuery<{ amount: number }>(
+            this._db,
+            "checkMaterialAvailability",
+            `SELECT amount FROM warehouse_material 
+           WHERE warehouse_id = $1 AND material_id = $2`,
+            [warehouseId, material.material_id],
+          );
+
+          const availableAmount = availabilityResult[0]?.amount || 0;
+
+          if (availableAmount < material.amount) {
+            throw new ValidationError(
+              `Недостаточно материала на складе. Доступно: ${availableAmount}, требуется: ${material.amount}`,
+              "update",
+              "materials",
+              `${materials[0].amount}`,
+            );
+          }
+        }
       }
 
       // Проверка статуса, если он передан
@@ -653,11 +741,11 @@ export class AgreementService {
           values.push(id); // Добавляем id в конец для WHERE условия
 
           const updateAgreementQuery = `
-            UPDATE agreements 
-            SET ${fields.join(", ")}
-            WHERE id = $${paramIndex}
-            RETURNING *
-          `;
+          UPDATE agreements 
+          SET ${fields.join(", ")}
+          WHERE id = $${paramIndex}
+          RETURNING *
+        `;
 
           await client.query(updateAgreementQuery, values);
         }
@@ -717,12 +805,31 @@ export class AgreementService {
 
               await client.query(
                 `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-                 VALUES ($1, $2, $3)`,
+               VALUES ($1, $2, $3)`,
                 [id, material.material_id, material.amount],
               );
             }
           }
-          // Если materials = [] - просто удаляем все материалы (соглашение без материалов)
+        }
+
+        // --- СПИСАНИЕ МАТЕРИАЛОВ ПРИ АКТИВАЦИИ ---
+        const finalStatus = status || existingAgreement.status;
+        const wasInactive = !activeStatuses.includes(existingAgreement.status);
+        const isNowActive = activeStatuses.includes(finalStatus);
+
+        // Если статус меняется с неактивного на активный - списываем материалы
+        if (wasInactive && isNowActive && materials && materials.length > 0) {
+          const warehouseId =
+            supplier_warehouse_id || existingAgreement.supplier_warehouse_id;
+
+          for (const material of materials) {
+            await client.query(
+              `UPDATE warehouse_material 
+             SET amount = amount - $1, updated_at = CURRENT_TIMESTAMP
+             WHERE warehouse_id = $2 AND material_id = $3`,
+              [material.amount, warehouseId, material.material_id],
+            );
+          }
         }
 
         await client.query("COMMIT");
@@ -736,10 +843,12 @@ export class AgreementService {
       // Возвращаем обновленное соглашение с полной информацией
       return await this.findById(id);
     } catch (error) {
+      console.log(error);
       if (
         error instanceof DatabaseError ||
         error instanceof NotFoundError ||
-        error instanceof ValidationError
+        error instanceof ValidationError ||
+        error instanceof ForbiddenError
       ) {
         throw error;
       }

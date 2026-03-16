@@ -25,6 +25,17 @@ export const AGREEMENT_STATUS_LABELS: Record<AgreementStatus, string> = {
   [AGREEMENT_STATUS.EXPIRED]: "Просрочен",
 };
 
+// Порядок статусов (для проверки возможности повышения)
+export const STATUS_ORDER = [
+  AGREEMENT_STATUS.DRAFT,
+  AGREEMENT_STATUS.PENDING,
+  AGREEMENT_STATUS.ACTIVE,
+  AGREEMENT_STATUS.IN_PROGRESS,
+  AGREEMENT_STATUS.COMPLETED,
+  AGREEMENT_STATUS.CANCELLED,
+  AGREEMENT_STATUS.EXPIRED,
+];
+
 // Для цветов (опционально)
 export const AGREEMENT_STATUS_COLORS: Record<AgreementStatus, string> = {
   [AGREEMENT_STATUS.DRAFT]: "bg-gray-100 text-gray-800",
