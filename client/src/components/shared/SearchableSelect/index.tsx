@@ -39,6 +39,16 @@ export function SearchableSelect<T extends Option>({
 	disabled,
 	debounceMs = 300, // Значение по умолчанию 300мс
 }: SearchableSelectProps<T>) {
+	useEffect(() => {
+		if (value && options.length > 0) {
+			const found = options.find((opt) => opt.id === value);
+			if (found) {
+				setSelectedOption(found);
+				setSearchQuery(getOptionLabel(found));
+			}
+		}
+	}, [value, options]); // Добавьте сюда value и options
+
 	const [isOpen, setIsOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedOption, setSelectedOption] = useState<T | null>(null);

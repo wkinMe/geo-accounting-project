@@ -1,6 +1,6 @@
 // client/src/pages/Agreements/components/PartySection/index.tsx
 import { useFormContext, Controller } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import type { Organization, User, Warehouse } from '@shared/models';
 import type { PartyType, AgreementFormValues } from '../../types';
@@ -24,33 +24,42 @@ export function PartySection({ type }: PartySectionProps) {
 		setValue,
 	} = useFormContext<AgreementFormValues>();
 
-	// Получаем состояния и сеттеры из стора
+	// Ключи для принудительного обновления компонентов
+	const [orgKey, setOrgKey] = useState(0);
+	const [managerKey, setManagerKey] = useState(0);
+	const [warehouseKey, setWarehouseKey] = useState(0);
+
+	// Получаем состояния из стора
 	const {
-		// Организация
 		[isSupplier ? 'supplierOrg' : 'customerOrg']: orgId,
 		[isSupplier ? 'setSupplierOrg' : 'setCustomerOrg']: setOrg,
-
-		// Менеджер
 		[isSupplier ? 'supplierManager' : 'customerManager']: managerId,
 		[isSupplier ? 'setSupplierManager' : 'setCustomerManager']: setManager,
-
-		// Склад
 		[isSupplier ? 'supplierWarehouse' : 'customerWarehouse']: warehouseId,
 		[isSupplier ? 'setSupplierWarehouse' : 'setCustomerWarehouse']: setWarehouse,
-
-		// Поисковые запросы
 		orgSearchQuery,
 		[isSupplier ? 'supplierManagerSearchQuery' : 'customerManagerSearchQuery']: managerSearchQuery,
 		[isSupplier ? 'supplierWarehouseSearchQuery' : 'customerWarehouseSearchQuery']:
 			warehouseSearchQuery,
-
-		// Сеттеры поисковых запросов
 		setOrgSearchQuery,
 		[isSupplier ? 'setSupplierManagerSearchQuery' : 'setCustomerManagerSearchQuery']:
 			setManagerSearchQuery,
 		[isSupplier ? 'setSupplierWarehouseSearchQuery' : 'setCustomerWarehouseSearchQuery']:
 			setWarehouseSearchQuery,
 	} = useAgreementFormStore();
+
+	// Обновляем ключи при изменении ID
+	useEffect(() => {
+		setOrgKey((prev) => prev + 1);
+	}, [orgId]);
+
+	useEffect(() => {
+		setManagerKey((prev) => prev + 1);
+	}, [managerId]);
+
+	useEffect(() => {
+		setWarehouseKey((prev) => prev + 1);
+	}, [warehouseId]);
 
 	// Запросы
 	const { data: organizations, isLoading: isLoadingOrgs } = useOrganizations(orgSearchQuery);
@@ -70,32 +79,42 @@ export function PartySection({ type }: PartySectionProps) {
 		setOrg(id);
 		setManager(null);
 		setWarehouse(null);
-		setValue(isSupplier ? 'supplierManager' : 'customerManager', 0);
-		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', 0);
+		setValue(isSupplier ? 'supplierManager' : 'customerManager', undefined);
+		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', undefined);
 	};
 
-	// Форматирование отображения пользователя
 	const getUserLabel = (user: User) => {
 		const roleMap = {
-			super_admin: 'Главный админ',
-			admin: 'Админ',
+			super_admin: 'Главный администратор',
+			admin: 'Администратор',
 			manager: 'Менеджер',
 			user: 'Пользователь',
 		};
 		return `${user.name} (${roleMap[user.role]})`;
 	};
 
-	// Названия полей для react-hook-form
 	const orgField = isSupplier ? 'supplierOrg' : 'customerOrg';
 	const managerField = isSupplier ? 'supplierManager' : 'customerManager';
 	const warehouseField = isSupplier ? 'supplierWarehouse' : 'customerWarehouse';
 
-	// Принудительно обновляем значение в форме при изменении managerId
+	// Синхронизация с формой
 	useEffect(() => {
-		if (managerId) {
+		if (orgId !== null) {
+			setValue(orgField, orgId, { shouldValidate: true });
+		}
+	}, [orgId, orgField, setValue]);
+
+	useEffect(() => {
+		if (managerId !== null) {
 			setValue(managerField, managerId, { shouldValidate: true });
 		}
 	}, [managerId, managerField, setValue]);
+
+	useEffect(() => {
+		if (warehouseId !== null) {
+			setValue(warehouseField, warehouseId, { shouldValidate: true });
+		}
+	}, [warehouseId, warehouseField, setValue]);
 
 	return (
 		<div className="space-y-4">
@@ -104,9 +123,9 @@ export function PartySection({ type }: PartySectionProps) {
 				<Controller
 					name={orgField}
 					control={control}
-					shouldUnregister={true}
 					render={({ field }) => (
 						<SearchableSelect<Organization>
+							key={`org-${orgKey}`}
 							label="Организация"
 							value={orgId}
 							onChange={(id) => {
@@ -127,9 +146,9 @@ export function PartySection({ type }: PartySectionProps) {
 				<Controller
 					name={managerField}
 					control={control}
-					shouldUnregister={true}
 					render={({ field }) => (
 						<SearchableSelect<User>
+							key={`manager-${managerKey}`}
 							label="Ответственное лицо"
 							value={managerId}
 							onChange={(id) => {
@@ -151,9 +170,9 @@ export function PartySection({ type }: PartySectionProps) {
 				<Controller
 					name={warehouseField}
 					control={control}
-					shouldUnregister={true}
 					render={({ field }) => (
 						<SearchableSelect<Warehouse>
+							key={`warehouse-${warehouseKey}`}
 							label="Склад"
 							value={warehouseId}
 							onChange={(id) => {

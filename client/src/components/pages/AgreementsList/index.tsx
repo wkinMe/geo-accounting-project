@@ -86,9 +86,7 @@ export function AgreementsList() {
 		{
 			name: 'Удалить',
 			action: async (item: TableAgreement) => {
-				if (confirm('Вы уверены, что хотите удалить этот договор?')) {
-					await deleteMutate(item.id);
-				}
+				await deleteMutate(item.id);
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,

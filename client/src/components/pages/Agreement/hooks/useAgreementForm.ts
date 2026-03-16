@@ -50,11 +50,12 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	const [error, setError] = useState<string | null>(null);
 	const isEditing = !!agreementId;
 
-	// Загрузка данных договора для редактирования
 	const { data: agreement, isLoading: isLoadingAgreement } = useQuery({
 		queryKey: ['agreement', agreementId],
 		queryFn: () => agreementService.findById(agreementId!),
 		enabled: isEditing,
+		retry: 1,
+		staleTime: 0,
 	});
 
 	const form = useForm<AgreementFormValues>({
@@ -70,18 +71,34 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		},
 	});
 
+	useEffect(() => {
+		if (isEditing && agreementId) {
+			// Сбрасываем стор перед загрузкой новых данных
+			store.resetForm();
+		}
+	}, [isEditing, agreementId]);
+
 	// Заполнение формы данными при редактировании
 	useEffect(() => {
 		if (agreement?.data && isEditing) {
 			const data = agreement.data;
 
-			// Заполняем стор
-			store.setSupplierOrg(data.supplier_id);
-			store.setCustomerOrg(data.customer_id);
+			const supplierOrgId = data.supplier?.organization_id || null;
+			const customerOrgId = data.customer?.organization_id || null;
+
+			if (supplierOrgId) {
+				store.setSupplierOrg(supplierOrgId);
+			}
+			if (customerOrgId) {
+				store.setCustomerOrg(customerOrgId);
+			}
+
+			store.setSupplierManager(data.supplier_id);
+			store.setCustomerManager(data.customer_id);
+
 			store.setSupplierWarehouse(data.supplier_warehouse_id);
 			store.setCustomerWarehouse(data.customer_warehouse_id);
 
-			// Заполняем материалы, если они есть
 			if (data.materials) {
 				data.materials.forEach((material) => {
 					store.addMaterial({
@@ -93,18 +110,19 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				});
 			}
 
-			// Заполняем форму
-			form.reset({
-				supplierOrg: data.supplier_id,
-				supplierManager: data.supplier_id,
-				customerOrg: data.customer_id,
-				customerManager: data.customer_id,
-				supplierWarehouse: data.supplier_warehouse_id,
-				customerWarehouse: data.customer_warehouse_id,
-				materials: store.materials,
-			});
+			if (supplierOrgId && customerOrgId) {
+				form.reset({
+					supplierOrg: supplierOrgId,
+					supplierManager: data.supplier_id,
+					customerOrg: customerOrgId,
+					customerManager: data.customer_id,
+					supplierWarehouse: data.supplier_warehouse_id,
+					customerWarehouse: data.customer_warehouse_id,
+					materials: store.materials,
+				});
+			}
 		}
-	}, [agreement, isEditing, store, form]);
+	}, [agreement, isEditing, form]);
 
 	// Мутация для создания/обновления
 	const { mutateAsync, isPending: isSubmitting } = useMutation({
@@ -114,8 +132,8 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				const params: AgreementUpdateParams = {
 					id: agreementId!,
 					updateData: {
-						supplier_id: data.supplierOrg!,
-						customer_id: data.customerOrg!,
+						supplier_id: data.supplierManager!,
+						customer_id: data.customerManager!,
 						supplier_warehouse_id: data.supplierWarehouse!,
 						customer_warehouse_id: data.customerWarehouse!,
 					},
@@ -129,8 +147,8 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				// Создание
 				const params: AgreementCreateParams = {
 					createData: {
-						supplier_id: data.supplierOrg!,
-						customer_id: data.customerOrg!,
+						supplier_id: data.supplierManager!,
+						customer_id: data.customerManager!,
 						supplier_warehouse_id: data.supplierWarehouse!,
 						customer_warehouse_id: data.customerWarehouse!,
 						status: 'draft',
