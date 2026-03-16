@@ -1,18 +1,11 @@
 // client/src/hooks/useProfile.ts
-import { userService } from '@/services';
 import { useQuery } from '@tanstack/react-query';
+import { userService } from '@/services/userService';
 
 export function useProfile() {
-	const { data, isLoading, isError, error } = useQuery({
+	return useQuery({
 		queryKey: ['profile'],
 		queryFn: () => userService.getProfile(),
 		retry: false,
 	});
-
-	return {
-		data: data?.data,
-		isLoading,
-		isError,
-		error,
-	};
 }

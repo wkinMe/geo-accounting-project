@@ -7,9 +7,17 @@ import {
 } from "@src/errors/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 import Fuse, { IFuseOptions } from "fuse.js";
-import { Agreement, AgreementWithDetails, Material, Organization, User, Warehouse } from "@shared/models";
+import {
+  Agreement,
+  AgreementWithDetails,
+  Material,
+  Organization,
+  User,
+  Warehouse,
+} from "@shared/models";
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
 import { ERROR_MESSAGES } from "@shared/constants";
+import { UserDataDTO } from "@shared/dto";
 
 export class AgreementService {
   private _db: Pool;
@@ -19,9 +27,9 @@ export class AgreementService {
     this._db = dbConnection;
   }
 
-  async findAll(): Promise<AgreementWithDetails[]> {
+  async findAll(user: UserDataDTO): Promise<AgreementWithDetails[]> {
     try {
-      const query = `
+      let query = `
       SELECT
         row_to_json(a.*) as agreement,
         row_to_json(s.*) as supplier,
@@ -50,6 +58,27 @@ export class AgreementService {
       INNER JOIN warehouses cw ON a.customer_warehouse_id = cw.id
       LEFT JOIN agreement_material am ON a.id = am.agreement_id
       LEFT JOIN materials m ON am.material_id = m.id
+    `;
+
+      const values: any[] = [];
+      let whereClause = "";
+
+      if (user) {
+        if (user.role === "admin") {
+          whereClause = ` WHERE s.organization_id = $1 OR c.organization_id = $1`;
+          values.push(user.organization_id);
+        } else if (user.role === "manager") {
+          whereClause = ` WHERE a.supplier_id = $1 OR a.customer_id = $1`;
+          values.push(user.id);
+        } else if (user.role === "user") {
+          whereClause = ` WHERE 1=0`;
+        }
+      }
+
+      const fullQuery =
+        query +
+        whereClause +
+        `
       GROUP BY 
         a.id, 
         s.id, os.id, 
@@ -71,7 +100,7 @@ export class AgreementService {
           material: Material;
           amount: number;
         }>;
-      }>(this._db, "findAll", query);
+      }>(this._db, "findAll", fullQuery, values);
 
       return rows.map((row) => ({
         ...row.agreement,
@@ -468,6 +497,15 @@ export class AgreementService {
       // Проверяем существование соглашения
       const existingAgreement = await this.findById(id);
 
+      if (!existingAgreement) {
+        throw new NotFoundError(
+          ERROR_MESSAGES.NOT_FOUND("agreement", id),
+          "update",
+          "AgreementService",
+          id,
+        );
+      }
+
       // Проверка статуса, если он передан
       if (status !== undefined && status.trim() === "") {
         throw new ValidationError(
@@ -788,9 +826,14 @@ export class AgreementService {
     }
   }
 
-  async search(input: string): Promise<AgreementWithDetails[]> {
+  async search(
+    input: string,
+    userId?: number,
+    userRole?: string,
+  ): Promise<AgreementWithDetails[]> {
     try {
-      const allAgreements = await this.findAll();
+      // Получаем отфильтрованные соглашения
+      const filteredAgreements = await this.findAll(userId, userRole);
 
       const fuseConfig: IFuseOptions<AgreementWithDetails> = {
         keys: [
@@ -812,7 +855,7 @@ export class AgreementService {
         shouldSort: true,
       };
 
-      const fuse = new Fuse(allAgreements, fuseConfig);
+      const fuse = new Fuse(filteredAgreements, fuseConfig);
       const searchResult = fuse.search(input);
 
       return searchResult.map((i) => i.item);

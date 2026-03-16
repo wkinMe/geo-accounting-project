@@ -123,9 +123,37 @@ class UserService {
 		return response.data;
 	}
 
-	async getAvailableManagers(): Promise<SuccessResponse<User[]>> {
+	async getAvailableManagers(organization_id?: number): Promise<SuccessResponse<User[]>> {
+		const params = organization_id ? { organization_id } : {};
 		const response = await instance.get<SuccessResponse<User[]>>(
-			`${this.baseUrl}/available-managers`
+			`${this.baseUrl}/available-managers`,
+			{ params }
+		);
+		return response.data;
+	}
+
+	/**
+	 * Получение супер-администраторов
+	 */
+	async getSuperAdmins(): Promise<SuccessResponse<UserWithOrganization[]>> {
+		const response = await instance.get<SuccessResponse<UserWithOrganization[]>>(
+			`${this.baseUrl}/super-admins`
+		);
+		return response.data;
+	}
+
+	/**
+	 * Поиск доступных менеджеров (с учетом организации)
+	 */
+	async searchAvailableManagers(
+		query: string,
+		organization_id?: number
+	): Promise<SuccessResponse<UserWithOrganization[]>> {
+		const response = await instance.get<SuccessResponse<UserWithOrganization[]>>(
+			`${this.baseUrl}/available-managers/search`,
+			{
+				params: { q: query, organization_id },
+			}
 		);
 		return response.data;
 	}

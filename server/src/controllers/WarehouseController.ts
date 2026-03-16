@@ -459,4 +459,65 @@ export class WarehouseController {
       baseErrorHandling(e, res);
     }
   }
+
+  // Добавить в класс WarehouseController
+
+  async findByOrganizationId(
+    req: Request<{ organizationId: string }>,
+    res: Response,
+  ) {
+    try {
+      const organizationId = Number(req.params.organizationId);
+
+      if (isNaN(organizationId) || organizationId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
+        });
+      }
+
+      const warehouses =
+        await this._warehouseService.findByOrganizationId(organizationId);
+
+      res.status(200).json({
+        data: warehouses,
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, organizationId),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async searchByOrganizationId(
+    req: Request<{ organizationId: string }, {}, {}, { q?: string }>,
+    res: Response,
+  ) {
+    try {
+      const organizationId = Number(req.params.organizationId);
+      const { q } = req.query;
+
+      if (isNaN(organizationId) || organizationId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
+        });
+      }
+
+      if (!q || q.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
+      }
+
+      const warehouses = await this._warehouseService.searchByOrganizationId(
+        organizationId,
+        q.trim(),
+      );
+
+      res.status(200).json({
+        data: warehouses,
+        message: SUCCESS_MESSAGES.SEARCH(this.entityName, warehouses.length),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
 }

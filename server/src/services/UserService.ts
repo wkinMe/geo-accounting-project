@@ -913,7 +913,10 @@ export class UserService {
       }
 
       const results = (await this.search(input, organizationId)).filter(
-        (i) => i.role === "manager",
+        (i) =>
+          i.role === "manager" ||
+          i.role === "admin" ||
+          i.role === "super_admin",
       );
 
       return results;

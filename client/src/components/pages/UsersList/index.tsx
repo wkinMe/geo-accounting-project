@@ -1,26 +1,29 @@
 // client/src/pages/users/UsersList.tsx
 import { useState } from 'react';
-import { Table, type Action } from '@/components/shared/Table';
+import { Table, type Action, type Column } from '@/components/shared/Table';
 import { userService } from '@/services/userService';
 import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { FaUserShield } from 'react-icons/fa';
-import { FaUserCog } from 'react-icons/fa';
 import { FaCrown } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { useNavigate } from 'react-router';
 import { mapUserToTableItem } from './utils';
 import { UserModal } from './UserModal';
 import type { UserRole } from '@shared/models';
 
 type TableUser = ReturnType<typeof mapUserToTableItem>;
 
-const headers = ['id', 'name', 'role_display', 'organization', 'created_at', 'updated_at'] as const;
+const columns: Column<TableUser>[] = [
+	{ key: 'id', label: 'ID' },
+	{ key: 'name', label: 'Имя' },
+	{ key: 'role_display', label: 'Роль' },
+	{ key: 'organization', label: 'Организация' },
+	{ key: 'created_at', label: 'Дата создания' },
+	{ key: 'updated_at', label: 'Дата обновления' },
+];
 
 export function UsersList() {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
@@ -263,7 +266,7 @@ export function UsersList() {
 				onSearch={setSearchQuery}
 				debounceMs={300}
 				itemName="Пользователь"
-				headers={headers}
+				columns={columns}
 				elements={elements}
 				actions={actions}
 				onCreate={canCreate() ? openCreateModal : undefined}

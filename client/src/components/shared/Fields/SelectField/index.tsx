@@ -21,6 +21,7 @@ export function SelectField({
 	className = '',
 	...props
 }: SelectFieldProps) {
+
 	return (
 		<Field.Root className="space-y-1">
 			<Field.Label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -32,7 +33,7 @@ export function SelectField({
 				{...props}
 			>
 				{options.map((option) => (
-					<option key={option.value} value={option.value}>
+					<option className="cursor-pointer" key={option.value} value={option.value}>
 						{option.label}
 					</option>
 				))}

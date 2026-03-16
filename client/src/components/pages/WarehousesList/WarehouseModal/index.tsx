@@ -10,7 +10,6 @@ import { TextField, NumberField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import { useRole } from '@/hooks/useRole';
 import { isAdminRole } from '@/utils';
 import { useProfile } from '@/hooks';
 

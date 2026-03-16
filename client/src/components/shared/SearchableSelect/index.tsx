@@ -1,5 +1,5 @@
 // components/ui/Field/SearchableSelect.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Field } from '@base-ui/react/field';
 
 interface Option {
@@ -21,6 +21,7 @@ interface SearchableSelectProps<T extends Option> {
 	description?: string;
 	required?: boolean;
 	disabled?: boolean;
+	debounceMs?: number; // Добавляем пропс для debounce
 }
 
 export function SearchableSelect<T extends Option>({
@@ -36,13 +37,25 @@ export function SearchableSelect<T extends Option>({
 	description,
 	required,
 	disabled,
+	debounceMs = 300, // Значение по умолчанию 300мс
 }: SearchableSelectProps<T>) {
+	useEffect(() => {
+		if (value && options.length > 0) {
+			const found = options.find((opt) => opt.id === value);
+			if (found) {
+				setSelectedOption(found);
+				setSearchQuery(getOptionLabel(found));
+			}
+		}
+	}, [value, options]); // Добавьте сюда value и options
+
 	const [isOpen, setIsOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState('');
 	const [selectedOption, setSelectedOption] = useState<T | null>(null);
 	const [highlightedIndex, setHighlightedIndex] = useState(-1);
 	const containerRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
+	const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
 	// Найти выбранный элемент при изменении value
 	useEffect(() => {
@@ -53,7 +66,7 @@ export function SearchableSelect<T extends Option>({
 				setSearchQuery(getOptionLabel(found));
 			}
 		}
-	}, [value]); // Убрали options из зависимостей!
+	}, [value]);
 
 	// Очистка только когда value явно становится null/undefined
 	useEffect(() => {
@@ -61,7 +74,7 @@ export function SearchableSelect<T extends Option>({
 			setSelectedOption(null);
 			setSearchQuery('');
 		}
-	}, [value]); // Убрали options из зависимостей!
+	}, [value]);
 
 	// Close on click outside
 	useEffect(() => {
@@ -78,6 +91,29 @@ export function SearchableSelect<T extends Option>({
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => document.removeEventListener('mousedown', handleClickOutside);
 	}, [selectedOption, getOptionLabel]);
+
+	// Очистка таймера при размонтировании
+	useEffect(() => {
+		return () => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+		};
+	}, []);
+
+	// Debounced search function
+	const debouncedSearch = useCallback(
+		(query: string) => {
+			if (debounceTimerRef.current) {
+				clearTimeout(debounceTimerRef.current);
+			}
+
+			debounceTimerRef.current = setTimeout(() => {
+				onSearch(query);
+			}, debounceMs);
+		},
+		[onSearch, debounceMs]
+	);
 
 	// Keyboard navigation
 	const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -133,18 +169,22 @@ export function SearchableSelect<T extends Option>({
 		setSearchQuery(query);
 		setIsOpen(true);
 		setHighlightedIndex(-1);
+
 		if (selectedOption) {
 			setSelectedOption(null);
 			onChange(null);
 		}
-		onSearch(query);
+
+		// Используем debounced search
+		debouncedSearch(query);
 	};
 
 	const handleInputFocus = () => {
 		setIsOpen(true);
 		if (!selectedOption) {
 			setSearchQuery('');
-			onSearch('');
+			// При фокусе сбрасываем поиск
+			debouncedSearch('');
 		}
 	};
 

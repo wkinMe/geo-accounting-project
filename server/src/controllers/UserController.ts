@@ -500,4 +500,72 @@ export class UserController {
       baseErrorHandling(e, res);
     }
   }
+
+  /**
+   * Поиск доступных менеджеров
+   */
+  async searchAvailableManagers(
+    req: Request<{}, {}, {}, { q?: string; organization_id?: string }>,
+    res: Response,
+  ) {
+    try {
+      const { q, organization_id } = req.query;
+
+      if (!q || q.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
+      }
+
+      const orgId = organization_id ? Number(organization_id) : undefined;
+
+      if (organization_id && (isNaN(orgId!) || orgId! <= 0)) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
+        });
+      }
+
+      const managers = await this._userService.searchAvailableManagers(
+        q,
+        orgId,
+      );
+
+      res.status(200).json({
+        data: managers,
+        message: SUCCESS_MESSAGES.SEARCH("available managers", managers.length),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  /**
+   * Проверка наличия super_admin в организации
+   */
+  async checkOrganizationHasSuperAdmin(
+    req: Request<{ organizationId: string }>,
+    res: Response,
+  ) {
+    try {
+      const organizationId = Number(req.params.organizationId);
+
+      if (isNaN(organizationId) || organizationId <= 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
+        });
+      }
+
+      const hasSuperAdmin =
+        await this._userService.checkOrganizationHasSuperAdmin(organizationId);
+
+      res.status(200).json({
+        data: { hasSuperAdmin },
+        message: hasSuperAdmin
+          ? "Organization has super admin"
+          : "Organization does not have super admin",
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
 }

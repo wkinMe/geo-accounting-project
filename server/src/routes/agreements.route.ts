@@ -3,6 +3,7 @@ import { pool } from "@src/db";
 import { authMiddleware } from "@src/middleware/auth-middleware";
 import { Router } from "express";
 import { Request, Response } from "express";
+import { roleMiddleware } from "../middleware";
 
 const agreementsRouter = Router();
 const agreementController = new AgreementController(pool);
@@ -31,14 +32,20 @@ agreementsRouter.get(
 );
 
 // POST /api/agreements - создать новое соглашение
-agreementsRouter.post("/", authMiddleware, (req, res) => {
-  agreementController.create(req, res);
-});
+agreementsRouter.post(
+  "/",
+  authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
+  (req, res) => {
+    agreementController.create(req, res);
+  },
+);
 
 // PATCH /api/agreements/:id - обновить соглашение
 agreementsRouter.patch(
   "/:id",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string }>, res: Response) => {
     agreementController.update(req, res);
   },
@@ -48,6 +55,7 @@ agreementsRouter.patch(
 agreementsRouter.delete(
   "/:id",
   authMiddleware,
+  roleMiddleware(["admin", "super_admin", "manager"]),
   (req: Request<{ id: string }>, res: Response) => {
     agreementController.delete(req, res);
   },
