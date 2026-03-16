@@ -15,7 +15,13 @@ export class AgreementController {
 
   async findAll(req: Request, res: Response) {
     try {
-      const agreements = await this._agreementService.findAll();
+      // @ts-ignore - пользователь добавляется в req через middleware
+      const user = req.user;
+
+      const agreements = await this._agreementService.findAll(
+        user,
+      );
+
       res.status(200).json({
         data: agreements,
         message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
@@ -294,6 +300,8 @@ export class AgreementController {
   async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
     try {
       const searchQuery = req.query.q;
+      // @ts-ignore - пользователь добавляется в req через middleware
+      const user = req.user;
 
       // Проверка query параметра
       if (!searchQuery || searchQuery.trim() === "") {
@@ -302,8 +310,12 @@ export class AgreementController {
         });
       }
 
-      const searchedAgreements =
-        await this._agreementService.search(searchQuery);
+      const searchedAgreements = await this._agreementService.search(
+        searchQuery,
+        user?.id,
+        user?.role,
+      );
+
       res.status(200).json({
         data: searchedAgreements,
         message: SUCCESS_MESSAGES.SEARCH(
