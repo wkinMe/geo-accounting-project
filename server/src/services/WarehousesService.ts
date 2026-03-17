@@ -26,29 +26,58 @@ export class WarehouseService {
     this._db = dbConnection;
   }
 
-  async findAll(): Promise<WarehouseWithMaterialsAndOrganization[]> {
+  async findAll(
+    userId?: number,
+    userRole?: string,
+  ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      const query = `
-        SELECT 
-          row_to_json(w.*) as warehouse,
-          COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
-          row_to_json(o.*) as organization,
-          row_to_json(u.*) as manager
-        FROM warehouses w 
-        INNER JOIN organizations o ON w.organization_id = o.id
-        LEFT JOIN app_users u ON w.manager_id = u.id
-        LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
-        LEFT JOIN materials m ON wm.material_id = m.id 
-        GROUP BY w.id, o.id, u.id
-        ORDER BY w.id
-      `;
+      let query = `
+      SELECT 
+        row_to_json(w.*) as warehouse,
+        COALESCE(json_agg(DISTINCT m.*) FILTER (WHERE m.id IS NOT NULL), '[]'::json) as materials,
+        row_to_json(o.*) as organization,
+        row_to_json(u.*) as manager
+      FROM warehouses w 
+      INNER JOIN organizations o ON w.organization_id = o.id
+      LEFT JOIN app_users u ON w.manager_id = u.id
+      LEFT JOIN warehouse_material wm ON w.id = wm.warehouse_id 
+      LEFT JOIN materials m ON wm.material_id = m.id 
+    `;
+
+      const values: any[] = [];
+
+      // Добавляем фильтрацию по роли
+      if (userId && userRole) {
+        if (userRole === "admin" || userRole === "manager") {
+          // Админ и менеджер видят склады своей организации
+          // Получаем organization_id пользователя
+          const userQuery = await executeQuery<{ organization_id: number }>(
+            this._db,
+            "getUserOrg",
+            "SELECT organization_id FROM app_users WHERE id = $1",
+            [userId],
+          );
+
+          if (userQuery.length > 0) {
+            const orgId = userQuery[0].organization_id;
+            query += ` WHERE w.organization_id = $1`;
+            values.push(orgId);
+          }
+        }
+        // super_admin не добавляет условий - видит всё
+      }
+
+      query += `
+      GROUP BY w.id, o.id, u.id
+      ORDER BY w.id
+    `;
 
       const rows = await executeQuery<{
         warehouse: Warehouse;
         materials: WarehouseMaterial[] | null;
         organization: Organization;
         manager: User | null;
-      }>(this._db, "findAll", query);
+      }>(this._db, "findAll", query, values);
 
       return rows.map((row) => ({
         ...row.warehouse,
@@ -545,12 +574,14 @@ export class WarehouseService {
       );
     }
   }
-
   async search(
     input: string,
+    userId?: number,
+    userRole?: string,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      const allWarehouses = await this.findAll();
+      // Получаем отфильтрованные склады через findAll с параметрами
+      const filteredWarehouses = await this.findAll(userId, userRole);
 
       const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
         keys: [
@@ -567,7 +598,7 @@ export class WarehouseService {
         shouldSort: true,
       };
 
-      const fuse = new Fuse(allWarehouses, fuseConfig);
+      const fuse = new Fuse(filteredWarehouses, fuseConfig);
       const searchResult = fuse.search(input);
 
       return searchResult.map((i) => i.item);
@@ -578,7 +609,7 @@ export class WarehouseService {
       throw new ServiceError(
         "Failed to search warehouses",
         "WarehouseService",
-        "searchWarehouses",
+        "search",
         error instanceof Error ? error : new Error(String(error)),
       );
     }

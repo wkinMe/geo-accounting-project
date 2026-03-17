@@ -24,8 +24,6 @@ export function Warehouse() {
 
 	const isCurrentUserOrg = org_id === warehouse?.data.organization_id;
 
-	console.log();
-
 	return (
 		<>
 			<WarehouseInfo id={id} role={role} isCurrentUserOrg={isCurrentUserOrg} />

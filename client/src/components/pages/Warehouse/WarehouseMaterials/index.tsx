@@ -77,7 +77,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 	};
 
 	const interactionDeprecated = () => {
-		return role === 'user' || !isCurrentUserOrg;
+		return role === 'user' || (!isCurrentUserOrg && !(role === 'manager') && isCurrentUserOrg);
 	};
 
 	const actions: Action<TableMaterial>[] = [
