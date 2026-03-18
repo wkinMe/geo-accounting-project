@@ -1,5 +1,5 @@
 export * from './useRole';
-export * from './userProfile';
+export * from './useProfile';
 export * from "./useFilteredUsers";
 export * from "./useMaterialsByWarehouse";
 export * from "./useOrganizations";

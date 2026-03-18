@@ -148,6 +148,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 		<ConfirmModal
 			open={open}
 			setOpen={setOpen}
+			
 			actionName={isEditing ? 'редактирование склада' : 'создание склада'}
 			onConfirm={handleSubmit}
 			confirmText={isEditing ? 'Сохранить' : 'Создать'}

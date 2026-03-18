@@ -6,6 +6,6 @@ export function useProfile() {
 	return useQuery({
 		queryKey: ['profile'],
 		queryFn: () => userService.getProfile(),
-		retry: false,
+		retry: 1,
 	});
 }

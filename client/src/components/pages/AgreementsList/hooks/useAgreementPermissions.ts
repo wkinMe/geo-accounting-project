@@ -1,6 +1,5 @@
 // client/src/pages/Agreements/hooks/useAgreementPermissions.ts
 import { useProfile } from '@/hooks';
-import type { UserDataDTO } from '@shared/dto';
 import type { TableAgreement } from '../types';
 import { AGREEMENT_STATUS, STATUS_ORDER } from '@shared/constants/agreementStatuses';
 

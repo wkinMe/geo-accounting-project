@@ -1,4 +1,6 @@
-export const mapWarehouseToTableItem = (warehouse: any) => ({
+import type { WarehouseWithManagerAndOrganization } from "@shared/models";
+
+export const mapWarehouseToTableItem = (warehouse: WarehouseWithManagerAndOrganization) => ({
 	id: warehouse.id,
 	name: warehouse.name,
 	manager: warehouse.manager?.name || '-',

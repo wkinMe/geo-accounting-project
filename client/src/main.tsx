@@ -70,21 +70,40 @@ createRoot(document.getElementById('root')!).render(
 						</Route>
 
 						{/* Договоры - доступны менеджерам, админам и суперадминам */}
-						<Route
-							path="agreements"
-							element={
-								<RoleRoute
-									allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-									fallbackPath="/warehouses"
-								>
-									<AgreementsList />
-								</RoleRoute>
-							}
-						>
-							<Route index element={<AgreementsList />} />
-							<Route path="new" element={<AgreementForm />} />
-							<Route path=":id" element={<div>Просмотр договора (заглушка)</div>} />
-							<Route path=":id/edit" element={<AgreementForm />} />
+						<Route path="agreements">
+							<Route
+								index
+								element={
+									<RoleRoute
+										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
+										fallbackPath="/warehouses"
+									>
+										<AgreementsList />
+									</RoleRoute>
+								}
+							/>
+							<Route
+								path="new"
+								element={
+									<RoleRoute
+										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
+										fallbackPath="/warehouses"
+									>
+										<AgreementForm />
+									</RoleRoute>
+								}
+							/>
+							<Route
+								path=":id/edit"
+								element={
+									<RoleRoute
+										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
+										fallbackPath="/warehouses"
+									>
+										<AgreementForm />
+									</RoleRoute>
+								}
+							/>
 						</Route>
 
 						{/* Пользователи - только для admin и super_admin */}

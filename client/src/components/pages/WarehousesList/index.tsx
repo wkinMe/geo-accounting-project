@@ -31,18 +31,7 @@ export function WarehousesList() {
 	const [searchQuery, setSearchQuery] = useState('');
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedWarehouse, setSelectedWarehouse] = useState<{
-		id: number;
-		name: string;
-		manager?: string;
-		managerId?: number | null;
-		organization: string;
-		organization_id: number;
-		latitude?: number;
-		longitude?: number;
-		created_at: string;
-		updated_at: string;
-	} | null>(null);
+	const [selectedWarehouse, setSelectedWarehouse] = useState<TableWarehouse | null>(null);
 
 	// Получаем текущего пользователя
 	const { data: currentUserData } = useQuery({
