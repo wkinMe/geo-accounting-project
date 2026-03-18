@@ -1,19 +1,18 @@
 // client/src/pages/warehouses/WarehousesList.tsx
 import { useState } from 'react';
-import { Table, type Action, type Column } from '@/components/shared/Table';
 import { warehouseService } from '@/services/warehouseService';
-import { userService } from '@/services/userService';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
-import { TbReportAnalytics } from 'react-icons/tb';
 import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
 import { mapWarehouseToTableItem } from './utils';
 import { WarehouseModal } from './WarehouseModal';
-
-type TableWarehouse = ReturnType<typeof mapWarehouseToTableItem>;
+import type { TableWarehouse } from './types';
+import { useWarehousePermissions } from './hooks';
+import type { Action, Column } from '@/components/shared/Table/types';
+import { Table } from '@/components/shared/Table';
 
 const columns: Column<TableWarehouse>[] = [
 	{ key: 'id', label: 'ID' },
@@ -33,14 +32,7 @@ export function WarehousesList() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedWarehouse, setSelectedWarehouse] = useState<TableWarehouse | null>(null);
 
-	// Получаем текущего пользователя
-	const { data: currentUserData } = useQuery({
-		queryKey: ['currentUser'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
-
-	const currentUser = currentUserData?.data;
+	const { canEdit, canDelete, canCreate } = useWarehousePermissions();
 
 	const { data: warehouses } = useQuery({
 		queryKey: ['warehouses'],
@@ -109,50 +101,6 @@ export function WarehousesList() {
 		}
 	};
 
-	const canEditWarehouse = (warehouse: TableWarehouse) => {
-		if (!currentUser) return false;
-
-		if (currentUser.role === 'super_admin') return true;
-
-		if (currentUser.role === 'admin' && currentUser.organization_id === warehouse.organization_id) {
-			return true;
-		}
-
-		if (currentUser.role === 'manager' && currentUser.id === warehouse.managerId) {
-			return true;
-		}
-
-		return false;
-	};
-
-	const canDeleteWarehouse = (warehouse: TableWarehouse) => {
-		if (!currentUser) return false;
-
-		if (currentUser.role === 'super_admin') return true;
-
-		if (currentUser.role === 'admin' && currentUser.organization_id === warehouse.organization_id) {
-			return true;
-		}
-
-		return false;
-	};
-
-	const canCreateReport = (warehouse: TableWarehouse) => {
-		if (!currentUser) return false;
-
-		if (currentUser.role === 'super_admin') return true;
-
-		if (currentUser.role === 'admin' && currentUser.organization_id === warehouse.organization_id) {
-			return true;
-		}
-
-		if (currentUser.role === 'manager' && currentUser.id === warehouse.managerId) {
-			return true;
-		}
-
-		return false;
-	};
-
 	const actions: Action<TableWarehouse>[] = [
 		{
 			name: 'Просмотреть',
@@ -163,33 +111,18 @@ export function WarehousesList() {
 			name: 'Редактировать',
 			action: (item: TableWarehouse) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: (item: TableWarehouse) => !canEditWarehouse(item),
-		},
-		{
-			name: 'Сформировать отчёт',
-			action: (item: TableWarehouse) => navigate(`/report/${item.id}`),
-			icon: <TbReportAnalytics />,
-			hidden: (item: TableWarehouse) => !canCreateReport(item),
+			hidden: (item: TableWarehouse) => !canEdit(item),
 		},
 		{
 			name: 'Удалить',
 			action: async (item: TableWarehouse) => {
-				if (confirm('Вы уверены, что хотите удалить этот склад?')) {
-					await deleteMutate(item.id);
-				}
+				await deleteMutate(item.id);
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item: TableWarehouse) => !canDeleteWarehouse(item),
+			hidden: (item: TableWarehouse) => !canDelete(item),
 		},
 	];
-
-	// Проверка прав на создание нового склада
-	const canCreate = () => {
-		if (!currentUser) return false;
-		// Super_admin и admin могут создавать склады
-		return currentUser.role === 'super_admin' || currentUser.role === 'admin';
-	};
 
 	return (
 		<>
@@ -213,8 +146,6 @@ export function WarehousesList() {
 								name: selectedWarehouse.name,
 								organization_id: selectedWarehouse.organization_id,
 								manager_id: selectedWarehouse.managerId,
-								latitude: selectedWarehouse.latitude,
-								longitude: selectedWarehouse.longitude,
 							}
 						: null
 				}
