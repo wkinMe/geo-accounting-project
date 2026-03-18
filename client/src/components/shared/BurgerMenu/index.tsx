@@ -6,15 +6,14 @@ import {
 	FaTimes,
 	FaWarehouse,
 	FaUsers,
-	FaHome,
 	FaSignOutAlt,
 	FaFileContract,
 	FaBuilding,
 	FaBoxOpen,
 } from 'react-icons/fa';
 import { userService } from '@/services/userService';
-import { useProfile, useRole } from '@/hooks';
-import { USER_ROLES } from '@/constants';
+import { useRole } from '@/hooks';
+import { USER_ROLES, USER_ROLES_MAP } from '@/constants';
 import { type UserRole } from '@shared/models';
 
 interface MenuItem {
@@ -113,10 +112,7 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 					<h2 className="text-lg font-semibold text-gray-800 dark:text-white">Меню</h2>
 					{userRole && (
 						<span className="ml-auto text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-							{userRole === USER_ROLES.SUPER_ADMIN && 'Главный администратор'}
-							{userRole === USER_ROLES.ADMIN && 'Администратор'}
-							{userRole === USER_ROLES.MANAGER && 'Менеджер'}
-							{userRole === USER_ROLES.USER && 'Пользователь'}
+							{USER_ROLES_MAP[userRole]}
 						</span>
 					)}
 				</div>

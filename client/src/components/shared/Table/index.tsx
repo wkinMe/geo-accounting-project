@@ -4,29 +4,13 @@ import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 import { SearchInput } from '../SearchInput';
 import { Button } from '../Button';
-
-export interface Action<T> {
-	name: string;
-	action: (item: T) => void | Promise<void>;
-	icon: string | React.ReactNode;
-	needConfirmation?: boolean;
-	confirmationBody?: (item: T) => React.ReactNode;
-	hidden?: (item: T) => boolean;
-}
-
-// Новый тип для колонки
-export interface Column<T> {
-	key: keyof T; // Ключ для доступа к данным
-	label: string; // Отображаемый заголовок
-	width?: string; // Опциональная ширина
-	align?: 'left' | 'center' | 'right';
-	render?: (value: any, item: T) => React.ReactNode;
-}
+import { getColumns, getVisibleActions } from './utils';
+import type { Action, Column } from './types';
 
 interface Props<T extends { id: number }> {
 	roundedT?: boolean;
 	roundedB?: boolean;
-	// Поддерживаем оба варианта для обратной совместимости
+	// Поддерживаю оба варианта (headers и columns) для обратной совместимости
 	headers?: readonly (keyof T)[];
 	columns?: Column<T>[]; // Новый пропс
 	itemName: string;
@@ -58,14 +42,7 @@ export function Table<T extends { id: number }>({
 	const [currentItem, setCurrentItem] = useState<null | T>(null);
 
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
-
-	// Фильтруем actions для каждого элемента
-	const getVisibleActions = (item: T) => {
-		return actions?.filter((action) => !action.hidden?.(item)) || [];
-	};
-
-	const useColumns: Column<T>[] =
-		columns || (headers?.map((key) => ({ key, label: String(key) })) as Column<T>[]) || [];
+	const useColumns = getColumns<T>(columns, headers);
 
 	return (
 		<>
@@ -147,7 +124,7 @@ export function Table<T extends { id: number }>({
 
 						<tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
 							{elements.map((item) => {
-								const visibleActions = getVisibleActions(item);
+								const visibleActions = getVisibleActions<T>(item, actions);
 
 								return (
 									<tr

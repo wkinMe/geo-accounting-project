@@ -12,7 +12,7 @@ interface Props {
 	action: () => void; // Действие выполняемое после нажатия кнопки
 }
 
-export function ActionButton({ name, icon, iconAlt, confirmation, action }: Props) {
+export function ActionButton({ icon, iconAlt }: Props) {
 	const img = typeof icon === 'string' ? <img src={icon} alt={iconAlt} /> : icon;
 
 	return <Button>{img}</Button>;

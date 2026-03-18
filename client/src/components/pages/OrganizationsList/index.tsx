@@ -1,15 +1,15 @@
 // client/src/pages/organizations/OrganizationsList.tsx
 import { useState } from 'react';
-import { Table, type Action, type Column } from '@/components/shared/Table';
+import { Table } from '@/components/shared/Table';
 import { organizationService } from '@/services/organizationService';
 import { userService } from '@/services/userService';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
 import { OrganizationModal } from './components';
+import type { Action, Column } from '@/components/shared/Table/types';
 
 type TableOrganization = {
 	id: number;

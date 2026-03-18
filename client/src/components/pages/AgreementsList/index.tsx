@@ -1,6 +1,5 @@
 // client/src/pages/agreements/AgreementsList.tsx
 import { useState } from 'react';
-import { Table, type Action, type Column } from '@/components/shared/Table';
 import { agreementService } from '@/services/agreementService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
@@ -10,6 +9,8 @@ import { useNavigate } from 'react-router';
 import { mapAgreementToTableItem } from './utils';
 import type { TableAgreement } from './types';
 import { useAgreementPermissions } from './hooks/useAgreementPermissions';
+import type { Action, Column } from '@/components/shared/Table/types';
+import { Table } from '@/components/shared/Table';
 
 const columns: Column<TableAgreement>[] = [
 	{ key: 'id', label: 'ID' },
