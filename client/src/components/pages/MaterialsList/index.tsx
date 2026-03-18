@@ -1,6 +1,5 @@
 // client/src/pages/materials/MaterialsList.tsx
 import { useState } from 'react';
-import { Table, type Action, type Column } from '@/components/shared/Table';
 import { materialService } from '@/services/materialService';
 import { userService } from '@/services/userService';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
@@ -8,6 +7,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import { MaterialModal } from './components';
+import type { Action, Column } from '@/components/shared/Table/types';
+import { Table } from '@/components/shared/Table';
 
 type TableMaterial = {
 	id: number;

@@ -1,6 +1,6 @@
 // client/src/pages/users/UsersList.tsx
 import { useState } from 'react';
-import { Table, type Action, type Column } from '@/components/shared/Table';
+import { Table } from '@/components/shared/Table';
 import { userService } from '@/services/userService';
 import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ import { MdEdit } from 'react-icons/md';
 import { mapUserToTableItem } from './utils';
 import { UserModal } from './UserModal';
 import type { UserRole } from '@shared/models';
+import type { Action, Column } from '@/components/shared/Table/types';
 
 type TableUser = ReturnType<typeof mapUserToTableItem>;
 
