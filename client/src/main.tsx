@@ -10,12 +10,14 @@ import { RoleRoute } from './components/shared/RoleRoute';
 import { Auth } from './components/pages/Auth';
 import { WarehousesList } from './components/pages/WarehousesList';
 import { UsersList } from './components/pages/UsersList';
+import { OrganizationsList } from './components/pages/OrganizationsList';
 import { ReportsList } from './components/pages/ReportsList';
 import { Report } from './components/pages/Report';
 import { Warehouse } from './components/pages/Warehouse';
 import { USER_ROLES } from './constants';
 import { AgreementsList } from './components/pages/AgreementsList';
 import { AgreementForm } from './components/pages/Agreement/components';
+import { MaterialsList } from './components/pages/MaterialsList';
 
 const queryClient = new QueryClient();
 
@@ -40,6 +42,30 @@ createRoot(document.getElementById('root')!).render(
 						<Route path="warehouses">
 							<Route index element={<WarehousesList />} />
 							<Route path=":id" element={<Warehouse />} />
+						</Route>
+
+						{/* Организации - просмотр всем, управление только super_admin */}
+						<Route
+							path="organizations"
+							element={
+								<RoleRoute fallbackPath="/warehouses">
+									<OrganizationsList />
+								</RoleRoute>
+							}
+						>
+							<Route index element={<OrganizationsList />} />
+						</Route>
+
+						{/* Материалы - просмотр всем, управление только super_admin */}
+						<Route
+							path="materials"
+							element={
+								<RoleRoute fallbackPath="/warehouses">
+									<MaterialsList />
+								</RoleRoute>
+							}
+						>
+							<Route index element={<OrganizationsList />} />
 						</Route>
 
 						{/* Пользователи - только для admin и super_admin */}
@@ -70,6 +96,7 @@ createRoot(document.getElementById('root')!).render(
 							<Route path=":id" element={<Report />} />
 						</Route>
 
+						{/* Договоры */}
 						<Route path="agreements">
 							<Route index element={<AgreementsList />} />
 							<Route path="new" element={<AgreementForm />} />

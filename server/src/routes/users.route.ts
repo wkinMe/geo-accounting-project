@@ -5,6 +5,7 @@ import { authMiddleware } from "@src/middleware/auth-middleware";
 import { Router } from "express";
 import { Request, Response } from "express";
 import { roleMiddleware } from "@src/middleware/role-middleware";
+import { USER_ROLES } from "@shared/constants";
 
 const usersRouter = Router();
 const userController = new UserController(pool);
@@ -78,7 +79,7 @@ usersRouter.get("/search", authMiddleware, (req: Request, res: Response) => {
 usersRouter.get(
   "/admins",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
   (req: Request, res: Response) => {
     userController.getAdmins(req, res);
   },
@@ -91,7 +92,7 @@ usersRouter.get(
 usersRouter.get(
   "/super-admins",
   authMiddleware,
-  roleMiddleware(["super_admin"]),
+  roleMiddleware([USER_ROLES.SUPER_ADMIN]),
   (req: Request, res: Response) => {
     userController.getSuperAdmins(req, res);
   },
@@ -104,7 +105,7 @@ usersRouter.get(
 usersRouter.get(
   "/available-managers",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
   (req: Request, res: Response) => {
     userController.getAvailableManagers(req, res);
   },
@@ -145,7 +146,7 @@ usersRouter.get(
 usersRouter.patch(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
   (req: Request<{ id: string }>, res: Response) => {
     userController.update(req, res);
   },
@@ -158,7 +159,7 @@ usersRouter.patch(
 usersRouter.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
   (req: Request<{ id: string }>, res: Response) => {
     userController.delete(req, res);
   },

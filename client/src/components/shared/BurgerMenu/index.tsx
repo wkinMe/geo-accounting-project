@@ -6,13 +6,14 @@ import {
 	FaTimes,
 	FaWarehouse,
 	FaUsers,
-	FaFileAlt,
 	FaHome,
 	FaSignOutAlt,
 	FaFileContract,
+	FaBuilding,
+	FaBoxOpen,
 } from 'react-icons/fa';
 import { userService } from '@/services/userService';
-import { useRole } from '@/hooks';
+import { useProfile, useRole } from '@/hooks';
 import { USER_ROLES } from '@/constants';
 import { type UserRole } from '@shared/models';
 
@@ -50,7 +51,6 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 			window.location.href = '/login';
 		} catch (error) {
 			console.error('Logout error:', error);
-			// Даже при ошибке пытаемся выйти
 			localStorage.clear();
 			navigate('/login', { replace: true });
 		}
@@ -60,14 +60,15 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 		{ path: '/', label: 'Главная', icon: <FaHome /> },
 		{ path: '/warehouses', label: 'Склады', icon: <FaWarehouse /> },
 		{ path: '/agreements', label: 'Договоры', icon: <FaFileContract /> },
+		{ path: '/organizations', label: 'Организации', icon: <FaBuilding /> },
 		{ path: '/users', label: 'Пользователи', icon: <FaUsers /> },
-		// { path: '/reports', label: 'Отчёты', icon: <FaFileAlt /> },
+		{ path: '/materials', label: 'Материалы', icon: <FaBoxOpen /> },
 	];
 
 	// Фильтруем пункты меню по роли
 	const visibleMenuItems = menuItems.filter((item) => {
-		if (!item.allowedRoles) return true; // если нет ограничений - показываем всем
-		if (!userRole) return false; // если нет роли - не показываем
+		if (!item.allowedRoles) return true;
+		if (!userRole) return false;
 		return item.allowedRoles.includes(userRole);
 	});
 
@@ -103,8 +104,8 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 					<h2 className="text-lg font-semibold text-gray-800 dark:text-white">Меню</h2>
 					{userRole && (
 						<span className="ml-auto text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
-							{userRole === USER_ROLES.SUPER_ADMIN && 'Главный админ'}
-							{userRole === USER_ROLES.ADMIN && 'Админ'}
+							{userRole === USER_ROLES.SUPER_ADMIN && 'Главный администратор'}
+							{userRole === USER_ROLES.ADMIN && 'Администратор'}
 							{userRole === USER_ROLES.MANAGER && 'Менеджер'}
 							{userRole === USER_ROLES.USER && 'Пользователь'}
 						</span>

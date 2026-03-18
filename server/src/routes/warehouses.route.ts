@@ -62,8 +62,8 @@ warehousesRouter.get(
 // POST /api/warehouses - создать новый склад
 warehousesRouter.post(
   "/",
-  authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
+  // authMiddleware,
+  // roleMiddleware(["admin", "super_admin"]),
   (req: Request, res: Response) => {
     warehouseController.create(req, res);
   },

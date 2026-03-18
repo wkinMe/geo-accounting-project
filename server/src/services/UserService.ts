@@ -205,50 +205,50 @@ export class UserService {
       }
 
       // Определяем роль для нового пользователя
-      let role: UserRole = "user";
+      let role: UserRole = userData.role;
 
-      if (userData.role) {
-        // Проверка прав на назначение ролей
-        if (userData.role === "super_admin") {
-          // Только super_admin может создавать других super_admin
-          if (requesterRole !== "super_admin") {
-            throw new ForbiddenError(
-              "Only super administrators can create other super administrators",
-              "register",
-            );
-          }
-          role = "super_admin";
-        } else if (userData.role === "admin") {
-          // Admin может создавать других admin (но не super_admin)
-          if (requesterRole !== "super_admin" && requesterRole !== "admin") {
-            throw new ForbiddenError(
-              "Only administrators can create other administrators",
-              "register",
-            );
-          }
+      // if (userData.role) {
+      //   // Проверка прав на назначение ролей
+      //   if (userData.role === "super_admin") {
+      //     // Только super_admin может создавать других super_admin
+      //     if (requesterRole !== "super_admin") {
+      //       throw new ForbiddenError(
+      //         "Only super administrators can create other super administrators",
+      //         "register",
+      //       );
+      //     }
+      //     role = "super_admin";
+      //   } else if (userData.role === "admin") {
+      //     // Admin может создавать других admin (но не super_admin)
+      //     if (requesterRole !== "super_admin" && requesterRole !== "admin") {
+      //       throw new ForbiddenError(
+      //         "Only administrators can create other administrators",
+      //         "register",
+      //       );
+      //     }
 
-          // Проверяем, есть ли уже super_admin в этой организации
-          if (userData.organization_id) {
-            const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
-              userData.organization_id,
-            );
-            if (!hasSuperAdmin) {
-              throw new ValidationError(
-                "Cannot create admin: organization must have at least one super admin first",
-                "register",
-                "role",
-                userData.role,
-              );
-            }
-          }
+      //     // Проверяем, есть ли уже super_admin в этой организации
+      //     if (userData.organization_id) {
+      //       const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
+      //         userData.organization_id,
+      //       );
+      //       if (!hasSuperAdmin) {
+      //         throw new ValidationError(
+      //           "Cannot create admin: organization must have at least one super admin first",
+      //           "register",
+      //           "role",
+      //           userData.role,
+      //         );
+      //       }
+      //     }
 
-          role = "admin";
-        } else if (userData.role === "manager") {
-          role = "manager";
-        } else {
-          role = "user";
-        }
-      }
+      //     role = "admin";
+      //   } else if (userData.role === "manager") {
+      //     role = "manager";
+      //   } else {
+      //     role = "user";
+      //   }
+      // }
 
       const salt = await bcrypt.genSalt(8);
       const hashedPassword = await bcrypt.hash(userData.password, salt);

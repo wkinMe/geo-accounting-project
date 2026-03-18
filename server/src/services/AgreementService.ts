@@ -828,12 +828,11 @@ export class AgreementService {
 
   async search(
     input: string,
-    userId?: number,
-    userRole?: string,
+    user: UserDataDTO
   ): Promise<AgreementWithDetails[]> {
     try {
       // Получаем отфильтрованные соглашения
-      const filteredAgreements = await this.findAll(userId, userRole);
+      const filteredAgreements = await this.findAll(user);
 
       const fuseConfig: IFuseOptions<AgreementWithDetails> = {
         keys: [

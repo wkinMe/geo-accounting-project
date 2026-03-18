@@ -1,10 +1,12 @@
 export interface CreateMaterialDTO {
   name: string;
+  unit: string;
 }
 
 export interface UpdateMaterialDTO {
   id: number;
   name: string;
+  unit: string;
 }
 
 export interface CreateWarehouseMaterialDTO {
