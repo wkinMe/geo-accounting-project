@@ -15,7 +15,14 @@ export class WarehouseController {
 
   async findAll(req: Request, res: Response) {
     try {
-      const warehouses = await this._warehouseService.findAll();
+      // @ts-ignore - пользователь добавляется в req через middleware
+      const user = req.user;
+
+      const warehouses = await this._warehouseService.findAll(
+        user?.id,
+        user?.role,
+      );
+
       res.status(200).json({
         data: warehouses,
         message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
@@ -192,6 +199,8 @@ export class WarehouseController {
   async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
     try {
       const { q } = req.query;
+      // @ts-ignore - пользователь добавляется в req через middleware
+      const user = req.user;
 
       if (!q || q.trim() === "") {
         return res.status(400).json({
@@ -199,7 +208,12 @@ export class WarehouseController {
         });
       }
 
-      const warehouses = await this._warehouseService.search(q.trim());
+      const warehouses = await this._warehouseService.search(
+        q.trim(),
+        user?.id,
+        user?.role,
+      );
+
       res.status(200).json({
         data: warehouses,
         message: SUCCESS_MESSAGES.SEARCH(this.entityName, warehouses.length),

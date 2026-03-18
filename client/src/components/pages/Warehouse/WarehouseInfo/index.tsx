@@ -70,12 +70,12 @@ export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
 						<div className="flex gap-5">
-							{role && isCurrentUserOrg && atLeastManager(role) && (
+							{role === "admin" && isCurrentUserOrg && atLeastManager(role) && (
 								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
 									Изменить
 								</Button>
 							)}
-							{role && isCurrentUserOrg && isAdminRole(role) && (
+							{role === "admin" && isCurrentUserOrg && isAdminRole(role) && (
 								<Button
 									className={'bg-red-500 hover:bg-red-600'}
 									onClick={() => setIsConfirmOpen(true)}
