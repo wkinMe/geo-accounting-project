@@ -2,6 +2,7 @@ import { BaseModel } from "./Base";
 
 export interface Material extends BaseModel {
   name: string;
+  unit: string;
 }
 
 // Промежуточная таблица warehouses и materials

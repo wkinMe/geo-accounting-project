@@ -1,3 +1,4 @@
+// server/src/controllers/MaterialController.ts
 import { CreateMaterialDTO, UpdateMaterialDTO } from "@shared/dto";
 import { MaterialService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
@@ -47,7 +48,7 @@ export class MaterialController {
 
   async create(req: Request<{}, {}, CreateMaterialDTO>, res: Response) {
     try {
-      const { name } = req.body;
+      const { name, unit } = req.body;
 
       if (!name || name.trim() === "") {
         return res.status(400).json({
@@ -55,7 +56,13 @@ export class MaterialController {
         });
       }
 
-      const result = await this._materialService.create({ name });
+      if (!unit || unit.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("Material unit"),
+        });
+      }
+
+      const result = await this._materialService.create({ name, unit });
 
       res.status(201).json({
         data: result,
@@ -92,7 +99,7 @@ export class MaterialController {
   ) {
     try {
       const id = Number(req.params.id);
-      const { name } = req.body;
+      const { name, unit } = req.body;
 
       if (isNaN(id) || id <= 0) {
         return res.status(400).json({
@@ -106,9 +113,16 @@ export class MaterialController {
         });
       }
 
+      if (!unit || unit.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Material unit"),
+        });
+      }
+
       const updatedMaterial = await this._materialService.update({
         id,
         name,
+        unit,
       });
 
       res.status(200).json({

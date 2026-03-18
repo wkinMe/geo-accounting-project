@@ -1,1 +1,1 @@
-export * from "./roles";
+export * from "../../../packages/shared/constants/roles";

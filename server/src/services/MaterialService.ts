@@ -1,3 +1,4 @@
+// server/src/services/MaterialService.ts
 import { Pool } from "pg";
 import { Material } from "@shared/models";
 import { CreateMaterialDTO, UpdateMaterialDTO } from "@shared/dto";
@@ -7,7 +8,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@src/errors/service"; // Импортируем классы ошибок
+} from "@src/errors/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 
 export class MaterialService {
@@ -29,7 +30,6 @@ export class MaterialService {
       if (error instanceof DatabaseError) {
         throw error;
       }
-
       throw new ServiceError(
         "Failed to retrieve materials",
         "MaterialService",
@@ -51,10 +51,7 @@ export class MaterialService {
       );
       return material;
     } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      if (error instanceof NotFoundError) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
         throw error;
       }
       throw new ServiceError(
@@ -68,7 +65,6 @@ export class MaterialService {
 
   async create(value: CreateMaterialDTO): Promise<Material> {
     try {
-      // Проверка на пустое имя
       if (!value.name || value.name.trim().length === 0) {
         throw new ValidationError(
           "Material name cannot be empty",
@@ -78,7 +74,15 @@ export class MaterialService {
         );
       }
 
-      // Проверка уникальности имени (опционально)
+      if (!value.unit || value.unit.trim().length === 0) {
+        throw new ValidationError(
+          "Material unit cannot be empty",
+          "create",
+          "unit",
+          value.unit,
+        );
+      }
+
       const existingMaterials = await executeQuery<Material>(
         this._db,
         "checkUniqueName",
@@ -98,8 +102,8 @@ export class MaterialService {
       const rows = await executeQuery<Material>(
         this._db,
         "create",
-        "INSERT INTO materials (name) VALUES ($1) RETURNING *",
-        [value.name.trim()],
+        "INSERT INTO materials (name, unit) VALUES ($1, $2) RETURNING *",
+        [value.name.trim(), value.unit.trim()],
       );
 
       if (rows.length === 0) {
@@ -129,12 +133,10 @@ export class MaterialService {
     }
   }
 
-  async update({ name, id }: UpdateMaterialDTO): Promise<Material> {
+  async update({ name, unit, id }: UpdateMaterialDTO): Promise<Material> {
     try {
-      // Проверяем существование материала
       const existingMaterial = await this.findById(id);
 
-      // Проверка на пустое имя
       if (!name || name.trim().length === 0) {
         throw new ValidationError(
           "Material name cannot be empty",
@@ -144,7 +146,15 @@ export class MaterialService {
         );
       }
 
-      // Если имя изменилось, проверяем уникальность
+      if (!unit || unit.trim().length === 0) {
+        throw new ValidationError(
+          "Material unit cannot be empty",
+          "update",
+          "unit",
+          unit,
+        );
+      }
+
       if (name.trim() !== existingMaterial.name) {
         const existingMaterials = await executeQuery<Material>(
           this._db,
@@ -166,8 +176,8 @@ export class MaterialService {
       const rows = await executeQuery<Material>(
         this._db,
         "update",
-        `UPDATE materials SET name=$1, updated_at = CURRENT_TIMESTAMP WHERE id=$2 RETURNING *`,
-        [name.trim(), id],
+        `UPDATE materials SET name=$1, unit=$2, updated_at = CURRENT_TIMESTAMP WHERE id=$3 RETURNING *`,
+        [name.trim(), unit.trim(), id],
       );
 
       if (rows.length === 0) {
@@ -200,10 +210,8 @@ export class MaterialService {
 
   async delete(id: number): Promise<Material> {
     try {
-      // Проверяем существование материала перед удалением
       await this.findById(id);
 
-      // Проверяем, используется ли материал в каких-либо соглашениях
       const usageCheck = await executeQuery<{ count: number }>(
         this._db,
         "checkUsage",
@@ -260,7 +268,10 @@ export class MaterialService {
       const materials = await this.findAll();
 
       const fuseConfig: IFuseOptions<Material> = {
-        keys: [{ name: "name", weight: 1 }],
+        keys: [
+          { name: "name", weight: 0.7 },
+          { name: "unit", weight: 0.3 },
+        ],
         isCaseSensitive: false,
         ignoreDiacritics: true,
         minMatchCharLength: 2,

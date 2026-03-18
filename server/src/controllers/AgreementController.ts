@@ -4,6 +4,7 @@ import { Request, Response } from "express";
 import { baseErrorHandling } from "@src/utils";
 import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
+import { UserDataDTO } from "@shared/dto";
 
 export class AgreementController {
   private _agreementService: AgreementService;
@@ -18,9 +19,7 @@ export class AgreementController {
       // @ts-ignore - пользователь добавляется в req через middleware
       const user = req.user;
 
-      const agreements = await this._agreementService.findAll(
-        user,
-      );
+      const agreements = await this._agreementService.findAll(user);
 
       res.status(200).json({
         data: agreements,
@@ -301,7 +300,7 @@ export class AgreementController {
     try {
       const searchQuery = req.query.q;
       // @ts-ignore - пользователь добавляется в req через middleware
-      const user = req.user;
+      const user = req.user as UserDataDTO;
 
       // Проверка query параметра
       if (!searchQuery || searchQuery.trim() === "") {
@@ -312,8 +311,7 @@ export class AgreementController {
 
       const searchedAgreements = await this._agreementService.search(
         searchQuery,
-        user?.id,
-        user?.role,
+        user,
       );
 
       res.status(200).json({

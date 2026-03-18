@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { TextField, NumberField } from '@/components/shared/Fields';
+import { TextField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
@@ -96,7 +96,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const { data: availableManagersData } = useQuery({
 		queryKey: ['available-managers'],
 		queryFn: () => userService.getAvailableManagers(),
-		enabled: isAdminRole(profile?.role),
+		enabled: isAdminRole(profile.data?.data.role),
 	});
 
 	// Сброс формы при открытии с новыми данными
@@ -180,7 +180,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					value={selectedOrgId}
 					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
 					options={organizations}
-					disabled={!isAdminRole(profile?.role)}
+					disabled={!isAdminRole(profile.data?.data.role)}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
 					getOptionLabel={(org) => org.name}
@@ -189,50 +189,32 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					required
 				/>
 
-				{isAdminRole(profile?.role) && profile.organization_id === warehouse?.organization_id && (
-					<div className="space-y-2">
-						<SearchableSelect
-							label="Менеджер"
-							value={selectedManagerId}
-							onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
-							options={managers}
-							onSearch={setManagerSearchQuery}
-							isLoading={isManagerSearching}
-							getOptionLabel={(manager) => `${manager.name} ${manager.role}`}
-							placeholder="Поиск менеджера..."
-							error={errors.manager_id?.message}
-						/>
+				{isAdminRole(profile.data?.data.role) &&
+					profile.data.data.organization_id === warehouse?.organization_id && (
+						<div className="space-y-2">
+							<SearchableSelect
+								label="Менеджер"
+								value={selectedManagerId}
+								onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
+								options={managers}
+								onSearch={setManagerSearchQuery}
+								isLoading={isManagerSearching}
+								getOptionLabel={(manager) => `${manager.name} ${manager.role}`}
+								placeholder="Поиск менеджера..."
+								error={errors.manager_id?.message}
+							/>
 
-						{selectedManagerId && (
-							<button
-								type="button"
-								onClick={() => setValue('manager_id', null, { shouldValidate: true })}
-								className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-							>
-								Снять менеджера
-							</button>
-						)}
-					</div>
-				)}
-
-				<div className="grid grid-cols-2 gap-4">
-					<NumberField
-						label="Широта"
-						error={errors.latitude?.message}
-						step="any"
-						{...register('latitude', {
-							setValueAs: (v) => (v === '' ? undefined : Number(v)),
-						})}
-					/>
-					<NumberField
-						label="Долгота"
-						error={errors.longitude?.message}
-						step="any"
-						{...register('longitude', {
-							setValueAs: (v) => (v === '' ? undefined : Number(v)),
-						})}
-					/>
-				</div>
+							{selectedManagerId && (
+								<button
+									type="button"
+									onClick={() => setValue('manager_id', null, { shouldValidate: true })}
+									className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+								>
+									Снять менеджера
+								</button>
+							)}
+						</div>
+					)}
 			</div>
 		</ConfirmModal>
 	);
