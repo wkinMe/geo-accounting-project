@@ -57,10 +57,8 @@ export function WarehousesList() {
 		mutationFn: async (data: CreateWarehouseDTO) => warehouseService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedWarehouse(null);
-			}, 300);
+			setIsModalOpen(false);
+			setSelectedWarehouse(null);
 		},
 	});
 
@@ -69,10 +67,8 @@ export function WarehousesList() {
 			warehouseService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedWarehouse(null);
-			}, 300);
+			setIsModalOpen(false);
+			setSelectedWarehouse(null);
 		},
 	});
 
@@ -83,9 +79,7 @@ export function WarehousesList() {
 
 	const openEditModal = (warehouse: (typeof elements)[0]) => {
 		setSelectedWarehouse(warehouse);
-		setTimeout(() => {
-			setIsModalOpen(true);
-		}, 50);
+		setIsModalOpen(true);
 	};
 
 	const openCreateModal = () => {

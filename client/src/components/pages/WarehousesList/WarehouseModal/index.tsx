@@ -51,11 +51,17 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	} = useForm<WarehouseFormData>({
 		resolver: zodResolver(warehouseSchema),
 		defaultValues: {
-			name: warehouse?.name ?? '',
-			organization_id: warehouse?.organization_id ?? 0,
-			manager_id: warehouse?.manager_id ?? null,
+			name: '',
+			organization_id: 0,
+			manager_id: null, // Изменено с 0 на null
 		},
 		mode: 'onChange',
+	});
+
+	const { data: currentManagerData, isLoading: isCurrentManagerDataLoading } = useQuery({
+		queryKey: ['manager', warehouse?.manager_id],
+		queryFn: () => userService.findById(warehouse?.manager_id || 0),
+		enabled: !!warehouse?.manager_id && open, // Загружаем только если есть ID и модалка открыта
 	});
 
 	// Загружаем все организации для начального отображения
@@ -92,6 +98,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	// Сброс формы при открытии с новыми данными
 	useEffect(() => {
 		if (open) {
+			// При открытии - заполняем данными склада
 			reset({
 				name: warehouse?.name ?? '',
 				organization_id: warehouse?.organization_id ?? 0,
@@ -100,6 +107,17 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			// Сброс поисковых запросов
 			setOrgSearchQuery('');
 			setManagerSearchQuery('');
+		} else {
+			// При закрытии - сбрасываем на пустые значения с задержкой
+			const timeoutId = setTimeout(() => {
+				reset({
+					name: '',
+					organization_id: 0,
+					manager_id: null,
+				});
+			}, 200);
+
+			return () => clearTimeout(timeoutId);
 		}
 	}, [open, warehouse, reset]);
 
@@ -134,11 +152,23 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const organizations =
 		orgSearchQuery.length > 0 ? orgSearchData?.data || [] : organizationsData?.data || [];
 
-	// Получение менеджеров для отображения с учётом поиска или его отсутствием
-	const managers =
-		managerSearchQuery.length > 0
-			? managerSearchData?.data || []
-			: availableManagersData?.data || [];
+	const managers = (() => {
+		// Базовый список из поиска или доступных менеджеров
+		const baseManagers =
+			managerSearchQuery.length > 0
+				? managerSearchData?.data || []
+				: availableManagersData?.data || [];
+
+		// Если есть текущий менеджер и его нет в базовом списке - добавляем его
+		if (warehouse?.manager_id && currentManagerData?.data) {
+			const managerInList = baseManagers.some((m) => m.id === warehouse.manager_id);
+			if (!managerInList) {
+				return [currentManagerData.data, ...baseManagers];
+			}
+		}
+
+		return baseManagers;
+	})();
 
 	return (
 		<ConfirmModal
@@ -179,7 +209,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 							onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
 							options={managers}
 							onSearch={setManagerSearchQuery}
-							isLoading={isManagerSearching}
+							isLoading={isManagerSearching || isCurrentManagerDataLoading}
 							getOptionLabel={(manager) => {
 								return `${manager.name} (${USER_ROLES_MAP[manager.role]})`;
 							}}
