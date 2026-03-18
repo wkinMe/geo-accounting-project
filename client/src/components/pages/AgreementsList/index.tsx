@@ -2,7 +2,6 @@
 import { useState } from 'react';
 import { Table, type Action, type Column } from '@/components/shared/Table';
 import { agreementService } from '@/services/agreementService';
-import { userService } from '@/services/userService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
@@ -33,18 +32,6 @@ export function AgreementsList() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [searchQuery, setSearchQuery] = useState('');
-
-	// Получаем текущего пользователя
-	const { data: currentUserData } = useQuery({
-		queryKey: ['profile'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
-
-	const currentUser = currentUserData?.data;
-
-	// Используем хук с правами
-	const { canEdit, canDelete, canCreate } = useAgreementPermissions(currentUser);
 
 	const { data: agreements } = useQuery({
 		queryKey: ['agreements'],
@@ -78,6 +65,16 @@ export function AgreementsList() {
 			? searchedAgreements.data.map(mapAgreementToTableItem)
 			: agreements?.data.map(mapAgreementToTableItem) || [];
 
+	// Просто маппим элементы, без useMemo
+	const elementsWithPermissions = elements.map((item) => {
+		const { canEdit, canDelete } = useAgreementPermissions(item);
+		return {
+			...item,
+			_canEdit: canEdit(item),
+			_canDelete: canDelete(item),
+		};
+	});
+
 	const actions: Action<TableAgreement>[] = [
 		{
 			name: 'Просмотреть',
@@ -88,7 +85,7 @@ export function AgreementsList() {
 			name: 'Редактировать',
 			action: (item: TableAgreement) => handleEdit(item.id),
 			icon: <MdEdit />,
-			hidden: (item: TableAgreement) => !canEdit(item),
+			hidden: (item: any) => !item._canEdit,
 		},
 		{
 			name: 'Удалить',
@@ -97,7 +94,7 @@ export function AgreementsList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item: TableAgreement) => !canDelete(item),
+			hidden: (item: any) => !item._canDelete,
 		},
 	];
 
@@ -109,9 +106,9 @@ export function AgreementsList() {
 				debounceMs={300}
 				itemName="Договор"
 				columns={columns}
-				elements={elements}
+				elements={elementsWithPermissions}
 				actions={actions}
-				onCreate={canCreate ? handleCreate : undefined}
+				onCreate={handleCreate}
 			/>
 		</>
 	);

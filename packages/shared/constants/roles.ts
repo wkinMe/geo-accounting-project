@@ -6,3 +6,10 @@ export const USER_ROLES = {
   MANAGER: "manager",
   USER: "user",
 } as const satisfies Record<string, UserRole>;
+
+export const USER_ROLES_MAP = {
+  [USER_ROLES.SUPER_ADMIN]: "Главный администратор",
+  [USER_ROLES.ADMIN]: "Администратор",
+  [USER_ROLES.MANAGER]: "Менеджер",
+  [USER_ROLES.USER]: "Пользователь",
+};
