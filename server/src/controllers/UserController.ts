@@ -5,7 +5,7 @@ import { Request, Response } from "express";
 import { Pool } from "pg";
 import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
 import { TokenService } from "@src/services/TokenService";
-import { CreateUserDTO, UpdateUserDTO } from "@shared/dto";
+import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@shared/dto";
 import { User, UserRole } from "@shared/models";
 
 export class UserController {

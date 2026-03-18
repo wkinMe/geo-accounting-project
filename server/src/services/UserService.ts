@@ -864,13 +864,18 @@ export class UserService {
       let query = `
         SELECT u.*
         FROM app_users u
-        WHERE u.role = 'manager'
+        WHERE u.role NOT IN ('user', 'super_admin')
+          AND u.id NOT IN (
+            SELECT manager_id 
+            FROM warehouses 
+            WHERE manager_id IS NOT NULL
+          )
       `;
 
       const values: any[] = [];
 
       if (organizationId !== undefined) {
-        query += " AND u.organization_id = $1";
+        query += " AND u.organization_id = $" + (values.length + 1);
         values.push(organizationId);
       }
 

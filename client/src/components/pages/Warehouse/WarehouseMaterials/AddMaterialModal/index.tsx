@@ -82,10 +82,8 @@ export function AddMaterialModal({ open, setOpen, warehouseId, onSuccess }: Prop
 
 				<NumberField
 					label="Количество"
-					min="1"
-					step="1"
 					value={amount}
-					onChange={(e) => setAmount(Number(e.target.value))}
+					onChange={(val) => setAmount(Number(val))}
 					required
 				/>
 			</div>

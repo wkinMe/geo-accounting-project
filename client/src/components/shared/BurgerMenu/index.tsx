@@ -57,17 +57,26 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 	};
 
 	const menuItems: MenuItem[] = [
-		{ path: '/', label: 'Главная', icon: <FaHome /> },
 		{ path: '/warehouses', label: 'Склады', icon: <FaWarehouse /> },
-		{ path: '/agreements', label: 'Договоры', icon: <FaFileContract /> },
+		{
+			path: '/agreements',
+			label: 'Договоры',
+			icon: <FaFileContract />,
+			allowedRoles: [USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN],
+		},
 		{ path: '/organizations', label: 'Организации', icon: <FaBuilding /> },
-		{ path: '/users', label: 'Пользователи', icon: <FaUsers /> },
 		{ path: '/materials', label: 'Материалы', icon: <FaBoxOpen /> },
+		{
+			path: '/users',
+			label: 'Пользователи',
+			icon: <FaUsers />,
+			allowedRoles: [USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN],
+		},
 	];
 
 	// Фильтруем пункты меню по роли
 	const visibleMenuItems = menuItems.filter((item) => {
-		if (!item.allowedRoles) return true;
+		if (!item.allowedRoles) return true; // Склады, организации, материалы доступны всем
 		if (!userRole) return false;
 		return item.allowedRoles.includes(userRole);
 	});

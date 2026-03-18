@@ -12,19 +12,12 @@ import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { isAdminRole } from '@/utils';
 import { useProfile } from '@/hooks';
+import { USER_ROLES, USER_ROLES_MAP } from '@/constants';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
 	organization_id: z.number().positive('Выберите организацию'),
 	manager_id: z.number().optional().nullable(),
-	latitude: z
-		.number('Должно содержать число от -90 до 90')
-		.min(-90, 'Широта должна быть от -90 до 90')
-		.max(90, 'Широта должна быть от -90 до 90'),
-	longitude: z
-		.number('Должно содержать число от -180 до 180')
-		.min(-180, 'Долгота должна быть от -180 до 180')
-		.max(180, 'Долгота должна быть от -180 до 180'),
 });
 
 type WarehouseFormData = z.infer<typeof warehouseSchema>;
@@ -66,8 +59,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			name: warehouse?.name ?? '',
 			organization_id: warehouse?.organization_id ?? 0,
 			manager_id: warehouse?.manager_id ?? null,
-			latitude: warehouse?.latitude ?? undefined,
-			longitude: warehouse?.longitude ?? undefined,
 		},
 		mode: 'onChange',
 	});
@@ -94,8 +85,12 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 
 	// Доступные менеджеры (без поиска)
 	const { data: availableManagersData } = useQuery({
-		queryKey: ['available-managers'],
-		queryFn: () => userService.getAvailableManagers(),
+		queryKey: ['available-managers', profile.data?.data.role, profile.data?.data.organization_id],
+		queryFn: () => {
+			const isSuperAdmin = profile.data?.data.role === USER_ROLES.SUPER_ADMIN;
+			const orgId = isSuperAdmin ? undefined : profile.data?.data.organization_id;
+			return userService.getAvailableManagers(orgId);
+		},
 		enabled: isAdminRole(profile.data?.data.role),
 	});
 
@@ -106,8 +101,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 				name: warehouse?.name ?? '',
 				organization_id: warehouse?.organization_id ?? 0,
 				manager_id: warehouse?.manager_id ?? null,
-				latitude: warehouse?.latitude ?? undefined,
-				longitude: warehouse?.longitude ?? undefined,
 			});
 			// Сбрасываем поисковые запросы
 			setOrgSearchQuery('');
@@ -123,17 +116,10 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			// Получаем текущие значения формы
 			const formData = watch();
 
-			// Преобразуем null в undefined для опциональных полей
-			const data = {
-				...formData,
-				latitude: formData.latitude === null ? undefined : formData.latitude,
-				longitude: formData.longitude === null ? undefined : formData.longitude,
-			};
-
 			if (isEditing) {
-				await onSubmit(data as UpdateWarehouseDTO, warehouse.id);
+				await onSubmit(formData as UpdateWarehouseDTO, warehouse.id);
 			} else {
-				await onSubmit(data as CreateWarehouseDTO);
+				await onSubmit(formData as CreateWarehouseDTO);
 			}
 
 			// Инвалидируем кэш после обновления
@@ -189,8 +175,9 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					required
 				/>
 
-				{isAdminRole(profile.data?.data.role) &&
-					profile.data.data.organization_id === warehouse?.organization_id && (
+				{(isAdminRole(profile.data?.data.role) &&
+					profile.data.data.organization_id === warehouse?.organization_id) ||
+					(profile.data?.data.role === USER_ROLES.SUPER_ADMIN && (
 						<div className="space-y-2">
 							<SearchableSelect
 								label="Менеджер"
@@ -199,7 +186,9 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 								options={managers}
 								onSearch={setManagerSearchQuery}
 								isLoading={isManagerSearching}
-								getOptionLabel={(manager) => `${manager.name} ${manager.role}`}
+								getOptionLabel={(manager) => {
+									return `${manager.name} (${USER_ROLES_MAP[manager.role]})`;
+								}}
 								placeholder="Поиск менеджера..."
 								error={errors.manager_id?.message}
 							/>
@@ -214,7 +203,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 								</button>
 							)}
 						</div>
-					)}
+					))}
 			</div>
 		</ConfirmModal>
 	);
