@@ -12,8 +12,8 @@ import { mapUserToTableItem } from './utils';
 import { UserModal } from './UserModal';
 import type { UserRole } from '@shared/models';
 import type { Action, Column } from '@/components/shared/Table/types';
-
-type TableUser = ReturnType<typeof mapUserToTableItem>;
+import type { TableUser } from './types';
+import { useUsersListPermissions } from './hooks';
 
 const columns: Column<TableUser>[] = [
 	{ key: 'id', label: 'ID' },
@@ -88,6 +88,9 @@ export function UsersList() {
 		},
 	});
 
+	const { canEdit, canDelete, canMakeAdmin, canMakeSuperAdmin } =
+		useUsersListPermissions(currentUser);
+
 	const elements =
 		searchQuery && searchedUsers
 			? searchedUsers.data.map(mapUserToTableItem)
@@ -133,100 +136,12 @@ export function UsersList() {
 		});
 	};
 
-	// Проверка прав на редактирование пользователя
-	const canEditUser = (user: TableUser) => {
-		if (!currentUser) return false;
-
-		// Super_admin может редактировать всех
-		if (currentUser.role === 'super_admin') return true;
-
-		// Admin может редактировать:
-		// 1. Менеджеров своей организации
-		// 2. Всех пользователей (любой организации)
-		if (currentUser.role === 'admin') {
-			// Если это менеджер своей организации - можно
-			if (user.role === 'manager' && currentUser.organization_id === user.organization_id) {
-				return true;
-			}
-			// Если это обычный пользователь (любой организации) - можно
-			if (user.role === 'user') {
-				return true;
-			}
-			// Нельзя редактировать админов и супер-админов
-			return false;
-		}
-
-		return false;
-	};
-
-	// Проверка прав на удаление пользователя
-	const canDeleteUser = (user: TableUser) => {
-		if (!currentUser) return false;
-
-		// Нельзя удалить самого себя
-		if (user.id === currentUser.id) return false;
-
-		// Super_admin может удалять всех, кроме себя
-		if (currentUser.role === 'super_admin') return true;
-
-		// Admin может удалять:
-		// 1. Менеджеров своей организации
-		// 2. Всех пользователей (любой организации)
-		if (currentUser.role === 'admin') {
-			// Если это менеджер своей организации - можно
-			if (user.role === 'manager' && currentUser.organization_id === user.organization_id) {
-				return true;
-			}
-			// Если это обычный пользователь (любой организации) - можно
-			if (user.role === 'user') {
-				return true;
-			}
-			// Нельзя удалять админов и супер-админов
-			return false;
-		}
-
-		return false;
-	};
-
-	// Проверка прав на назначение админом
-	const canMakeAdmin = (user: TableUser) => {
-		if (!currentUser) return false;
-
-		if (user.id === currentUser.id) return false;
-
-		if (currentUser.role === 'super_admin') return true;
-		if (currentUser.role === 'admin') {
-			if (user.role === 'admin' || user.role === 'super_admin') return false;
-
-			if (user.role === 'manager' && currentUser.organization_id === user.organization_id) {
-				return true;
-			}
-			if (user.role === 'user') {
-				return true;
-			}
-			return false;
-		}
-
-		return false;
-	};
-
-	// Проверка прав на назначение super_admin
-	const canMakeSuperAdmin = (user: TableUser) => {
-		if (!currentUser) return false;
-
-		if (currentUser.role !== 'super_admin') return false;
-
-		if (user.role === 'super_admin') return false;
-
-		return true;
-	};
-
 	const actions: Action<TableUser>[] = [
 		{
 			name: 'Редактировать',
 			action: (item) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: (item) => !canEditUser(item),
+			hidden: (item) => !canEdit(item),
 		},
 		{
 			name: 'Сделать администратором',
@@ -249,7 +164,7 @@ export function UsersList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item) => !canDeleteUser(item),
+			hidden: (item) => !canDelete(item),
 		},
 	];
 

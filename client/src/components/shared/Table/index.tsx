@@ -12,7 +12,8 @@ interface Props<T extends { id: number }> {
 	roundedB?: boolean;
 	// Поддерживаю оба варианта (headers и columns) для обратной совместимости
 	headers?: readonly (keyof T)[];
-	columns?: Column<T>[]; // Новый пропс
+	columns?: Column<T>[];
+
 	itemName: string;
 	elements: T[];
 	actions?: Action<T>[];

@@ -90,7 +90,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
-			hidden: () => canEditAmount,
+			hidden: () => !canEditAmount,
 		},
 		{
 			name: 'Удалить материал со склада',
@@ -107,7 +107,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 				</div>
 			),
 			needConfirmation: true,
-			hidden: () => canRemove,
+			hidden: () => !canRemove,
 		},
 	];
 
@@ -129,7 +129,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					headers={headers}
 					elements={elements}
 					actions={actions}
-					isCreateDisabled={canAdd}
+					isCreateDisabled={!canAdd}
 					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
