@@ -2,16 +2,16 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, type Action } from '@/components/shared/Table';
 import { warehouseService } from '@/services/warehouseService';
-import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { useNavigate } from 'react-router';
 import { AddMaterialModal } from './AddMaterialModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
 import type { UserRole } from '@shared/models';
+import type { Action } from '@/components/shared/Table/types';
+import { Table } from '@/components/shared/Table';
+import { useWarehouseMaterialsPermissions } from './hooks';
 
 const headers = ['id', 'name', 'amount'] as const;
 
@@ -22,7 +22,6 @@ interface Props {
 }
 
 export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
@@ -33,6 +32,11 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 		name: string;
 		amount: number;
 	} | null>(null);
+
+	const { canEditAmount, canRemove, canAdd } = useWarehouseMaterialsPermissions(
+		role,
+		isCurrentUserOrg
+	);
 
 	// Получение всех материалов со склада
 	const { data: materials } = useQuery({
@@ -76,16 +80,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 		await updateAmountMutate({ materialId, amount });
 	};
 
-	const interactionDeprecated = () => {
-		return role === 'user' || (!isCurrentUserOrg && !(role === 'manager') && isCurrentUserOrg);
-	};
-
 	const actions: Action<TableMaterial>[] = [
-		{
-			name: 'Просмотреть',
-			action: (item) => navigate(`/materials/${item.material.id}`),
-			icon: <FaRegEye />,
-		},
 		{
 			name: 'Редактировать количество',
 			action: (item) =>
@@ -95,7 +90,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
-			hidden: () => interactionDeprecated(),
+			hidden: () => canEditAmount,
 		},
 		{
 			name: 'Удалить материал со склада',
@@ -112,7 +107,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 				</div>
 			),
 			needConfirmation: true,
-			hidden: () => interactionDeprecated(),
+			hidden: () => canRemove,
 		},
 	];
 
@@ -134,7 +129,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					headers={headers}
 					elements={elements}
 					actions={actions}
-					isCreateDisabled={interactionDeprecated()}
+					isCreateDisabled={canAdd}
 					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
