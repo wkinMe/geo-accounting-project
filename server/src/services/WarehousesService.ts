@@ -548,14 +548,14 @@ export class WarehouseService {
       );
     }
   }
+
   async search(
     input: string,
-    userId?: number,
-    userRole?: string,
+    filters: Record<string, string>,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
       // Получаем отфильтрованные склады через findAll с параметрами
-      const filteredWarehouses = await this.findAll(userId, userRole);
+      const filteredWarehouses = await this.findAll(filters);
 
       const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
         keys: [

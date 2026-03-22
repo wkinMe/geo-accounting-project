@@ -220,10 +220,20 @@ export class WarehouseController {
         });
       }
 
+      // Контроллер подготавливает фильтры на основе пользователя
+      const filters: Record<string, string> = {};
+
+      if (
+        user.role === USER_ROLES.USER ||
+        user.role === USER_ROLES.MANAGER ||
+        user.role === USER_ROLES.ADMIN
+      ) {
+        filters.organization_id = user.organization_id; // Берем из токена/сессии
+      }
+
       const warehouses = await this._warehouseService.search(
         q.trim(),
-        user?.id,
-        user?.role,
+        filters,
       );
 
       res.status(200).json({

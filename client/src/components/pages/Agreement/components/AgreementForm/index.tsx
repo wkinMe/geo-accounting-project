@@ -1,7 +1,7 @@
 // client/src/pages/Agreements/AgreementForm/index.tsx
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { FormProvider } from 'react-hook-form';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAgreementForm } from '../../hooks';
 import { useProfile } from '@/hooks';
 import Spinner from '@/components/shared/Spinner';
@@ -10,10 +10,8 @@ import { MaterialsSection } from '../MaterialsSection';
 import { FormActions } from '../FormActions';
 import { StatusSelect } from '../StatusSelect';
 import { ConfirmStatusModal } from '../ConfirmStatusModal';
-import { type AgreementStatus } from '@shared/constants/agreementStatuses';
+import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
 import type { AgreementFormValues } from '../../types';
-
-const IRREVERSIBLE_STATUSES = ['active', 'in_progress', 'completed'];
 
 export function AgreementForm() {
 	const { id } = useParams();
@@ -29,26 +27,46 @@ export function AgreementForm() {
 	const currentStatus = form.watch('status') as AgreementStatus;
 	const initialStatus = agreementId ? store.status : null;
 
+	// Проверяем, можно ли редактировать форму
+	const canEdit =
+		!agreementId ||
+		(initialStatus && !IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus));
+
+	// Сброс формы при unmount'e
+	useEffect(() => {
+		return () => {
+			form.reset({
+				supplierOrg: undefined,
+				supplierManager: undefined,
+				supplierWarehouse: undefined,
+				customerOrg: undefined,
+				customerManager: undefined,
+				customerWarehouse: undefined,
+				status: 'draft',
+				materials: [],
+			});
+			store.resetForm();
+		};
+	}, []);
+
 	// Обработчик отправки с подтверждением
 	const onSubmit = async (data: AgreementFormValues) => {
 		const isChangingToIrreversible =
 			initialStatus &&
-			!IRREVERSIBLE_STATUSES.includes(initialStatus) &&
-			IRREVERSIBLE_STATUSES.includes(data.status);
+			!IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus) &&
+			IRREVERSIBLE_STATUSES.includes(data.status as AgreementStatus);
 
 		if (isChangingToIrreversible) {
 			setPendingData(data);
 			setIsConfirmModalOpen(true);
 		} else {
-			// Используем мутацию напрямую через handleSubmit из useAgreementForm
-			await handleSubmit(); // handleSubmit сам возьмёт данные из формы
+			await handleSubmit();
 		}
 	};
 
 	// Подтверждение отправки
 	const confirmSubmit = async () => {
 		if (pendingData) {
-			// Временный костыль - устанавливаем данные в форму и отправляем
 			Object.entries(pendingData).forEach(([key, value]) => {
 				form.setValue(key as any, value);
 			});
@@ -82,14 +100,32 @@ export function AgreementForm() {
 						</div>
 					)}
 
-					<PartySection type="supplier" />
-					<PartySection type="customer" />
+					<PartySection
+						type="supplier"
+						isEditing={!!agreementId}
+						canEdit={canEdit}
+						currentStatus={currentStatus}
+					/>
+					<PartySection
+						type="customer"
+						isEditing={!!agreementId}
+						canEdit={canEdit}
+						currentStatus={currentStatus}
+					/>
 
 					<div className="max-w-md">
-						<StatusSelect />
+						<StatusSelect
+							agreement={agreementId ? store : undefined}
+							isEditing={!!agreementId}
+							currentStatus={currentStatus}
+						/>
 					</div>
 
-					<MaterialsSection />
+					<MaterialsSection
+						isEditing={!!agreementId}
+						canEdit={canEdit}
+						currentStatus={currentStatus}
+					/>
 
 					<FormActions
 						isEditing={!!agreementId}

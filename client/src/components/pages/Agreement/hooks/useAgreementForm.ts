@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { warehouseService } from '@/services';
 import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
+
 type AgreementFormStore = AgreementFormState & {
 	setSupplierOrg: (id: number | null) => void;
 	setSupplierManager: (id: number | null) => void;
@@ -83,7 +84,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	useEffect(() => {
 		if (isEditing && agreementId) {
-			// Сбрасываем стор перед загрузкой новых данных
 			store.resetForm();
 		}
 	}, [isEditing, agreementId]);
@@ -186,7 +186,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			form.reset();
 			setError(null);
 
-			navigate('/agreements');
+			// Перенаправление через setTimeout, чтобы успел сработать useEffect
+			setTimeout(() => {
+				navigate('/agreements');
+			}, 100);
 		},
 		onError: (err) => {
 			if (isAxiosError(err)) {
@@ -201,6 +204,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		setError(null);
+
 		await mutateAsync(data);
 	});
 
@@ -208,6 +212,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	useEffect(() => {
 		form.setValue('materials', store.materials, { shouldValidate: true });
 	}, [store.materials, form]);
+
+	useEffect(() => {
+		form.setValue('status', store.status);
+	}, [store.status, form]);
 
 	return {
 		form,

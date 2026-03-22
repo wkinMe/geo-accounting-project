@@ -46,3 +46,11 @@ export const AGREEMENT_STATUS_COLORS: Record<AgreementStatus, string> = {
   [AGREEMENT_STATUS.CANCELLED]: "bg-red-100 text-red-800",
   [AGREEMENT_STATUS.EXPIRED]: "bg-orange-100 text-orange-800",
 };
+
+
+// Статусы, которые нельзя откатить (только движение вперед)
+export const IRREVERSIBLE_STATUSES: AgreementStatus[] = [
+	AGREEMENT_STATUS.ACTIVE,
+	AGREEMENT_STATUS.IN_PROGRESS,
+	AGREEMENT_STATUS.COMPLETED,
+];
