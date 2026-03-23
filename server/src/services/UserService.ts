@@ -160,9 +160,7 @@ export class UserService {
     }
   }
 
-  async register(
-    userData: CreateUserDTO,
-  ): Promise<{
+  async register(userData: CreateUserDTO): Promise<{
     user: User;
     tokens: { accessToken: string; refreshToken: string };
   }> {
@@ -623,6 +621,7 @@ export class UserService {
         return targetUser;
       }
 
+      updates.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
       const updateQuery = `
         UPDATE app_users 

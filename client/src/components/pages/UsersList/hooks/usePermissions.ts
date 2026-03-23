@@ -1,6 +1,7 @@
 import type { UserDataDTO } from '@shared/dto';
 import type { TableUser } from '../types';
 import { USER_ROLES } from '@shared/constants';
+import { atLeastAdmin, isSuperAdminRole } from '@/utils';
 
 export function useUsersListPermissions(currentUser: UserDataDTO | undefined) {
 	// Проверка прав на редактирование пользователя
@@ -47,7 +48,7 @@ export function useUsersListPermissions(currentUser: UserDataDTO | undefined) {
 
 		if (user.id === currentUser.id) return false;
 
-		if (currentUser.role === USER_ROLES.SUPER_ADMIN) return true;
+		if (currentUser.role === USER_ROLES.SUPER_ADMIN && !atLeastAdmin(user.role)) return true;
 		if (currentUser.role === USER_ROLES.ADMIN) {
 			if (user.role === USER_ROLES.ADMIN || user.role === USER_ROLES.SUPER_ADMIN) return false;
 

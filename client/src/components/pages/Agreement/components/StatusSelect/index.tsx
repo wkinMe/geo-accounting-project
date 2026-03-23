@@ -11,9 +11,15 @@ interface StatusSelectProps {
 	isEditing?: boolean;
 	currentStatus?: AgreementStatus;
 	onStatusChange?: (newStatus: AgreementStatus) => void;
+	canEdit?: boolean; // Добавляем пропс для управления редактированием
 }
 
-export function StatusSelect({ agreement, currentStatus, onStatusChange }: StatusSelectProps) {
+export function StatusSelect({
+	agreement,
+	currentStatus,
+	onStatusChange,
+	canEdit = true,
+}: StatusSelectProps) {
 	const {
 		register,
 		formState: { errors },
@@ -70,7 +76,7 @@ export function StatusSelect({ agreement, currentStatus, onStatusChange }: Statu
 			error={errors.status?.message}
 			value={statusToUse}
 			onChange={handleChange}
-			disabled={isStatusLocked}
+			disabled={!canEdit || isStatusLocked} // Блокируем если canEdit = false
 			{...registerRest}
 			required
 		/>

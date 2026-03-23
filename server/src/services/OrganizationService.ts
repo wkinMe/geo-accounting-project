@@ -62,12 +62,7 @@ export class OrganizationService {
     }
   }
 
-  async update({
-    id,
-    name,
-    latitude,
-    longitude,
-  }: UpdateOrganizationDTO): Promise<Organization> {
+  async update({ id, name }: UpdateOrganizationDTO): Promise<Organization> {
     try {
       // Проверяем существование организации
       await this.findById(id);
@@ -79,25 +74,6 @@ export class OrganizationService {
           "update",
           "name",
           name,
-        );
-      }
-
-      // Валидация координат
-      if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
-        throw new ValidationError(
-          "Latitude must be between -90 and 90",
-          "update",
-          "latitude",
-          latitude.toString(),
-        );
-      }
-
-      if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
-        throw new ValidationError(
-          "Longitude must be between -180 and 180",
-          "update",
-          "longitude",
-          longitude.toString(),
         );
       }
 
@@ -127,18 +103,6 @@ export class OrganizationService {
       if (name !== undefined) {
         fields.push(`name = $${paramIndex}`);
         values.push(name.trim());
-        paramIndex++;
-      }
-
-      if (latitude !== undefined) {
-        fields.push(`latitude = $${paramIndex}`);
-        values.push(latitude);
-        paramIndex++;
-      }
-
-      if (longitude !== undefined) {
-        fields.push(`longitude = $${paramIndex}`);
-        values.push(longitude);
         paramIndex++;
       }
 
@@ -191,11 +155,7 @@ export class OrganizationService {
     }
   }
 
-  async create({
-    name,
-    latitude,
-    longitude,
-  }: CreateOrganizationDTO): Promise<Organization> {
+  async create({ name }: CreateOrganizationDTO): Promise<Organization> {
     try {
       // Валидация обязательных полей
       if (!name || name.trim().length === 0) {
@@ -204,25 +164,6 @@ export class OrganizationService {
           "create",
           "name",
           name,
-        );
-      }
-
-      // Валидация координат
-      if (latitude !== undefined && (latitude < -90 || latitude > 90)) {
-        throw new ValidationError(
-          "Latitude must be between -90 and 90",
-          "create",
-          "latitude",
-          latitude.toString(),
-        );
-      }
-
-      if (longitude !== undefined && (longitude < -180 || longitude > 180)) {
-        throw new ValidationError(
-          "Longitude must be between -180 and 180",
-          "create",
-          "longitude",
-          longitude.toString(),
         );
       }
 
@@ -246,10 +187,10 @@ export class OrganizationService {
       const rows = await executeQuery<Organization>(
         this._db,
         "create",
-        `INSERT INTO organizations (name, latitude, longitude) 
-         VALUES ($1, $2, $3) 
+        `INSERT INTO organizations (name) 
+         VALUES ($1) 
          RETURNING *`,
-        [name.trim(), latitude || null, longitude || null],
+        [name.trim()],
       );
 
       if (rows.length === 0) {

@@ -158,9 +158,7 @@ export function UsersList() {
 		{
 			name: 'Удалить',
 			action: async (item) => {
-				if (confirm(`Вы уверены, что хотите удалить пользователя ${item.name}?`)) {
-					await deleteMutate(item.id);
-				}
+				await deleteMutate(item.id);
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,

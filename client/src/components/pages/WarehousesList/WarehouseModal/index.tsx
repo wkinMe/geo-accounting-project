@@ -10,7 +10,7 @@ import { TextField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import { isAdminRole } from '@/utils';
+import { atLeastAdmin, isAdminRole } from '@/utils';
 import { useProfileData } from '@/hooks/useProfileData';
 import { getManagerFieldAvailable } from './utils';
 import type { WarehouseModalData } from './types';
@@ -192,7 +192,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					value={selectedOrgId}
 					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
 					options={organizations}
-					disabled={!isAdminRole(profileData?.role)}
+					disabled={!atLeastAdmin(profileData?.role)}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
 					getOptionLabel={(org) => org.name}

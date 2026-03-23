@@ -29,7 +29,7 @@ export function SelectField({
 			</Field.Label>
 			{/* Не используем Field.Control для select */}
 			<select
-				className={`cursor-pointer w-full px-3 py-2 bg-white dark:bg-black border ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+				className={`cursor-pointer w-full px-3 py-2 bg-white dark:bg-black border ${error ? 'border-red-500 dark:border-red-500' : 'border-gray-300 dark:border-gray-700'} rounded-lg text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-black dark:focus:ring-white disabled:cursor-auto ${className}`}
 				{...props}
 			>
 				{options.map((option) => (

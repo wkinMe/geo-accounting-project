@@ -89,7 +89,18 @@ createRoot(document.getElementById('root')!).render(
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
 										fallbackPath="/warehouses"
 									>
-										<AgreementForm />
+										<AgreementForm mode="create" />
+									</RoleRoute>
+								}
+							/>
+							<Route
+								path=":id"
+								element={
+									<RoleRoute
+										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
+										fallbackPath="/warehouses"
+									>
+										<AgreementForm mode="view" />
 									</RoleRoute>
 								}
 							/>
@@ -100,7 +111,7 @@ createRoot(document.getElementById('root')!).render(
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
 										fallbackPath="/warehouses"
 									>
-										<AgreementForm />
+										<AgreementForm mode="edit" />
 									</RoleRoute>
 								}
 							/>

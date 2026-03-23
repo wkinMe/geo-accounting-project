@@ -140,31 +140,6 @@ export class WarehouseService {
         );
       }
 
-      // Валидация координат
-      if (
-        createData.latitude !== undefined &&
-        (createData.latitude < -90 || createData.latitude > 90)
-      ) {
-        throw new ValidationError(
-          "Latitude must be between -90 and 90",
-          "create",
-          "latitude",
-          createData.latitude.toString(),
-        );
-      }
-
-      if (
-        createData.longitude !== undefined &&
-        (createData.longitude < -180 || createData.longitude > 180)
-      ) {
-        throw new ValidationError(
-          "Longitude must be between -180 and 180",
-          "create",
-          "longitude",
-          createData.longitude.toString(),
-        );
-      }
-
       // Проверяем существование организации
       const orgCheck = await executeQuery<{ id: number }>(
         this._db,
@@ -216,16 +191,6 @@ export class WarehouseService {
 
       fields.push("organization_id");
       values.push(createData.organization_id);
-      placeholders.push(`$${paramIndex}`);
-      paramIndex++;
-
-      fields.push("latitude");
-      values.push(createData.latitude || null);
-      placeholders.push(`$${paramIndex}`);
-      paramIndex++;
-
-      fields.push("longitude");
-      values.push(createData.longitude || null);
       placeholders.push(`$${paramIndex}`);
       paramIndex++;
 
@@ -305,31 +270,6 @@ export class WarehouseService {
         );
       }
 
-      // Валидация координат
-      if (
-        updateData.latitude !== undefined &&
-        (updateData.latitude < -90 || updateData.latitude > 90)
-      ) {
-        throw new ValidationError(
-          "Latitude must be between -90 and 90",
-          "update",
-          "latitude",
-          updateData.latitude.toString(),
-        );
-      }
-
-      if (
-        updateData.longitude !== undefined &&
-        (updateData.longitude < -180 || updateData.longitude > 180)
-      ) {
-        throw new ValidationError(
-          "Longitude must be between -180 and 180",
-          "update",
-          "longitude",
-          updateData.longitude.toString(),
-        );
-      }
-
       // Проверяем существование организации, если меняем
       if (updateData.organization_id !== undefined) {
         const orgCheck = await executeQuery<{ id: number }>(
@@ -387,7 +327,6 @@ export class WarehouseService {
       }
 
       if (updateData.manager_id !== undefined) {
-        // Обработка случая, когда хотим установить manager_id в NULL
         if (updateData.manager_id === null) {
           fields.push(`manager_id = NULL`);
         } else {
@@ -395,18 +334,6 @@ export class WarehouseService {
           values.push(updateData.manager_id);
           paramIndex++;
         }
-      }
-
-      if (updateData.latitude !== undefined) {
-        fields.push(`latitude = $${paramIndex}`);
-        values.push(updateData.latitude);
-        paramIndex++;
-      }
-
-      if (updateData.longitude !== undefined) {
-        fields.push(`longitude = $${paramIndex}`);
-        values.push(updateData.longitude);
-        paramIndex++;
       }
 
       // Если нет полей для обновления, возвращаем существующий склад
@@ -438,11 +365,8 @@ export class WarehouseService {
         );
       }
 
-      // Возвращаем обновленный склад с полной информацией
-      const warehouse = await this.findById(id);
-
-      await updateTimestamp(this._db, `warehouses`, warehouse.id);
-      return warehouse;
+      await updateTimestamp(this._db, `warehouses`, id);
+      return await this.findById(id);
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -463,10 +387,8 @@ export class WarehouseService {
 
   async delete(id: number): Promise<Warehouse> {
     try {
-      // Проверяем существование склада
       await this.findById(id);
 
-      // Проверяем, используется ли склад в соглашениях как supplier_warehouse
       const supplierCheck = await executeQuery<{ count: number }>(
         this._db,
         "checkSupplierUsage",
@@ -483,7 +405,6 @@ export class WarehouseService {
         );
       }
 
-      // Проверяем, используется ли склад в соглашениях как customer_warehouse
       const customerCheck = await executeQuery<{ count: number }>(
         this._db,
         "checkCustomerUsage",
@@ -500,7 +421,6 @@ export class WarehouseService {
         );
       }
 
-      // Проверяем, есть ли материалы на складе
       const materialsCheck = await executeQuery<{ count: number }>(
         this._db,
         "checkMaterials",
@@ -557,7 +477,6 @@ export class WarehouseService {
     filters: Record<string, string>,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      // Получаем отфильтрованные склады через findAll с параметрами
       const filteredWarehouses = await this.findAll(filters);
 
       const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {
@@ -596,7 +515,6 @@ export class WarehouseService {
     managerId: number,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      // Проверяем существование менеджера
       const managerCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkManagerExists",
@@ -661,10 +579,8 @@ export class WarehouseService {
     managerId: number | null,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
-      // Если передали managerId, проверяем существование пользователя
       if (managerId !== null) {
         const managerCheck = await executeQuery<{ id: number }>(
           this._db,
@@ -698,8 +614,6 @@ export class WarehouseService {
         );
       }
 
-      // Возвращаем обновленный склад
-      
       await updateTimestamp(this._db, `warehouses`, warehouseId);
       return await this.findById(warehouseId);
     } catch (error) {
@@ -719,17 +633,14 @@ export class WarehouseService {
     }
   }
 
-  // Добавление материала на склад (или увеличение количества если уже существует)
   async addMaterial(
     warehouseId: number,
     materialId: number,
     amount: number,
   ): Promise<WarehouseMaterial> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
-      // Проверяем существование материала
       const materialCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkMaterialExists",
@@ -746,7 +657,6 @@ export class WarehouseService {
         );
       }
 
-      // Пытаемся обновить количество, если материал уже есть на складе
       const updateResult = await executeQuery<WarehouseMaterial>(
         this._db,
         "updateExistingMaterial",
@@ -757,12 +667,11 @@ export class WarehouseService {
         [amount, warehouseId, materialId],
       );
 
-      // Если обновление затронуло строки, значит материал уже был - возвращаем обновленную запись
       if (updateResult.length > 0) {
+        await updateTimestamp(this._db, `warehouses`, warehouseId);
         return updateResult[0];
       }
 
-      // Если материал не найден - добавляем новую запись
       const insertResult = await executeQuery<WarehouseMaterial>(
         this._db,
         "addNewMaterial",
@@ -780,7 +689,6 @@ export class WarehouseService {
           new Error("No data returned from INSERT query"),
         );
       }
-
 
       await updateTimestamp(this._db, `warehouses`, warehouseId);
       return insertResult[0];
@@ -801,17 +709,14 @@ export class WarehouseService {
     }
   }
 
-  // Обновление количества материала на складе (замена, а не прибавление)
   async updateMaterialAmount(
     warehouseId: number,
     materialId: number,
     amount: number,
   ): Promise<WarehouseMaterial> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
-      // Проверяем существование материала
       const materialCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkMaterialExists",
@@ -828,7 +733,6 @@ export class WarehouseService {
         );
       }
 
-      // Проверяем, что материал есть на складе
       const existingCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkMaterialInWarehouse",
@@ -864,7 +768,6 @@ export class WarehouseService {
         );
       }
 
-
       await updateTimestamp(this._db, `warehouses`, warehouseId);
       return rows[0];
     } catch (error) {
@@ -884,16 +787,13 @@ export class WarehouseService {
     }
   }
 
-  // Удаление материала со склада
   async removeMaterial(
     warehouseId: number,
     materialId: number,
   ): Promise<WarehouseMaterial> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
-      // Проверяем, что материал есть на складе
       const existingCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkMaterialInWarehouse",
@@ -947,12 +847,10 @@ export class WarehouseService {
     }
   }
 
-  // Получение всех материалов на складе (без поиска)
   async getMaterials(
     warehouseId: number,
   ): Promise<(WarehouseMaterial & { material: Material })[]> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
       const query = `
@@ -983,16 +881,13 @@ export class WarehouseService {
     }
   }
 
-  // Поиск материалов на складе
   async searchMaterials(
     warehouseId: number,
     input: string,
   ): Promise<(WarehouseMaterial & { material: Material })[]> {
     try {
-      // Проверяем существование склада
       await this.findById(warehouseId);
 
-      // Получаем все материалы со склада
       const allMaterials = await this.getMaterials(warehouseId);
 
       const fuseConfig: IFuseOptions<
@@ -1037,7 +932,6 @@ export class WarehouseService {
     organizationId: number,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      // Проверяем существование организации
       const orgCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkOrganizationExists",
@@ -1102,7 +996,6 @@ export class WarehouseService {
     input: string,
   ): Promise<WarehouseWithMaterialsAndOrganization[]> {
     try {
-      // Проверяем существование организации
       const orgCheck = await executeQuery<{ id: number }>(
         this._db,
         "checkOrganizationExists",
@@ -1119,7 +1012,6 @@ export class WarehouseService {
         );
       }
 
-      // Получаем все склады организации
       const warehouses = await this.findByOrganizationId(organizationId);
 
       const fuseConfig: IFuseOptions<WarehouseWithMaterialsAndOrganization> = {

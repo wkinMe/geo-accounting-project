@@ -1,7 +1,7 @@
 // client/src/pages/Agreements/AgreementForm/index.tsx
 import { useParams } from 'react-router';
 import { FormProvider } from 'react-hook-form';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useAgreementForm } from '../../hooks';
 import { useProfile } from '@/hooks';
 import Spinner from '@/components/shared/Spinner';
@@ -13,9 +13,15 @@ import { ConfirmStatusModal } from '../ConfirmStatusModal';
 import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
 import type { AgreementFormValues } from '../../types';
 
-export function AgreementForm() {
+interface Props {
+	mode?: 'create' | 'edit' | 'view';
+}
+
+export function AgreementForm({ mode = 'create' }: Props) {
 	const { id } = useParams();
 	const agreementId = id ? Number(id) : undefined;
+
+	const isViewMode = mode === 'view' || (agreementId && window.location.pathname.includes('/view'));
 
 	const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 	const [pendingData, setPendingData] = useState<AgreementFormValues | null>(null);
@@ -91,7 +97,11 @@ export function AgreementForm() {
 			<FormProvider {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="max-w-7xl mx-auto p-6 space-y-8">
 					<h1 className="text-2xl font-bold">
-						{agreementId ? 'Редактирование договора' : 'Создание нового договора'}
+						{isViewMode
+							? `Договор №${id}`
+							: agreementId
+								? 'Редактирование договора'
+								: 'Создание нового договора'}
 					</h1>
 
 					{error && (
@@ -115,6 +125,7 @@ export function AgreementForm() {
 
 					<div className="max-w-md">
 						<StatusSelect
+							canEdit={!isViewMode}
 							agreement={agreementId ? store : undefined}
 							isEditing={!!agreementId}
 							currentStatus={currentStatus}
@@ -127,11 +138,13 @@ export function AgreementForm() {
 						currentStatus={currentStatus}
 					/>
 
-					<FormActions
-						isEditing={!!agreementId}
-						onCancel={handleCancel}
-						isSubmitting={isSubmitting}
-					/>
+					{!isViewMode && (
+						<FormActions
+							isEditing={!!agreementId}
+							onCancel={handleCancel}
+							isSubmitting={isSubmitting}
+						/>
+					)}
 				</form>
 			</FormProvider>
 
