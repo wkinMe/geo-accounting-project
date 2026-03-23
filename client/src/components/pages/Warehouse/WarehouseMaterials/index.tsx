@@ -1,5 +1,4 @@
 // client/src/pages/warehouses/WarehouseMaterials.tsx
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { warehouseService } from '@/services/warehouseService';
@@ -8,20 +7,23 @@ import { MdEdit } from 'react-icons/md';
 import { AddMaterialModal } from './AddMaterialModal';
 import { EditAmountModal } from './EditMaterialAmountModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
-import type { UserRole } from '@shared/models';
-import type { Action } from '@/components/shared/Table/types';
+import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
-import { useWarehouseMaterialsPermissions } from './hooks';
 
-const headers = ['id', 'name', 'amount'] as const;
+const columns: Column<TableMaterial>[] = [
+	{ key: 'id', label: 'ID' },
+	{ key: 'name', label: 'Название' },
+	{ key: 'unit', label: 'Ед. измерения' },
+	{ key: 'created_at', label: 'Дата добавления' },
+	{ key: 'updated_at', label: 'Дата обновления' },
+];
 
 interface Props {
 	id: number;
-	role: UserRole;
-	isCurrentUserOrg: boolean;
+	canManage?: boolean;
 }
 
-export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
+export function WarehouseMaterials({ id, canManage = false }: Props) {
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
@@ -32,11 +34,6 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 		name: string;
 		amount: number;
 	} | null>(null);
-
-	const { canEditAmount, canRemove, canAdd } = useWarehouseMaterialsPermissions(
-		role,
-		isCurrentUserOrg
-	);
 
 	// Получение всех материалов со склада
 	const { data: materials } = useQuery({
@@ -90,11 +87,10 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					amount: item.amount,
 				}),
 			icon: <MdEdit />,
-			hidden: () => !canEditAmount,
+			hidden: () => !canManage,
 		},
 		{
 			name: 'Удалить материал со склада',
-
 			action: async (item) => {
 				await removeMaterialMutate({ materialId: item.material_id });
 			},
@@ -107,7 +103,7 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 				</div>
 			),
 			needConfirmation: true,
-			hidden: () => !canRemove,
+			hidden: () => !canManage,
 		},
 	];
 
@@ -126,10 +122,10 @@ export function WarehouseMaterials({ id, role, isCurrentUserOrg }: Props) {
 					onSearch={setSearchQuery}
 					debounceMs={300}
 					itemName="Материал"
-					headers={headers}
+					columns={columns}
 					elements={elements}
 					actions={actions}
-					isCreateDisabled={!canAdd}
+					isCreateDisabled={!canManage}
 					onCreate={() => setIsAddModalOpen(true)}
 				/>
 			</div>
