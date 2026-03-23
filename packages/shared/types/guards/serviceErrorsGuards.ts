@@ -1,9 +1,5 @@
-import {
-  DatabaseError,
-  NotFoundError,
-  ServiceError,
-  ValidationError,
-} from "@src/errors/service";
+import type { DatabaseError, NotFoundError, ServiceError, ValidationError } from "@shared/service";
+
 
 export function isServiceError(error: unknown): error is ServiceError {
   return error instanceof Error && "service" in error;

@@ -12,7 +12,7 @@ import Input from '@/components/shared/Input';
 import { Button } from '@/components/shared/Button';
 import type { AxiosError } from 'axios';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
-import { USER_ROLES } from '@/constants';
+import { USER_ROLES } from '@shared/constants';
 
 const registerSchema = z.object({
 	name: z.string().min(1, 'Имя пользователя обязательно'),

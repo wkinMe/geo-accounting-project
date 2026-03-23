@@ -21,7 +21,6 @@ import {
   WarehouseMaterial,
 } from "@shared/models";
 import { isSuccessResponse, isErrorResponse } from "@shared/types";
-import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
 import { SuccessResponse, ErrorResponse } from "@shared/types";
 
 describe("Warehouse Controller", () => {

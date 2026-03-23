@@ -1,4 +1,5 @@
-import { USER_ROLES } from '@/constants';
+
+import { USER_ROLES } from '@shared/constants';
 import type { UserRole } from '@shared/models';
 
 export function useWarehouseMaterialsPermissions(role: UserRole, isCurrentUserOrg: boolean) {

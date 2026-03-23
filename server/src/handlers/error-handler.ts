@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { UnauthorizedError } from "@src/errors/service";
+import { UnauthorizedError } from "@shared/service";
 
 export function errorHandler(
   err: Error,

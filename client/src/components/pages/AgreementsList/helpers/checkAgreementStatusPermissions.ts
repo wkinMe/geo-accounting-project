@@ -1,6 +1,5 @@
 // client/src/components/pages/AgreementsList/helpers/agreementStatusPermissions.ts
-import { USER_ROLES } from '@/constants';
-import { getTransitions, AGREEMENT_STATUS, type AgreementStatus } from '@shared/constants';
+import { getTransitions, AGREEMENT_STATUS, type AgreementStatus, USER_ROLES } from '@shared/constants';
 import type { UserDataDTO } from '@shared/dto';
 import type { AgreementFormState } from '../../Agreement/types';
 

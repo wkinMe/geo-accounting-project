@@ -4,7 +4,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@src/errors/service";
+} from "@shared/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 import Fuse, { IFuseOptions } from "fuse.js";
 import {
@@ -18,6 +18,7 @@ import {
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
 import { ERROR_MESSAGES } from "@shared/constants";
 import { UserDataDTO } from "@shared/dto";
+import { updateTimestamp } from "../utils/update.utils";
 
 export class AgreementService {
   private _db: Pool;
@@ -756,7 +757,8 @@ export class AgreementService {
       }
 
       // Возвращаем обновленное соглашение с полной информацией
-      return await this.findById(id);
+      const agreement = await this.findById(id);
+      return agreement;
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -828,7 +830,7 @@ export class AgreementService {
 
   async search(
     input: string,
-    user: UserDataDTO
+    user: UserDataDTO,
   ): Promise<AgreementWithDetails[]> {
     try {
       // Получаем отфильтрованные соглашения

@@ -1,5 +1,5 @@
 // client/src/components/pages/AgreementsList/helpers/agreementBasePermissions.ts
-import { USER_ROLES } from '@/constants';
+import { USER_ROLES } from '@shared/constants';
 import type { UserDataDTO } from '@shared/dto';
 
 // Функция для проверки прав на основе роли пользователя

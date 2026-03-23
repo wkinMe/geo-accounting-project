@@ -16,8 +16,9 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@src/errors/service";
+} from "@shared/service";
 import { executeQuery, getSingleResult } from "@src/utils";
+import { updateTimestamp } from "../utils/update.utils";
 
 export class WarehouseService {
   private _db: Pool;
@@ -412,7 +413,6 @@ export class WarehouseService {
       if (fields.length === 0) {
         return await this.findById(id);
       }
-
       values.push(id);
 
       const query = `
@@ -439,7 +439,10 @@ export class WarehouseService {
       }
 
       // Возвращаем обновленный склад с полной информацией
-      return await this.findById(id);
+      const warehouse = await this.findById(id);
+
+      await updateTimestamp(this._db, `warehouses`, warehouse.id);
+      return warehouse;
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -696,6 +699,8 @@ export class WarehouseService {
       }
 
       // Возвращаем обновленный склад
+      
+      await updateTimestamp(this._db, `warehouses`, warehouseId);
       return await this.findById(warehouseId);
     } catch (error) {
       if (
@@ -776,6 +781,8 @@ export class WarehouseService {
         );
       }
 
+
+      await updateTimestamp(this._db, `warehouses`, warehouseId);
       return insertResult[0];
     } catch (error) {
       if (
@@ -857,6 +864,8 @@ export class WarehouseService {
         );
       }
 
+
+      await updateTimestamp(this._db, `warehouses`, warehouseId);
       return rows[0];
     } catch (error) {
       if (
@@ -919,6 +928,7 @@ export class WarehouseService {
         );
       }
 
+      await updateTimestamp(this._db, `warehouses`, warehouseId);
       return rows[0];
     } catch (error) {
       if (

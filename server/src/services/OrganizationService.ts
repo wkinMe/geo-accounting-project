@@ -7,7 +7,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@src/errors/service";
+} from "@shared/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 
 export class OrganizationService {
@@ -147,6 +147,7 @@ export class OrganizationService {
         return await this.findById(id);
       }
 
+      fields.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(id);
       const query = `
         UPDATE organizations 

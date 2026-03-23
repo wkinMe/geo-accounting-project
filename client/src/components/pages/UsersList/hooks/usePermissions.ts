@@ -1,6 +1,6 @@
 import type { UserDataDTO } from '@shared/dto';
 import type { TableUser } from '../types';
-import { USER_ROLES } from '@/constants';
+import { USER_ROLES } from '@shared/constants';
 
 export function useUsersListPermissions(currentUser: UserDataDTO | undefined) {
 	// Проверка прав на редактирование пользователя

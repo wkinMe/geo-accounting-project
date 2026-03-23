@@ -18,7 +18,7 @@ import {
   ServiceError,
   UnauthorizedError,
   ForbiddenError,
-} from "@src/errors/service";
+} from "@shared/service";
 import { TokenService } from "./TokenService";
 
 export class UserService {
@@ -162,7 +162,6 @@ export class UserService {
 
   async register(
     userData: CreateUserDTO,
-    requesterRole?: UserRole,
   ): Promise<{
     user: User;
     tokens: { accessToken: string; refreshToken: string };
