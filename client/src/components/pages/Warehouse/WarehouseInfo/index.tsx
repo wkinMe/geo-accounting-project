@@ -1,23 +1,26 @@
+// client/src/pages/warehouses/WarehouseInfo.tsx
 import { userService, warehouseService } from '@/services';
 import type { UpdateWarehouseDTO } from '@shared/dto';
-import { QueryClient, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
 import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
-import { useRole } from '@/hooks/useRole';
-import { atLeastManager, isAdminRole } from '@/utils';
 import type { UserRole } from '@shared/models';
 
 interface Props {
 	id: number;
-	role: UserRole;
-	isCurrentUserOrg: boolean;
+	canEdit?: boolean; // Добавляем пропс для изменения
+	canDelete?: boolean; // Добавляем пропс для удаления
 }
 
-export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
+export function WarehouseInfo({
+	id,
+	canEdit = false,
+	canDelete = false,
+}: Props) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
@@ -70,12 +73,13 @@ export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
 					<div className="flex items-center justify-between">
 						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
 						<div className="flex gap-5">
-							{role === "admin" && isCurrentUserOrg && atLeastManager(role) && (
+							{canEdit && (
 								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
 									Изменить
 								</Button>
 							)}
-							{role === "admin" && isCurrentUserOrg && isAdminRole(role) && (
+
+							{canDelete && (
 								<Button
 									className={'bg-red-500 hover:bg-red-600'}
 									onClick={() => setIsConfirmOpen(true)}
@@ -89,11 +93,11 @@ export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
 					<table className="w-full border-collapse">
 						<tbody>
 							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец:</td>
+								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец: </td>
 								<td className="py-3">{warehouseData.organization.name}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Менеджер склада:</td>
+								<td className="py-3 font-medium text-gray-600">Менеджер склада: </td>
 								<td className="py-3">
 									{warehouseData.manager ? (
 										<Link to={`/managers/${warehouseData.manager?.id}`}>
@@ -105,11 +109,11 @@ export function WarehouseInfo({ id, role, isCurrentUserOrg }: Props) {
 								</td>
 							</tr>
 							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Дата создания:</td>
+								<td className="py-3 font-medium text-gray-600">Дата создания: </td>
 								<td className="py-3">{formatDateToDDMMYYYY(warehouseData.created_at)}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Последнее обновление:</td>
+								<td className="py-3 font-medium text-gray-600">Последнее обновление: </td>
 								<td className="py-3">{getDaysAgoText(warehouseData.updated_at)}</td>
 							</tr>
 						</tbody>

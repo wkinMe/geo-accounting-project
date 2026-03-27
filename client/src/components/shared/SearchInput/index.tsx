@@ -30,9 +30,11 @@ export function SearchInput({ value, ms, placeholder = 'Поиск', onSearch, .
 	return (
 		<div className={`flex items-center gap-3 ${props.className}`}>
 			<Input
+				
 				startIcon={<IoIosSearch />}
 				onChange={(e) => setLocalValue(e.currentTarget.value)}
 				placeholder={placeholder}
+				{...props}
 			/>
 		</div>
 	);

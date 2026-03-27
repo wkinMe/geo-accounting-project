@@ -1,7 +1,7 @@
 // client/src/utils/agreementPermissions.ts
 import type { UserDataDTO } from '@shared/dto';
-import { USER_ROLES } from '@/constants';
 import type { TableAgreement } from '../types';
+import { USER_ROLES } from '@shared/constants';
 
 /**
  * Проверка прав на редактирование договора

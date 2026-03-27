@@ -2,22 +2,24 @@
 import { useFormContext } from 'react-hook-form';
 import { SelectField } from '@/components/shared/Fields';
 import type { AgreementFormValues } from '../../types';
-import { useAgreementPermissions } from '@/components/pages/AgreementsList/hooks/useAgreementPermissions';
-import {
-	AGREEMENT_STATUS,
-	AGREEMENT_STATUS_LABELS,
-	type AgreementStatus,
-} from '@shared/constants/agreementStatuses';
+import { useAgreementStatusPermissions } from '@/components/pages/AgreementsList/hooks/useAgreementStatusPermissions';
+import { AGREEMENT_STATUS_LABELS, type AgreementStatus } from '@shared/constants';
 import { useEffect } from 'react';
 
-const IRREVERSIBLE_STATUSES = ['active', 'in_progress', 'completed'];
-
 interface StatusSelectProps {
-	agreement?: any;
+	agreement: any; // Ваш тип AgreementFormState
+	isEditing?: boolean;
+	currentStatus?: AgreementStatus;
 	onStatusChange?: (newStatus: AgreementStatus) => void;
+	canEdit?: boolean; // Добавляем пропс для управления редактированием
 }
 
-export function StatusSelect({ agreement, onStatusChange }: StatusSelectProps) {
+export function StatusSelect({
+	agreement,
+	currentStatus,
+	onStatusChange,
+	canEdit = true,
+}: StatusSelectProps) {
 	const {
 		register,
 		formState: { errors },
@@ -25,17 +27,19 @@ export function StatusSelect({ agreement, onStatusChange }: StatusSelectProps) {
 		setValue,
 	} = useFormContext<AgreementFormValues>();
 
-	const { canChangeStatus, isStatusLocked, getAvailableStatuses } =
-		useAgreementPermissions(agreement);
+	// Используем хук для прав на статусы с привязкой к договору
+	const { canChangeStatus, getAvailableStatuses, isStatusLocked } =
+		useAgreementStatusPermissions(agreement);
 
-	const currentStatus = watch('status') as AgreementStatus;
+	const watchedStatus = watch('status') as AgreementStatus;
+	const statusToUse = currentStatus || watchedStatus;
 
 	// Получаем доступные статусы
-	const availableStatuses = getAvailableStatuses() as AgreementStatus[];
+	const availableStatuses = getAvailableStatuses();
 
 	const statusOptions = availableStatuses.map((value) => ({
 		value,
-		label: AGREEMENT_STATUS_LABELS[value],
+		label: AGREEMENT_STATUS_LABELS[value as AgreementStatus],
 		disabled: !canChangeStatus(value),
 	}));
 
@@ -57,36 +61,24 @@ export function StatusSelect({ agreement, onStatusChange }: StatusSelectProps) {
 
 	// Если текущий статус недоступен - сбрасываем на доступный
 	useEffect(() => {
-		if (currentStatus && !availableStatuses.includes(currentStatus)) {
-			const defaultStatus = availableStatuses[0] || AGREEMENT_STATUS.DRAFT;
-			setValue('status', defaultStatus, { shouldValidate: true });
+		if (statusToUse && !availableStatuses.includes(statusToUse)) {
+			const defaultStatus = availableStatuses[0];
+			if (defaultStatus) {
+				setValue('status', defaultStatus, { shouldValidate: true });
+			}
 		}
-	}, [currentStatus, availableStatuses, setValue]);
+	}, [statusToUse, availableStatuses, setValue]);
 
 	return (
-		<div className="space-y-2">
-			<SelectField
-				label="Статус договора"
-				options={statusOptions}
-				error={errors.status?.message}
-				value={currentStatus}
-				onChange={handleChange}
-				{...registerRest}
-				disabled={isStatusLocked}
-				required
-			/>
-
-			{isStatusLocked && (
-				<p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
-					⚠️ Статус завершённого договора может изменить только суперадминистратор
-				</p>
-			)}
-
-			{agreement && IRREVERSIBLE_STATUSES.includes(agreement.status) && !isStatusLocked && (
-				<p className="text-sm text-blue-600 dark:text-blue-400 mt-1">
-					ℹ️ После активации договора статус можно только повышать
-				</p>
-			)}
-		</div>
+		<SelectField
+			label="Статус договора"
+			options={statusOptions}
+			error={errors.status?.message}
+			value={statusToUse}
+			onChange={handleChange}
+			disabled={!canEdit || isStatusLocked} // Блокируем если canEdit = false
+			{...registerRest}
+			required
+		/>
 	);
 }

@@ -12,7 +12,8 @@ interface Props<T extends { id: number }> {
 	roundedB?: boolean;
 	// Поддерживаю оба варианта (headers и columns) для обратной совместимости
 	headers?: readonly (keyof T)[];
-	columns?: Column<T>[]; // Новый пропс
+	columns?: Column<T>[];
+
 	itemName: string;
 	elements: T[];
 	actions?: Action<T>[];
@@ -43,6 +44,11 @@ export function Table<T extends { id: number }>({
 
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
 	const useColumns = getColumns<T>(columns, headers);
+
+	// Проверяем, есть ли хотя бы одно видимое действие для любого элемента
+	const hasAnyVisibleActions = elements?.some(
+		(item) => actions && getVisibleActions<T>(item, actions).length > 0
+	);
 
 	return (
 		<>
@@ -111,7 +117,7 @@ export function Table<T extends { id: number }>({
 									</th>
 								))}
 
-								{actions && actions.length > 0 && (
+								{hasAnyVisibleActions && (
 									<th
 										scope="col"
 										className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"

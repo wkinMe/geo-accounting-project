@@ -1,5 +1,5 @@
 import { Pool, QueryResultRow } from "pg";
-import { DatabaseError, NotFoundError } from "@src/errors/service";
+import { DatabaseError, NotFoundError } from "@shared/service";
 
 // Вспомогательный метод для безопасного выполнения запросов
 export async function executeQuery<T extends QueryResultRow>(

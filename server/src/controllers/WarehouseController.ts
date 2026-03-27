@@ -3,7 +3,11 @@ import { Request, Response } from "express";
 import { WarehouseService } from "@src/services";
 import { baseErrorHandling } from "@src/utils";
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
+import {
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES,
+  USER_ROLES,
+} from "@shared/constants";
 
 export class WarehouseController {
   private _warehouseService: WarehouseService;
@@ -18,10 +22,18 @@ export class WarehouseController {
       // @ts-ignore - пользователь добавляется в req через middleware
       const user = req.user;
 
-      const warehouses = await this._warehouseService.findAll(
-        user?.id,
-        user?.role,
-      );
+      // Контроллер подготавливает фильтры на основе пользователя
+      const filters: Record<string, string> = {};
+
+      if (
+        user.role === USER_ROLES.USER ||
+        user.role === USER_ROLES.MANAGER ||
+        user.role === USER_ROLES.ADMIN
+      ) {
+        filters.organization_id = user.organization_id; // Берем из токена/сессии
+      }
+
+      const warehouses = await this._warehouseService.findAll(filters);
 
       res.status(200).json({
         data: warehouses,
@@ -208,10 +220,20 @@ export class WarehouseController {
         });
       }
 
+      // Контроллер подготавливает фильтры на основе пользователя
+      const filters: Record<string, string> = {};
+
+      if (
+        user.role === USER_ROLES.USER ||
+        user.role === USER_ROLES.MANAGER ||
+        user.role === USER_ROLES.ADMIN
+      ) {
+        filters.organization_id = user.organization_id; // Берем из токена/сессии
+      }
+
       const warehouses = await this._warehouseService.search(
         q.trim(),
-        user?.id,
-        user?.role,
+        filters,
       );
 
       res.status(200).json({

@@ -8,7 +8,7 @@ import {
   NotFoundError,
   ServiceError,
   ValidationError,
-} from "@src/errors/service";
+} from "@shared/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 
 export class MaterialService {

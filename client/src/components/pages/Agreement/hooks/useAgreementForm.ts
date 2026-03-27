@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { warehouseService } from '@/services';
 import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
+
 type AgreementFormStore = AgreementFormState & {
 	setSupplierOrg: (id: number | null) => void;
 	setSupplierManager: (id: number | null) => void;
@@ -60,7 +61,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	});
 
 	const { data: warehouseMaterials } = useQuery({
-		queryKey: ['warehouse-materials', agreement?.data?.supplier_warehouse_id],
+		queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
 		queryFn: () => warehouseService.getMaterials(agreement?.data?.supplier_warehouse_id!),
 		enabled: !!agreement?.data?.supplier_warehouse_id,
 	});
@@ -83,7 +84,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	useEffect(() => {
 		if (isEditing && agreementId) {
-			// Сбрасываем стор перед загрузкой новых данных
 			store.resetForm();
 		}
 	}, [isEditing, agreementId]);
@@ -180,17 +180,23 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			queryClient.invalidateQueries({ queryKey: ['agreements'] });
 			if (isEditing) {
 				queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] });
+
+				queryClient.invalidateQueries({
+					queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
+				});
 			}
 
 			store.resetForm();
 			form.reset();
 			setError(null);
 
-			navigate('/agreements');
+			// Перенаправление через setTimeout, чтобы успел сработать useEffect
+			setTimeout(() => {
+				navigate('/agreements');
+			}, 100);
 		},
 		onError: (err) => {
 			if (isAxiosError(err)) {
-				// @ts-ignore
 				const serverMessage = err.response?.data?.message;
 				setError(serverMessage || 'Ошибка при сохранении договора');
 			} else {
@@ -201,6 +207,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		setError(null);
+
 		await mutateAsync(data);
 	});
 
@@ -208,6 +215,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	useEffect(() => {
 		form.setValue('materials', store.materials, { shouldValidate: true });
 	}, [store.materials, form]);
+
+	useEffect(() => {
+		form.setValue('status', store.status);
+	}, [store.status, form]);
 
 	return {
 		form,

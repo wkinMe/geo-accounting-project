@@ -1,6 +1,6 @@
 // server/src/middleware/auth-middleware.ts
 import { pool } from "@src/db";
-import { UnauthorizedError } from "@src/errors/service";
+import { UnauthorizedError } from "@shared/service";
 import { TokenService } from "@src/services/TokenService";
 import { Request, Response, NextFunction } from "express";
 import { UserRole } from "@shared/models";

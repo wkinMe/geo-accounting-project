@@ -3,10 +3,10 @@ import { WarehouseInfo } from './WarehouseInfo';
 import { WarehouseMaterials } from './WarehouseMaterials';
 import { useQuery } from '@tanstack/react-query';
 import { userService, warehouseService } from '@/services';
+import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
 
 export function Warehouse() {
 	const params = useParams();
-
 	const id = Number(params?.id);
 
 	const { data: profile } = useQuery({
@@ -20,14 +20,31 @@ export function Warehouse() {
 	});
 
 	const role = profile?.data.role;
-	const org_id = profile?.data.organization_id;
+	const userId = profile?.data.id;
+	const orgId = profile?.data.organization_id;
 
-	const isCurrentUserOrg = org_id === warehouse?.data.organization_id;
+	const isCurrentUserOrg = orgId === warehouse?.data.organization_id;
+	const isCurrentUserManager = warehouse?.data.manager?.id === userId;
+
+	// Проверка прав на редактирование
+	const canEditWarehouse =
+		isSuperAdminRole(role) ||
+		(isAdminRole(role) && isCurrentUserOrg) ||
+		(isManagerRole(role) && isCurrentUserManager);
+
+	// Проверка прав на удаление
+	const canDeleteWarehouse = isSuperAdminRole(role) || (isAdminRole(role) && isCurrentUserOrg);
+
+	// Проверка прав на добавление/удаление материалов
+	const canManageMaterials =
+		isSuperAdminRole(role) ||
+		(isAdminRole(role) && isCurrentUserOrg) ||
+		(isManagerRole(role) && isCurrentUserManager);
 
 	return (
 		<>
-			<WarehouseInfo id={id} role={role} isCurrentUserOrg={isCurrentUserOrg} />
-			<WarehouseMaterials id={id} role={role} isCurrentUserOrg={isCurrentUserOrg} />
+			<WarehouseInfo id={id} canEdit={canEditWarehouse} canDelete={canDeleteWarehouse} />
+			<WarehouseMaterials id={id} canManage={canManageMaterials} />
 		</>
 	);
 }

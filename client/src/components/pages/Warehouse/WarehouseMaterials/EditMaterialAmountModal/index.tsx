@@ -43,10 +43,8 @@ export function EditAmountModal({
 				</p>
 				<NumberField
 					label="Количество"
-					min="0"
-					step="1"
 					value={amount}
-					onChange={(e) => setAmount(Number(e.target.value))}
+					onChange={(val) => setAmount(val)}
 					autoFocus
 					required
 				/>

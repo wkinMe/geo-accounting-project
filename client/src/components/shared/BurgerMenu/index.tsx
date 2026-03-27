@@ -13,8 +13,8 @@ import {
 } from 'react-icons/fa';
 import { userService } from '@/services/userService';
 import { useRole } from '@/hooks';
-import { USER_ROLES, USER_ROLES_MAP } from '@/constants';
 import { type UserRole } from '@shared/models';
+import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
 
 interface MenuItem {
 	path: string;

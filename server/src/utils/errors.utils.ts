@@ -5,7 +5,7 @@ import {
   ServiceError,
   UnauthorizedError,
   ValidationError,
-} from "@src/errors/service";
+} from "@shared/service";
 
 export function baseErrorHandling(e: unknown, res: Response) {
   if (e instanceof UnauthorizedError) {

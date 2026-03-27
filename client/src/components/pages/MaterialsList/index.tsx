@@ -10,7 +10,7 @@ import { MaterialModal } from './components';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
 
-type TableMaterial = {
+export type TableMaterial = {
 	id: number;
 	name: string;
 	unit: string;
@@ -22,8 +22,8 @@ const columns: Column<TableMaterial>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
 	{ key: 'unit', label: 'Ед. измерения' },
-	{ key: 'created_at', label: 'Дата создания' },
-	{ key: 'updated_at', label: 'Дата обновления' },
+	{ key: 'created_at', label: 'Дата добавления' },
+	{ key: 'updated_at', label: 'Дата изменения' },
 ];
 
 const mapMaterialToTableItem = (material: any): TableMaterial => ({

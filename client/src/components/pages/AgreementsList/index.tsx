@@ -1,5 +1,5 @@
 // client/src/pages/agreements/AgreementsList.tsx
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { agreementService } from '@/services/agreementService';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
@@ -8,9 +8,9 @@ import { MdEdit } from 'react-icons/md';
 import { useNavigate } from 'react-router';
 import { mapAgreementToTableItem } from './utils';
 import type { TableAgreement } from './types';
-import { useAgreementPermissions } from './hooks/useAgreementPermissions';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
+import { useAgreementBasePermissions } from './hooks';
 
 const columns: Column<TableAgreement>[] = [
 	{ key: 'id', label: 'ID' },
@@ -61,20 +61,27 @@ export function AgreementsList() {
 		navigate(`/agreements/${id}/edit`);
 	};
 
-	const elements =
-		searchQuery && searchedAgreements
-			? searchedAgreements.data.map(mapAgreementToTableItem)
-			: agreements?.data.map(mapAgreementToTableItem) || [];
+	// Получаем функции проверки прав (вызываем хук один раз)
+	const { canEdit, canDelete } = useAgreementBasePermissions();
 
-	// Просто маппим элементы, без useMemo
-	const elementsWithPermissions = elements.map((item) => {
-		const { canEdit, canDelete } = useAgreementPermissions(item);
-		return {
+	// Получаем базовые элементы
+	const baseElements = useMemo(() => {
+		const items =
+			searchQuery && searchedAgreements
+				? searchedAgreements.data.map(mapAgreementToTableItem)
+				: agreements?.data.map(mapAgreementToTableItem) || [];
+
+		return items;
+	}, [searchQuery, searchedAgreements, agreements]);
+
+	// Добавляем права к каждому элементу, используя функции из хука
+	const elementsWithPermissions = useMemo(() => {
+		return baseElements.map((item) => ({
 			...item,
-			_canEdit: canEdit(item),
-			_canDelete: canDelete(item),
-		};
-	});
+			_canEdit: canEdit(),
+			_canDelete: canDelete(),
+		}));
+	}, [baseElements, canEdit, canDelete]);
 
 	const actions: Action<TableAgreement>[] = [
 		{
@@ -86,7 +93,7 @@ export function AgreementsList() {
 			name: 'Редактировать',
 			action: (item: TableAgreement) => handleEdit(item.id),
 			icon: <MdEdit />,
-			hidden: (item: any) => !item._canEdit,
+			hidden: (item: TableAgreement) => !(item as any)._canEdit,
 		},
 		{
 			name: 'Удалить',
@@ -95,7 +102,7 @@ export function AgreementsList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item: any) => !item._canDelete,
+			hidden: (item: TableAgreement) => !(item as any)._canDelete,
 		},
 	];
 
@@ -114,3 +121,4 @@ export function AgreementsList() {
 		</>
 	);
 }
+

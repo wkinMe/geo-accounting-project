@@ -1,6 +1,6 @@
 // client/src/pages/Agreements/components/PartySection/index.tsx
 import { useFormContext, Controller } from 'react-hook-form';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import type { Organization, User, Warehouse } from '@shared/models';
 import type { PartyType, AgreementFormValues } from '../../types';
@@ -11,12 +11,16 @@ import {
 	useUsersByOrganization,
 	useWarehousesByOrganization,
 } from '@/hooks';
+import { type AgreementStatus } from '@shared/constants';
 
 interface PartySectionProps {
 	type: PartyType;
+	isEditing?: boolean;
+	canEdit?: boolean;
+	currentStatus?: AgreementStatus;
 }
 
-export function PartySection({ type }: PartySectionProps) {
+export function PartySection({ type, isEditing = false, canEdit = true }: PartySectionProps) {
 	const isSupplier = type === 'supplier';
 	const {
 		control,
@@ -58,6 +62,7 @@ export function PartySection({ type }: PartySectionProps) {
 
 	// При изменении организации сбрасываем менеджера и склад
 	const handleOrgChange = (id: number | null) => {
+		if (!canEdit) return;
 		setOrg(id);
 		setManager(null);
 		setWarehouse(null);
@@ -100,7 +105,15 @@ export function PartySection({ type }: PartySectionProps) {
 
 	return (
 		<div className="space-y-4">
-			<h2 className="text-lg font-semibold">{isSupplier ? 'Поставщик' : 'Покупатель'}</h2>
+			<h2 className="text-lg font-semibold">
+				{isSupplier ? 'Поставщик' : 'Покупатель'}
+				{!canEdit && isEditing && (
+					<span className="ml-2 text-sm font-normal text-amber-600 dark:text-amber-400">
+						(только просмотр)
+					</span>
+				)}
+			</h2>
+
 			<div className="grid grid-cols-3 gap-4">
 				<Controller
 					name={orgField}
@@ -120,29 +133,7 @@ export function PartySection({ type }: PartySectionProps) {
 							isLoading={isLoadingOrgs}
 							error={errors[orgField]?.message}
 							required
-						/>
-					)}
-				/>
-
-				<Controller
-					name={managerField}
-					control={control}
-					render={({ field }) => (
-						<SearchableSelect<User>
-							label="Ответственное лицо"
-							value={managerId}
-							onChange={(id) => {
-								setManager(id);
-								field.onChange(id);
-							}}
-							options={filteredUsers}
-							onSearch={setManagerSearchQuery}
-							getOptionLabel={getUserLabel}
-							placeholder="Поиск сотрудника..."
-							isLoading={isLoadingUsers}
-							disabled={!orgId}
-							error={errors[managerField]?.message}
-							required
+							disabled={!canEdit}
 						/>
 					)}
 				/>
@@ -155,6 +146,7 @@ export function PartySection({ type }: PartySectionProps) {
 							label="Склад"
 							value={warehouseId}
 							onChange={(id) => {
+								if (!canEdit) return;
 								setWarehouse(id);
 								field.onChange(id);
 							}}
@@ -163,8 +155,32 @@ export function PartySection({ type }: PartySectionProps) {
 							getOptionLabel={(warehouse) => warehouse.name}
 							placeholder="Поиск склада..."
 							isLoading={isLoadingWarehouses}
-							disabled={!orgId}
+							disabled={!orgId || !canEdit}
 							error={errors[warehouseField]?.message}
+							required
+						/>
+					)}
+				/>
+
+				<Controller
+					name={managerField}
+					control={control}
+					render={({ field }) => (
+						<SearchableSelect<User>
+							label="Ответственное лицо"
+							value={managerId}
+							onChange={(id) => {
+								if (!canEdit) return;
+								setManager(id);
+								field.onChange(id);
+							}}
+							options={filteredUsers}
+							onSearch={setManagerSearchQuery}
+							getOptionLabel={getUserLabel}
+							placeholder="Поиск сотрудника..."
+							isLoading={isLoadingUsers}
+							disabled={!orgId || !canEdit}
+							error={errors[managerField]?.message}
 							required
 						/>
 					)}

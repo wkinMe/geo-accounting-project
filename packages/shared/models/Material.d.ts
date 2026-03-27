@@ -9,7 +9,10 @@ export interface Material extends BaseModel {
 export interface WarehouseMaterial {
   warehouse_id: number;
   material_id: number;
+  unit: string;
   amount: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // Промежуточная таблица agreements и materials
