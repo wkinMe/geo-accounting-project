@@ -13,6 +13,7 @@ import { Table } from '@/components/shared/Table';
 const columns: Column<TableMaterial>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
+	{ key: 'amount', label: 'Количество' },
 	{ key: 'unit', label: 'Ед. измерения' },
 	{ key: 'created_at', label: 'Дата добавления' },
 	{ key: 'updated_at', label: 'Дата обновления' },

@@ -29,7 +29,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 
 	const { data: displayMaterials } = useMaterialsByWarehouse(
 		supplierWarehouse,
-		materialSearchQuery
+		materialSearchQuery,
 	);
 
 	const {

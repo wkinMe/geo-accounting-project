@@ -194,8 +194,6 @@ export class AgreementController {
     try {
       const id = Number(req.params.id);
       const { updateData, materials } = req.body;
-      // @ts-ignore - пользователь добавляется через middleware
-      const userId = req.user?.id;
 
       // Валидация ID
       if (isNaN(id) || id <= 0) {

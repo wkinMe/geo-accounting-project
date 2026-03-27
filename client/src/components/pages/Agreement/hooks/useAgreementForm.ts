@@ -61,7 +61,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	});
 
 	const { data: warehouseMaterials } = useQuery({
-		queryKey: ['warehouse-materials', agreement?.data?.supplier_warehouse_id],
+		queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
 		queryFn: () => warehouseService.getMaterials(agreement?.data?.supplier_warehouse_id!),
 		enabled: !!agreement?.data?.supplier_warehouse_id,
 	});
@@ -180,6 +180,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			queryClient.invalidateQueries({ queryKey: ['agreements'] });
 			if (isEditing) {
 				queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] });
+
+				queryClient.invalidateQueries({
+					queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
+				});
 			}
 
 			store.resetForm();
@@ -193,7 +197,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		},
 		onError: (err) => {
 			if (isAxiosError(err)) {
-				// @ts-ignore
 				const serverMessage = err.response?.data?.message;
 				setError(serverMessage || 'Ошибка при сохранении договора');
 			} else {

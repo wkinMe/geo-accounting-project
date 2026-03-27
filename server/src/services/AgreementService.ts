@@ -16,16 +16,19 @@ import {
   Warehouse,
 } from "@shared/models";
 import { AgreementCreateParams, AgreementUpdateParams } from "@shared/types";
-import { ERROR_MESSAGES } from "@shared/constants";
+import { ERROR_MESSAGES, IRREVERSIBLE_STATUSES } from "@shared/constants";
 import { UserDataDTO } from "@shared/dto";
 import { updateTimestamp } from "../utils/update.utils";
+import { WarehouseService } from "./WarehousesService";
 
 export class AgreementService {
   private _db: Pool;
   private entityName = "agreement";
+  private _warehouseService: WarehouseService;
 
   constructor(dbConnection: Pool) {
     this._db = dbConnection;
+    this._warehouseService = new WarehouseService(dbConnection);
   }
 
   async findAll(user: UserDataDTO): Promise<AgreementWithDetails[]> {
@@ -497,6 +500,8 @@ export class AgreementService {
     try {
       // Проверяем существование соглашения
       const existingAgreement = await this.findById(id);
+      const oldStatus = existingAgreement.status;
+      const newStatus = status || oldStatus;
 
       if (!existingAgreement) {
         throw new NotFoundError(
@@ -662,7 +667,6 @@ export class AgreementService {
         paramIndex++;
       }
 
-      // Добавляем updated_at
       fields.push(`updated_at = CURRENT_TIMESTAMP`);
 
       // Начинаем транзакцию
@@ -671,81 +675,89 @@ export class AgreementService {
       try {
         await client.query("BEGIN");
 
-        // Если есть поля для обновления в agreements
+        // Обновляем agreement
         if (fields.length > 0) {
-          values.push(id); // Добавляем id в конец для WHERE условия
-
+          values.push(id);
           const updateAgreementQuery = `
-            UPDATE agreements 
-            SET ${fields.join(", ")}
-            WHERE id = $${paramIndex}
-            RETURNING *
-          `;
-
+          UPDATE agreements 
+          SET ${fields.join(", ")}
+          WHERE id = $${paramIndex}
+          RETURNING *
+        `;
           await client.query(updateAgreementQuery, values);
         }
 
-        // Если переданы материалы, обновляем agreement_material
-        if (materials !== undefined) {
-          if (!Array.isArray(materials)) {
-            throw new ValidationError(
-              "Materials must be an array",
-              "update",
-              "materials",
-              materials,
-            );
-          }
+        // Сохраняем старые материалы для логики возврата
+        const oldMaterials = await this.getAgreementMaterials(id);
 
-          // Удаляем старые материалы
+        // Обновляем материалы
+        if (materials !== undefined) {
           await client.query(
             "DELETE FROM agreement_material WHERE agreement_id = $1",
             [id],
           );
 
-          // Если массив не пустой, добавляем новые материалы
           if (materials.length > 0) {
             for (const material of materials) {
-              // Проверяем material_id
-              if (!material.material_id || material.material_id <= 0) {
-                throw new ValidationError(
-                  ERROR_MESSAGES.INVALID_ID_FORMAT("Material"),
-                  "update",
-                  "material_id",
-                  material.material_id.toString(),
-                );
-              }
-
-              // Проверяем существование материала
-              const materialCheck = await client.query(
-                "SELECT id FROM materials WHERE id = $1",
-                [material.material_id],
-              );
-              if (materialCheck.rows.length === 0) {
-                throw new NotFoundError(
-                  ERROR_MESSAGES.NOT_FOUND("Material", material.material_id),
-                  "Material",
-                  material.material_id.toString(),
-                );
-              }
-
-              // Проверяем, что amount положительный
-              if (!material.amount || material.amount <= 0) {
-                throw new ValidationError(
-                  "Amount must be positive",
-                  "update",
-                  "amount",
-                  material.amount.toString(),
-                );
-              }
-
               await client.query(
                 `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-                 VALUES ($1, $2, $3)`,
+               VALUES ($1, $2, $3)`,
                 [id, material.material_id, material.amount],
               );
             }
           }
-          // Если materials = [] - просто удаляем все материалы (соглашение без материалов)
+        }
+
+        // Получаем актуальные материалы после обновления
+        const currentMaterials =
+          materials !== undefined
+            ? materials
+            : await this.getAgreementMaterials(id);
+
+        // Переход из неактивного в активный статус (списываем)
+        if (
+          this.isTransitionToActive(oldStatus, newStatus) &&
+          currentMaterials.length > 0
+        ) {
+          // Проверяем наличие материалов на складе
+          await this.checkMaterialsAvailability(
+            existingAgreement.supplier_warehouse_id,
+            currentMaterials,
+          );
+
+          // Списываем материалы (уменьшаем количество на складе)
+          for (const material of currentMaterials) {
+            const currentStock = await this.getMaterialAmountFromWarehouse(
+              existingAgreement.supplier_warehouse_id,
+              material.material_id,
+            );
+
+            await this._warehouseService.updateMaterialAmount(
+              existingAgreement.supplier_warehouse_id,
+              material.material_id,
+              currentStock - material.amount,
+            );
+          }
+        }
+
+        // Переход из активного в неактивный статус (возвращаем)
+        if (
+          this.isTransitionFromActive(oldStatus, newStatus) &&
+          oldMaterials.length > 0
+        ) {
+          // Возвращаем материалы на склад (увеличиваем количество)
+          for (const material of oldMaterials) {
+            const currentStock = await this.getMaterialAmountFromWarehouse(
+              existingAgreement.supplier_warehouse_id,
+              material.material_id,
+            );
+
+            await this._warehouseService.updateMaterialAmount(
+              existingAgreement.supplier_warehouse_id,
+              material.material_id,
+              currentStock + material.amount,
+            );
+          }
         }
 
         await client.query("COMMIT");
@@ -870,6 +882,82 @@ export class AgreementService {
         "search",
         error instanceof Error ? error : new Error(String(error)),
       );
+    }
+  }
+
+  /**
+   * Определяет, является ли статус активным (требующим списания материалов)
+   */
+  private isActiveStatus(status: string): boolean {
+    const activeStatuses = IRREVERSIBLE_STATUSES as string[];
+    return activeStatuses.includes(status);
+  }
+
+  /**
+   * Определяет, был ли переход из неактивного в активный статус
+   */
+  private isTransitionToActive(oldStatus: string, newStatus: string): boolean {
+    return !this.isActiveStatus(oldStatus) && this.isActiveStatus(newStatus);
+  }
+
+  /**
+   * Определяет, был ли переход из активного в неактивный статус
+   */
+  private isTransitionFromActive(
+    oldStatus: string,
+    newStatus: string,
+  ): boolean {
+    return this.isActiveStatus(oldStatus) && !this.isActiveStatus(newStatus);
+  }
+
+  /**
+   * Получает материалы договора
+   */
+  private async getAgreementMaterials(
+    agreementId: number,
+  ): Promise<Array<{ material_id: number; amount: number }>> {
+    const result = await executeQuery<{ material_id: number; amount: number }>(
+      this._db,
+      "getAgreementMaterials",
+      "SELECT material_id, amount FROM agreement_material WHERE agreement_id = $1",
+      [agreementId],
+    );
+    return result;
+  }
+
+  /**
+   * Получает количество материала на складе
+   */
+  private async getMaterialAmountFromWarehouse(
+    warehouseId: number,
+    materialId: number,
+  ): Promise<number> {
+    const materials = await this._warehouseService.getMaterials(warehouseId);
+    const material = materials.find((m) => m.material_id === materialId);
+    return material?.amount || 0;
+  }
+
+  /**
+   * Проверяет наличие достаточного количества материалов на складе
+   */
+  private async checkMaterialsAvailability(
+    warehouseId: number,
+    materials: Array<{ material_id: number; amount: number }>,
+  ): Promise<void> {
+    for (const material of materials) {
+      const currentAmount = await this.getMaterialAmountFromWarehouse(
+        warehouseId,
+        material.material_id,
+      );
+
+      if (currentAmount < material.amount) {
+        throw new ValidationError(
+          `Недостаточно материала. Доступно: ${currentAmount}, требуется: ${material.amount}`,
+          "checkMaterialsAvailability",
+          "materials",
+          material.amount.toString(),
+        );
+      }
     }
   }
 }
