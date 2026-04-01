@@ -166,7 +166,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 						customer_id: data.customerManager!,
 						supplier_warehouse_id: data.supplierWarehouse!,
 						customer_warehouse_id: data.customerWarehouse!,
-						status: 'draft',
+						status: data.status,
 					},
 					materials: data.materials.map((m) => ({
 						material_id: m.material_id,

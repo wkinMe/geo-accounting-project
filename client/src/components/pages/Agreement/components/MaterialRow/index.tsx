@@ -31,8 +31,8 @@ export function MaterialRow({ material, canEdit, onUpdateAmount, onRemove }: Mat
 			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
 				{material.maxAmount}
 			</td>
-			<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-				{canEdit && (
+			{canEdit && (
+				<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 					<button
 						type="button"
 						onClick={() => onRemove(material.id)}
@@ -41,8 +41,8 @@ export function MaterialRow({ material, canEdit, onUpdateAmount, onRemove }: Mat
 					>
 						<FaTrash />
 					</button>
-				)}
-			</td>
+				</td>
+			)}
 		</tr>
 	);
 }

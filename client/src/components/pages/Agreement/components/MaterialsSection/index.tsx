@@ -29,7 +29,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 
 	const { data: displayMaterials } = useMaterialsByWarehouse(
 		supplierWarehouse,
-		materialSearchQuery,
+		materialSearchQuery
 	);
 
 	const {
@@ -80,7 +80,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 						value={materialSearchQuery}
 						onSearch={setMaterialSearchQuery}
 						placeholder="Поиск материалов..."
-						disabled={!supplierWarehouse || !canEdit}
+						disabled={!supplierWarehouse}
 						ms={0}
 						onFocus={handleFocus}
 						onBlur={handleBlur}
@@ -136,9 +136,11 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
 									Доступно
 								</th>
-								<th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-									Действия
-								</th>
+								{canEdit && (
+									<th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+										Действия
+									</th>
+								)}
 							</tr>
 						</thead>
 						<tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">

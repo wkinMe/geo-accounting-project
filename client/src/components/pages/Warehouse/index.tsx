@@ -4,6 +4,7 @@ import { WarehouseMaterials } from './WarehouseMaterials';
 import { useQuery } from '@tanstack/react-query';
 import { userService, warehouseService } from '@/services';
 import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
+import { WarehouseHistory } from './WarehouseHistory';
 
 export function Warehouse() {
 	const params = useParams();
@@ -45,6 +46,7 @@ export function Warehouse() {
 		<>
 			<WarehouseInfo id={id} canEdit={canEditWarehouse} canDelete={canDeleteWarehouse} />
 			<WarehouseMaterials id={id} canManage={canManageMaterials} />
+			<WarehouseHistory warehouseId={id} />
 		</>
 	);
 }

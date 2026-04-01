@@ -641,6 +641,7 @@ export class WarehouseService {
     warehouseId: number,
     materialId: number,
     amount: number,
+    userId?: number,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -727,6 +728,7 @@ export class WarehouseService {
         oldAmount,
         newAmount,
         delta: amount,
+        userId,
         description: `Добавлено ${amount} единиц материала`,
       });
 
@@ -752,6 +754,7 @@ export class WarehouseService {
     warehouseId: number,
     materialId: number,
     amount: number,
+    userId?: number,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -820,6 +823,7 @@ export class WarehouseService {
         oldAmount,
         newAmount: amount,
         delta,
+        userId,
         description: `Количество изменено с ${oldAmount} на ${amount}`,
       });
 
@@ -844,6 +848,7 @@ export class WarehouseService {
   async removeMaterial(
     warehouseId: number,
     materialId: number,
+    userId?: number,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -894,6 +899,7 @@ export class WarehouseService {
         oldAmount,
         newAmount: 0,
         delta: -oldAmount,
+        userId,
         description: `Удален материал (было ${oldAmount} единиц)`,
       });
 
@@ -1110,6 +1116,42 @@ export class WarehouseService {
         "searchByOrganizationId",
         error instanceof Error ? error : new Error(String(error)),
       );
+    }
+  }
+
+  /**
+   * Получает количество материала на складе
+   */
+  async getMaterialAmountFromWarehouse(
+    warehouseId: number,
+    materialId: number,
+  ): Promise<number> {
+    const materials = await this.getMaterials(warehouseId);
+    const material = materials.find((m) => m.material_id === materialId);
+    return material?.amount || 0;
+  }
+
+  /**
+   * Проверяет наличие достаточного количества материалов на складе
+   */
+  async checkMaterialsAvailability(
+    warehouseId: number,
+    materials: Array<{ material_id: number; amount: number }>,
+  ): Promise<void> {
+    for (const material of materials) {
+      const currentAmount = await this.getMaterialAmountFromWarehouse(
+        warehouseId,
+        material.material_id,
+      );
+
+      if (currentAmount < material.amount) {
+        throw new ValidationError(
+          `Недостаточно материала. Доступно: ${currentAmount}, требуется: ${material.amount}`,
+          "checkMaterialsAvailability",
+          "materials",
+          material.amount.toString(),
+        );
+      }
     }
   }
 }

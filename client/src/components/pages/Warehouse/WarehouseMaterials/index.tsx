@@ -56,6 +56,7 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 			warehouseService.removeMaterial(id, materialId),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
 		},
 	});
 
@@ -65,6 +66,7 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 			warehouseService.updateMaterialAmount(id, materialId, amount),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
 			setEditingMaterial(null);
 		},
 	});
@@ -138,6 +140,7 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 				warehouseId={id}
 				onSuccess={() => {
 					queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
+					queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
 				}}
 			/>
 
