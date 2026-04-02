@@ -4,6 +4,7 @@ import organizationsRouter from "./organizations.route";
 import usersRouter from "./users.route";
 import warehousesRouter from "./warehouses.route";
 import agreementsRouter from "./agreements.route";
+import warehouseHistoryRouter from "./warehouseHistory.route";
 
 const router = Router();
 
@@ -12,6 +13,7 @@ router.use("/organizations", organizationsRouter);
 router.use("/users", usersRouter);
 router.use("/warehouses", warehousesRouter);
 router.use("/agreements", agreementsRouter);
+router.use("/warehouse-history", warehouseHistoryRouter);
 
 export default router;
   

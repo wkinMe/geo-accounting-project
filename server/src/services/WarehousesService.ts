@@ -19,12 +19,16 @@ import {
 } from "@shared/service";
 import { executeQuery, getSingleResult } from "@src/utils";
 import { updateTimestamp } from "../utils/update.utils";
+import { WarehouseHistoryService } from "./WarehouseHistoryService";
+import { WAREHOUSE_HISTORY_TYPES } from "@shared/constants/warehouseHistoryTypes";
 
 export class WarehouseService {
   private _db: Pool;
+  private _historyService: WarehouseHistoryService;
 
   constructor(dbConnection: Pool) {
     this._db = dbConnection;
+    this._historyService = new WarehouseHistoryService(dbConnection);
   }
 
   async findAll(
@@ -637,6 +641,7 @@ export class WarehouseService {
     warehouseId: number,
     materialId: number,
     amount: number,
+    userId?: number,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -657,18 +662,38 @@ export class WarehouseService {
         );
       }
 
+      let oldAmount = 0;
+      let newAmount = 0;
+
       const updateResult = await executeQuery<WarehouseMaterial>(
         this._db,
         "updateExistingMaterial",
         `UPDATE warehouse_material 
-         SET amount = amount + $1, updated_at = CURRENT_TIMESTAMP
-         WHERE warehouse_id = $2 AND material_id = $3
-         RETURNING *`,
+       SET amount = amount + $1, updated_at = CURRENT_TIMESTAMP
+       WHERE warehouse_id = $2 AND material_id = $3
+       RETURNING *`,
         [amount, warehouseId, materialId],
       );
 
       if (updateResult.length > 0) {
+        // Материал уже был на складе
+        const existingMaterial = updateResult[0];
+        oldAmount = existingMaterial.amount - amount;
+        newAmount = existingMaterial.amount;
+
         await updateTimestamp(this._db, `warehouses`, warehouseId);
+
+        // Записываем историю
+        await this._historyService.createEntry({
+          warehouseId,
+          materialId,
+          operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_ADD,
+          oldAmount,
+          newAmount,
+          delta: amount,
+          description: `Добавлено ${amount} единиц материала`,
+        });
+
         return updateResult[0];
       }
 
@@ -690,7 +715,23 @@ export class WarehouseService {
         );
       }
 
+      oldAmount = 0;
+      newAmount = amount;
+
       await updateTimestamp(this._db, `warehouses`, warehouseId);
+
+      // Записываем историю
+      await this._historyService.createEntry({
+        warehouseId,
+        materialId,
+        operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_ADD,
+        oldAmount,
+        newAmount,
+        delta: amount,
+        userId,
+        description: `Добавлено ${amount} единиц материала`,
+      });
+
       return insertResult[0];
     } catch (error) {
       if (
@@ -713,6 +754,8 @@ export class WarehouseService {
     warehouseId: number,
     materialId: number,
     amount: number,
+    userId?: number,
+    agreementUpdate = false,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -733,10 +776,10 @@ export class WarehouseService {
         );
       }
 
-      const existingCheck = await executeQuery<{ id: number }>(
+      const existingCheck = await executeQuery<{ id: number; amount: number }>(
         this._db,
         "checkMaterialInWarehouse",
-        "SELECT id FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
+        "SELECT id, amount FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
         [warehouseId, materialId],
       );
 
@@ -749,13 +792,16 @@ export class WarehouseService {
         );
       }
 
+      const oldAmount = existingCheck[0].amount;
+      const delta = amount - oldAmount;
+
       const rows = await executeQuery<WarehouseMaterial>(
         this._db,
         "updateMaterialAmount",
         `UPDATE warehouse_material 
-         SET amount = $1, updated_at = CURRENT_TIMESTAMP
-         WHERE warehouse_id = $2 AND material_id = $3
-         RETURNING *`,
+       SET amount = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE warehouse_id = $2 AND material_id = $3
+       RETURNING *`,
         [amount, warehouseId, materialId],
       );
 
@@ -769,6 +815,21 @@ export class WarehouseService {
       }
 
       await updateTimestamp(this._db, `warehouses`, warehouseId);
+
+      if (!agreementUpdate) {
+        // Записываем историю
+        await this._historyService.createEntry({
+          warehouseId,
+          materialId,
+          operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE,
+          oldAmount,
+          newAmount: amount,
+          delta,
+          userId,
+          description: `Количество изменено с ${oldAmount} на ${amount}`,
+        });
+      }
+
       return rows[0];
     } catch (error) {
       if (
@@ -790,14 +851,15 @@ export class WarehouseService {
   async removeMaterial(
     warehouseId: number,
     materialId: number,
+    userId?: number,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
 
-      const existingCheck = await executeQuery<{ id: number }>(
+      const existingCheck = await executeQuery<{ id: number; amount: number }>(
         this._db,
         "checkMaterialInWarehouse",
-        "SELECT id FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
+        "SELECT id, amount FROM warehouse_material WHERE warehouse_id = $1 AND material_id = $2",
         [warehouseId, materialId],
       );
 
@@ -809,6 +871,8 @@ export class WarehouseService {
           materialId,
         );
       }
+
+      const oldAmount = existingCheck[0].amount;
 
       const rows = await executeQuery<WarehouseMaterial>(
         this._db,
@@ -829,6 +893,19 @@ export class WarehouseService {
       }
 
       await updateTimestamp(this._db, `warehouses`, warehouseId);
+
+      // Записываем историю
+      await this._historyService.createEntry({
+        warehouseId,
+        materialId,
+        operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_REMOVE,
+        oldAmount,
+        newAmount: 0,
+        delta: -oldAmount,
+        userId,
+        description: `Удален материал (было ${oldAmount} единиц)`,
+      });
+
       return rows[0];
     } catch (error) {
       if (
@@ -1042,6 +1119,42 @@ export class WarehouseService {
         "searchByOrganizationId",
         error instanceof Error ? error : new Error(String(error)),
       );
+    }
+  }
+
+  /**
+   * Получает количество материала на складе
+   */
+  async getMaterialAmountFromWarehouse(
+    warehouseId: number,
+    materialId: number,
+  ): Promise<number> {
+    const materials = await this.getMaterials(warehouseId);
+    const material = materials.find((m) => m.material_id === materialId);
+    return material?.amount || 0;
+  }
+
+  /**
+   * Проверяет наличие достаточного количества материалов на складе
+   */
+  async checkMaterialsAvailability(
+    warehouseId: number,
+    materials: Array<{ material_id: number; amount: number }>,
+  ): Promise<void> {
+    for (const material of materials) {
+      const currentAmount = await this.getMaterialAmountFromWarehouse(
+        warehouseId,
+        material.material_id,
+      );
+
+      if (currentAmount < material.amount) {
+        throw new ValidationError(
+          `Недостаточно материала. Доступно: ${currentAmount}, требуется: ${material.amount}`,
+          "checkMaterialsAvailability",
+          "materials",
+          material.amount.toString(),
+        );
+      }
     }
   }
 }

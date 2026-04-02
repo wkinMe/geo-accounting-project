@@ -231,10 +231,7 @@ export class WarehouseController {
         filters.organization_id = user.organization_id; // Берем из токена/сессии
       }
 
-      const warehouses = await this._warehouseService.search(
-        q.trim(),
-        filters,
-      );
+      const warehouses = await this._warehouseService.search(q.trim(), filters);
 
       res.status(200).json({
         data: warehouses,
@@ -322,7 +319,6 @@ export class WarehouseController {
       baseErrorHandling(e, res);
     }
   }
-
   // Добавление материала на склад
   async addMaterial(
     req: Request<{ id: string }, {}, { materialId: number; amount: number }>,
@@ -331,6 +327,8 @@ export class WarehouseController {
     try {
       const warehouseId = Number(req.params.id);
       const { materialId, amount } = req.body;
+      // @ts-ignore - пользователь добавляется через middleware
+      const userId = req.user?.id;
 
       if (isNaN(warehouseId) || warehouseId <= 0) {
         return res.status(400).json({
@@ -354,6 +352,7 @@ export class WarehouseController {
         warehouseId,
         materialId,
         amount,
+        userId,
       );
 
       res.status(201).json({
@@ -374,6 +373,8 @@ export class WarehouseController {
       const warehouseId = Number(req.params.id);
       const materialId = Number(req.params.materialId);
       const { amount } = req.body;
+      // @ts-ignore - пользователь добавляется через middleware
+      const userId = req.user?.id;
 
       if (isNaN(warehouseId) || warehouseId <= 0) {
         return res.status(400).json({
@@ -397,6 +398,7 @@ export class WarehouseController {
         warehouseId,
         materialId,
         amount,
+        userId,
       );
 
       res.status(200).json({
@@ -416,6 +418,8 @@ export class WarehouseController {
     try {
       const warehouseId = Number(req.params.id);
       const materialId = Number(req.params.materialId);
+      // @ts-ignore - пользователь добавляется через middleware
+      const userId = req.user?.id;
 
       if (isNaN(warehouseId) || warehouseId <= 0) {
         return res.status(400).json({
@@ -432,6 +436,7 @@ export class WarehouseController {
       const result = await this._warehouseService.removeMaterial(
         warehouseId,
         materialId,
+        userId,
       );
 
       res.status(200).json({

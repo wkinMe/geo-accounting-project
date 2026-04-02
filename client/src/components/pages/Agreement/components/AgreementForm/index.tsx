@@ -21,7 +21,9 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const { id } = useParams();
 	const agreementId = id ? Number(id) : undefined;
 
-	const isViewMode = mode === 'view' || (agreementId && window.location.pathname.includes('/view'));
+	const isViewMode = mode === 'view';
+	const isEditMode = mode === 'edit';
+	const isCreateMode = mode === 'create';
 
 	const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 	const [pendingData, setPendingData] = useState<AgreementFormValues | null>(null);
@@ -35,6 +37,8 @@ export function AgreementForm({ mode = 'create' }: Props) {
 
 	// Проверяем, можно ли редактировать форму
 	const canEdit =
+		isEditMode ||
+		isCreateMode ||
 		!agreementId ||
 		(initialStatus && !IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus));
 
@@ -134,7 +138,7 @@ export function AgreementForm({ mode = 'create' }: Props) {
 
 					<MaterialsSection
 						isEditing={!!agreementId}
-						canEdit={canEdit}
+						canEdit={!isViewMode}
 						currentStatus={currentStatus}
 					/>
 
