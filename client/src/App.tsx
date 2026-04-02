@@ -6,7 +6,9 @@ import { BurgerMenu } from '@/components/shared/BurgerMenu';
 // Отдельный компонент для контента
 const Content = memo(({ isMenuOpen }: { isMenuOpen: boolean }) => (
 	<main>
-		<div className={`pt-6 max-w-7xl mx-auto p-4 transition-all duration-300 ${isMenuOpen ? 'blur-sm' : ''}`}>
+		<div
+			className={`pt-6 max-w-[90vw] mx-auto p-4 transition-all duration-300 ${isMenuOpen ? 'blur-sm' : ''}`}
+		>
 			<Outlet />
 		</div>
 	</main>
