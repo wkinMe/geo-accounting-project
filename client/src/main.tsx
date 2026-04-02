@@ -8,7 +8,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { RoleRoute } from './components/shared/RoleRoute';
 import { Auth } from './components/pages/Auth';
-import { Map } from './components/pages/Map';
+import { MapPage } from './components/pages/MapPage';
 import { WarehousesList } from './components/pages/WarehousesList';
 import { UsersList } from './components/pages/UsersList';
 import { OrganizationsList } from './components/pages/OrganizationsList';
@@ -43,7 +43,7 @@ createRoot(document.getElementById('root')!).render(
 						<Route index element={<Navigate to="/map" replace />} />
 
 						{/* Карта - доступна всем авторизованным */}
-						<Route path="map" element={<Map />} />
+						<Route path="map" element={<MapPage />} />
 
 						{/* Склады - доступны всем авторизованным */}
 						<Route path="warehouses">
