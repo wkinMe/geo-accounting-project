@@ -8,6 +8,8 @@ import { organizationService } from '@/services/organizationService';
 import { userService } from '@/services/userService';
 import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router';
+import { useProfile } from '@/hooks';
+import { atLeastManager } from '@/utils';
 
 const GOMEL_COORDINATES: [number, number] = [52.4345, 30.95];
 
@@ -46,24 +48,31 @@ const createCustomIcon = (color: string) => {
 export function Map() {
 	const navigate = useNavigate();
 
-	const { data: currentUserData } = useQuery({
-		queryKey: ['profile'],
-		queryFn: () => userService.getProfile(),
-	});
+	const profileQuery = useProfile();
+	const profile = profileQuery.data?.data;
 
 	const { data: warehousesData, isLoading: isLoadingWarehouses } = useQuery({
 		queryKey: ['warehouses'],
-		queryFn: () => warehouseService.findAll(),
+		queryFn: () =>
+			atLeastManager(profile?.role)
+				? warehouseService.findAll()
+				: warehouseService.findByOrganizationId(profile?.organization_id || 0),
 	});
 
 	const { data: organizationsData, isLoading: isLoadingOrganizations } = useQuery({
 		queryKey: ['organizations'],
-		queryFn: () => organizationService.findAll(),
+		queryFn: async () => {
+			if (atLeastManager(profile?.role)) {
+				return organizationService.findAll();
+			} else {
+				const singleOrg = await organizationService.findById(profile?.organization_id || 0);
+				return { ...singleOrg, data: [singleOrg.data] };
+			}
+		},
 	});
 
 	const isLoading = isLoadingWarehouses || isLoadingOrganizations;
-	const currentUser = currentUserData?.data;
-	const currentUserOrgId = currentUser?.organization_id;
+	const currentUserOrgId = profile?.organization_id;
 
 	const warehouses = warehousesData?.data?.filter((w) => w.latitude && w.longitude) || [];
 	const organizations = organizationsData?.data?.filter((o) => o.latitude && o.longitude) || [];
