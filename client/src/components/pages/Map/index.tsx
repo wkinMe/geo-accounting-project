@@ -10,37 +10,68 @@ import 'leaflet/dist/leaflet.css';
 import { useNavigate } from 'react-router';
 import { useProfile } from '@/hooks';
 import { atLeastManager } from '@/utils';
+import { FaWarehouse, FaBuilding } from 'react-icons/fa';
 
 const GOMEL_COORDINATES: [number, number] = [52.4345, 30.95];
 
 // Цвета для разных типов маркеров
 const MARKER_COLORS = {
-	OWN_ORG: '#800020', // Бордовый
-	OTHER_ORG: '#FF0000', // Красный
-	OWN_WITH_MANAGER: '#00008B', // Тёмно-синий
-	OWN_NO_MANAGER: '#006400', // Тёмно-зелёный
-	OTHER_WITH_MANAGER: '#1E90FF', // Синий
-	OTHER_NO_MANAGER: '#32CD32', // Зелёный
+	OWN_ORG: '#8B4513', // Коричневый (свой завод)
+	OTHER_ORG: '#CD853F', // Светло-коричневый (чужой завод)
+	OWN_WITH_MANAGER: '#2E7D32', // Зелёный (свой склад с менеджером)
+	OWN_NO_MANAGER: '#66BB6A', // Светло-зелёный (свой склад без менеджера)
+	OTHER_WITH_MANAGER: '#1565C0', // Синий (чужой склад с менеджером)
+	OTHER_NO_MANAGER: '#42A5F5', // Голубой (чужой склад без менеджера)
 };
 
-const createCustomIcon = (color: string) => {
+const createCustomIcon = (color: string, type: 'warehouse' | 'organization') => {
+	const IconComponent = type === 'warehouse' ? FaWarehouse : FaBuilding;
+
 	const svgHtml = renderToString(
-		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 32" width="24" height="32">
-			<path
-				d="M12 0C7.6 0 4 3.6 4 8c0 5.4 8 16 8 16s8-10.6 8-16c0-4.4-3.6-8-8-8z"
-				fill={color}
-				stroke="#333"
-				strokeWidth="1"
+		<div
+			style={{
+				position: 'relative',
+				display: 'flex',
+				justifyContent: 'center',
+				alignItems: 'center',
+			}}
+		>
+			<div
+				style={{
+					backgroundColor: color,
+					borderRadius: '50%',
+					width: '32px',
+					height: '32px',
+					display: 'flex',
+					justifyContent: 'center',
+					alignItems: 'center',
+					boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+					border: '2px solid white',
+				}}
+			>
+				<IconComponent style={{ color: 'white', fontSize: '18px' }} />
+			</div>
+			<div
+				style={{
+					position: 'absolute',
+					bottom: '-8px',
+					left: '50%',
+					transform: 'translateX(-50%)',
+					width: 0,
+					height: 0,
+					borderLeft: '6px solid transparent',
+					borderRight: '6px solid transparent',
+					borderTop: `8px solid ${color}`,
+				}}
 			/>
-			<circle cx="12" cy="8" r="3" fill="white" />
-		</svg>
+		</div>
 	);
 
 	return divIcon({
 		html: svgHtml,
-		iconSize: [24, 32],
-		iconAnchor: [12, 32],
-		popupAnchor: [0, -32],
+		iconSize: [32, 40],
+		iconAnchor: [16, 40],
+		popupAnchor: [0, -40],
 		className: 'custom-marker',
 	});
 };
@@ -95,7 +126,7 @@ export function Map() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center h-[95vh]">
-				<div className="text-center">Загрузка карты...</div>
+				<div className="text-center text-gray-500">Загрузка карты...</div>
 			</div>
 		);
 	}
@@ -118,12 +149,18 @@ export function Map() {
 				<Marker
 					key={`org-${org.id}`}
 					position={[org.latitude!, org.longitude!]}
-					icon={createCustomIcon(getOrganizationColor(org.id))}
+					icon={createCustomIcon(getOrganizationColor(org.id), 'organization')}
 				>
 					<Popup>
-						<div className="p-2 min-w-[200px]">
-							<h3 className="font-semibold text-gray-900 dark:text-white">{org.name}</h3>
-							<p className="text-xs text-gray-500 mt-2">🏢 Головной офис</p>
+						<div className="p-3 min-w-[220px]">
+							<div className="flex items-center gap-2 mb-2">
+								<FaBuilding className="text-gray-600" />
+								<h3 className="font-semibold text-gray-900 dark:text-white">{org.name}</h3>
+							</div>
+							<p className="text-xs text-gray-500">🏢 Головной офис</p>
+							<p className="text-xs text-gray-500 mt-1">
+								📍 {org.latitude?.toFixed(4)}, {org.longitude?.toFixed(4)}
+							</p>
 						</div>
 					</Popup>
 				</Marker>
@@ -134,22 +171,25 @@ export function Map() {
 				<Marker
 					key={`wh-${warehouse.id}`}
 					position={[warehouse.latitude!, warehouse.longitude!]}
-					icon={createCustomIcon(getWarehouseColor(warehouse))}
+					icon={createCustomIcon(getWarehouseColor(warehouse), 'warehouse')}
 				>
 					<Popup>
-						<div className="p-2 min-w-[220px]">
-							<h3 className="font-semibold text-gray-900 dark:text-white">{warehouse.name}</h3>
+						<div className="p-3 min-w-[250px]">
+							<div className="flex items-center gap-2 mb-2">
+								<FaWarehouse className="text-gray-600" />
+								<h3 className="font-semibold text-gray-900 dark:text-white">{warehouse.name}</h3>
+							</div>
 							{warehouse.organization && (
 								<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
 									🏭 {warehouse.organization.name}
 								</p>
 							)}
-							<p className="text-sm text-gray-600 dark:text-gray-400">
+							<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
 								👨‍💼 Менеджер: {warehouse.manager?.name || 'Не назначен'}
 							</p>
 							<button
 								onClick={() => navigate(`/warehouses/${warehouse.id}`)}
-								className="mt-2 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 cursor-pointer"
+								className="mt-3 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 cursor-pointer font-medium"
 							>
 								Подробнее →
 							</button>
