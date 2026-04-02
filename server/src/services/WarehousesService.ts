@@ -755,6 +755,7 @@ export class WarehouseService {
     materialId: number,
     amount: number,
     userId?: number,
+    agreementUpdate = false,
   ): Promise<WarehouseMaterial> {
     try {
       await this.findById(warehouseId);
@@ -815,17 +816,19 @@ export class WarehouseService {
 
       await updateTimestamp(this._db, `warehouses`, warehouseId);
 
-      // Записываем историю
-      await this._historyService.createEntry({
-        warehouseId,
-        materialId,
-        operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE,
-        oldAmount,
-        newAmount: amount,
-        delta,
-        userId,
-        description: `Количество изменено с ${oldAmount} на ${amount}`,
-      });
+      if (!agreementUpdate) {
+        // Записываем историю
+        await this._historyService.createEntry({
+          warehouseId,
+          materialId,
+          operationType: WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE,
+          oldAmount,
+          newAmount: amount,
+          delta,
+          userId,
+          description: `Количество изменено с ${oldAmount} на ${amount}`,
+        });
+      }
 
       return rows[0];
     } catch (error) {

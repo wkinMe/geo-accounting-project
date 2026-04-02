@@ -478,19 +478,21 @@ export class AgreementService {
               supplier_warehouse_id,
               material.material_id,
               supplierStock - material.amount,
+              supplier_id,
+              true,
             );
 
-            const historyResult =
-              await this._warehouseHistoryService.createEntry({
-                warehouseId: supplier_warehouse_id,
-                materialId: material.material_id,
-                operationType: "AGREEMENT_OUT",
-                oldAmount: supplierStock,
-                newAmount: supplierStock - material.amount,
-                delta: -material.amount,
-                agreementId,
-                description: `Списание по договору №${agreementId}`,
-              });
+            await this._warehouseHistoryService.createEntry({
+              warehouseId: supplier_warehouse_id,
+              materialId: material.material_id,
+              operationType: "AGREEMENT_OUT",
+              oldAmount: supplierStock,
+              newAmount: supplierStock - material.amount,
+              delta: -material.amount,
+              agreementId,
+              userId: supplier_id,
+              description: `Списание по договору №${agreementId}`,
+            });
 
             const customerStock =
               await this._warehouseService.getMaterialAmountFromWarehouse(
@@ -502,19 +504,21 @@ export class AgreementService {
               customer_warehouse_id,
               material.material_id,
               customerStock + material.amount,
+              customer_id,
+              true,
             );
 
-            const anotherHistoryResult =
-              await this._warehouseHistoryService.createEntry({
-                warehouseId: customer_warehouse_id,
-                materialId: material.material_id,
-                operationType: "AGREEMENT_IN",
-                oldAmount: customerStock,
-                newAmount: customerStock + material.amount,
-                delta: material.amount,
-                agreementId,
-                description: `Поступление по договору №${agreementId}`,
-              });
+            await this._warehouseHistoryService.createEntry({
+              warehouseId: customer_warehouse_id,
+              materialId: material.material_id,
+              operationType: "AGREEMENT_IN",
+              oldAmount: customerStock,
+              newAmount: customerStock + material.amount,
+              delta: material.amount,
+              agreementId,
+              userId: customer_id,
+              description: `Поступление по договору №${agreementId}`,
+            });
           }
         }
 
@@ -826,6 +830,8 @@ export class AgreementService {
               existingAgreement.supplier_warehouse_id,
               material.material_id,
               supplierStock - material.amount,
+              existingAgreement.supplier_id,
+              true,
             );
 
             // Записываем историю списания со склада поставщика
@@ -851,6 +857,8 @@ export class AgreementService {
               existingAgreement.customer_warehouse_id,
               material.material_id,
               customerStock + material.amount,
+              existingAgreement.customer_id,
+              true,
             );
 
             // Записываем историю поступления на склад покупателя

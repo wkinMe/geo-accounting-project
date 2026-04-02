@@ -9,6 +9,7 @@ import {
 import { formatDateToDDMMYYYY } from '@/utils/dateFormatters';
 import type { WarehouseHistoryWithDetails } from '@shared/models';
 import type { Column } from '@/components/shared/Table/types';
+import { Link } from 'react-router';
 
 interface HistoryEntry {
 	id: number;
@@ -35,7 +36,21 @@ const columns: Column<HistoryEntry>[] = [
 	{ key: 'new_amount', label: 'Стало' },
 	{ key: 'delta_display', label: 'Изменение' },
 	{ key: 'user_name', label: 'Пользователь' },
-	{ key: 'agreement_id', label: 'Договор' },
+	{
+		key: 'agreement_id',
+		label: 'Договор',
+		render: (value: number | null, item: HistoryEntry) => {
+			if (!value) return <span>—</span>;
+			return (
+				<Link
+					to={`/agreements/${value}`}
+					className="cursor-pointer underline"
+				>
+					Договор №{value}
+				</Link>
+			);
+		},
+	},
 	{ key: 'description', label: 'Описание' },
 ];
 
