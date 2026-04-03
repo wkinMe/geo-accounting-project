@@ -1,5 +1,6 @@
 // src/components/shared/Map/types/index.ts
-import { type LatLngExpression } from 'leaflet';
+import { Map, type LatLngExpression } from 'leaflet';
+import type { MapContainerProps } from 'react-leaflet';
 
 export type MarkerType = 'warehouse' | 'organization';
 
@@ -22,6 +23,7 @@ export interface MapProps {
 	height?: string | number;
 	width?: string | number;
 	className?: string;
+  ref?: React.Ref<Map>;
 	onMarkerClick?: (marker: MapMarker) => void;
 	onMapClick?: () => void;
 }

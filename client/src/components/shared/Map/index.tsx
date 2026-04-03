@@ -12,10 +12,12 @@ export function Map({
 	height = '95vh',
 	width = '100%',
 	className = '',
+	ref,
 	onMarkerClick,
 }: MapProps) {
 	return (
 		<MapContainer
+			ref={ref}
 			center={center}
 			zoom={zoom}
 			style={{ height, width }}
