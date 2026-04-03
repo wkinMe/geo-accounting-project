@@ -1,6 +1,5 @@
 // src/components/shared/Map/types/index.ts
-import { Map, type LatLngExpression } from 'leaflet';
-import type { MapContainerProps } from 'react-leaflet';
+import { type LatLngExpression, type Map as LeafletMap } from 'leaflet';
 
 export type MarkerType = 'warehouse' | 'organization';
 
@@ -16,6 +15,15 @@ export interface MapMarker {
 	onClick?: () => void;
 }
 
+export interface SearchableItem {
+	id: number | string;
+	type: MarkerType;
+	name: string;
+	subtitle: string;
+	latitude: number;
+	longitude: number;
+}
+
 export interface MapProps {
 	markers: MapMarker[];
 	center?: LatLngExpression;
@@ -23,7 +31,11 @@ export interface MapProps {
 	height?: string | number;
 	width?: string | number;
 	className?: string;
-  ref?: React.Ref<Map>;
+	ref?: React.Ref<LeafletMap>;
 	onMarkerClick?: (marker: MapMarker) => void;
-	onMapClick?: () => void;
+
+	searchableItems?: SearchableItem[];
+	onSearch?: (query: string) => Promise<SearchableItem[]> | SearchableItem[];
+	searchPlaceholder?: string;
+	enableSearch?: boolean;
 }
