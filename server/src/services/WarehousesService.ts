@@ -121,6 +121,9 @@ export class WarehouseService {
     }
   }
 
+  // server/src/services/WarehouseService.ts
+
+  // В методе create добавьте latitude и longitude
   async create(
     createData: CreateWarehouseDTO,
   ): Promise<WarehouseWithMaterialsAndOrganization> {
@@ -141,6 +144,31 @@ export class WarehouseService {
           "create",
           "organization_id",
           createData.organization_id?.toString(),
+        );
+      }
+
+      // Валидация координат
+      if (
+        createData.latitude !== undefined &&
+        (createData.latitude < -90 || createData.latitude > 90)
+      ) {
+        throw new ValidationError(
+          "Latitude must be between -90 and 90",
+          "create",
+          "latitude",
+          createData.latitude.toString(),
+        );
+      }
+
+      if (
+        createData.longitude !== undefined &&
+        (createData.longitude < -180 || createData.longitude > 180)
+      ) {
+        throw new ValidationError(
+          "Longitude must be between -180 and 180",
+          "create",
+          "longitude",
+          createData.longitude.toString(),
         );
       }
 
@@ -198,6 +226,21 @@ export class WarehouseService {
       placeholders.push(`$${paramIndex}`);
       paramIndex++;
 
+      // Координаты
+      if (createData.latitude !== undefined && createData.latitude !== null) {
+        fields.push("latitude");
+        values.push(createData.latitude);
+        placeholders.push(`$${paramIndex}`);
+        paramIndex++;
+      }
+
+      if (createData.longitude !== undefined && createData.longitude !== null) {
+        fields.push("longitude");
+        values.push(createData.longitude);
+        placeholders.push(`$${paramIndex}`);
+        paramIndex++;
+      }
+
       // Опциональное поле manager_id
       if (
         createData.manager_id !== undefined &&
@@ -210,10 +253,10 @@ export class WarehouseService {
       }
 
       const query = `
-        INSERT INTO warehouses (${fields.join(", ")})
-        VALUES (${placeholders.join(", ")})
-        RETURNING *
-      `;
+      INSERT INTO warehouses (${fields.join(", ")})
+      VALUES (${placeholders.join(", ")})
+      RETURNING *
+    `;
 
       const rows = await executeQuery<Warehouse>(
         this._db,
@@ -253,6 +296,7 @@ export class WarehouseService {
     }
   }
 
+  // В методе update добавьте latitude и longitude
   async update(
     id: number,
     updateData: UpdateWarehouseDTO,
@@ -271,6 +315,31 @@ export class WarehouseService {
           "update",
           "name",
           updateData.name,
+        );
+      }
+
+      // Валидация координат
+      if (
+        updateData.latitude !== undefined &&
+        (updateData.latitude < -90 || updateData.latitude > 90)
+      ) {
+        throw new ValidationError(
+          "Latitude must be between -90 and 90",
+          "update",
+          "latitude",
+          updateData.latitude.toString(),
+        );
+      }
+
+      if (
+        updateData.longitude !== undefined &&
+        (updateData.longitude < -180 || updateData.longitude > 180)
+      ) {
+        throw new ValidationError(
+          "Longitude must be between -180 and 180",
+          "update",
+          "longitude",
+          updateData.longitude.toString(),
         );
       }
 
@@ -340,6 +409,18 @@ export class WarehouseService {
         }
       }
 
+      if (updateData.latitude !== undefined) {
+        fields.push(`latitude = $${paramIndex}`);
+        values.push(updateData.latitude);
+        paramIndex++;
+      }
+
+      if (updateData.longitude !== undefined) {
+        fields.push(`longitude = $${paramIndex}`);
+        values.push(updateData.longitude);
+        paramIndex++;
+      }
+
       // Если нет полей для обновления, возвращаем существующий склад
       if (fields.length === 0) {
         return await this.findById(id);
@@ -347,11 +428,11 @@ export class WarehouseService {
       values.push(id);
 
       const query = `
-        UPDATE warehouses 
-        SET ${fields.join(", ")}
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
+      UPDATE warehouses 
+      SET ${fields.join(", ")}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
 
       const rows = await executeQuery<Warehouse>(
         this._db,

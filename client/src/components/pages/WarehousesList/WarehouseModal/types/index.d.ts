@@ -3,6 +3,6 @@ export type WarehouseModalData = {
 	name: string;
 	organization_id: number;
 	manager_id?: number | null;
-	latitude?: number | null;
-	longitude?: number | null;
+	latitude?: number | undefined;
+	longitude?: number | undefined;
 } | null; // null = режим создания

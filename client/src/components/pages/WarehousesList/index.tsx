@@ -148,6 +148,8 @@ export function WarehousesList() {
 								name: selectedWarehouse.name,
 								organization_id: selectedWarehouse.organization_id,
 								manager_id: selectedWarehouse.managerId,
+								latitude: selectedWarehouse.latitude,
+								longitude: selectedWarehouse.longitude,
 							}
 						: null
 				}

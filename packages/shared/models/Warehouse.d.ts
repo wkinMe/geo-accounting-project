@@ -21,3 +21,7 @@ export interface WarehouseWithMaterialsAndOrganization extends WarehouseWithOrga
   materials_count?: number;
   manager?: User | null;
 }
+
+export interface WarehouseWithManagerAndOrganization extends WarehouseWithOrganization {
+  manager?: User | null;
+}
