@@ -7,7 +7,6 @@ import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { useNavigate } from 'react-router';
 import { OrganizationModal } from './components';
 import type { Action, Column } from '@/components/shared/Table/types';
 
@@ -16,6 +15,8 @@ type TableOrganization = {
 	name: string;
 	created_at: string;
 	updated_at: string;
+	latitude?: number | null;
+	longitude?: number | null;
 };
 
 const columns: Column<TableOrganization>[] = [
@@ -28,12 +29,13 @@ const columns: Column<TableOrganization>[] = [
 const mapOrganizationToTableItem = (org: any): TableOrganization => ({
 	id: org.id,
 	name: org.name,
+	latitude: org.latitude,
+	longitude: org.longitude,
 	created_at: new Date(org.created_at).toLocaleDateString('ru-RU'),
 	updated_at: new Date(org.updated_at).toLocaleDateString('ru-RU'),
 });
 
 export function OrganizationsList() {
-	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
@@ -43,6 +45,8 @@ export function OrganizationsList() {
 		name: string;
 		created_at: string;
 		updated_at: string;
+		latitude?: number | null;
+		longitude?: number | null;
 	} | null>(null);
 
 	// Получаем текущего пользователя
@@ -103,7 +107,14 @@ export function OrganizationsList() {
 			: organizations?.data.map(mapOrganizationToTableItem) || [];
 
 	const openEditModal = (org: TableOrganization) => {
-		setSelectedOrganization(org);
+		setSelectedOrganization({
+			id: org.id,
+			name: org.name,
+			latitude: org.latitude,
+			longitude: org.longitude,
+			created_at: org.created_at,
+			updated_at: org.updated_at,
+		});
 		setTimeout(() => {
 			setIsModalOpen(true);
 		}, 50);
@@ -171,6 +182,7 @@ export function OrganizationsList() {
 				organization={selectedOrganization}
 				onSubmit={handleSubmit}
 				isLoading={isCreating || isUpdating}
+				canEdit={canModify()}
 			/>
 		</>
 	);

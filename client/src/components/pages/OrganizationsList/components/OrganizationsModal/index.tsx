@@ -7,18 +7,22 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { TextField } from '@/components/shared/Fields';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
-import { LocationPicker } from '@/components/pages/WarehousesList/WarehouseModal/components/LocationPicker';
+import { LocationPicker } from '@/components/shared/LocationPicker';
 
 const organizationSchema = z.object({
 	name: z.string().min(1, 'Название обязательное'),
 	latitude: z
 		.number()
 		.min(-90, 'Широта должна быть от -90 до 90')
-		.max(90, 'Широта должна быть от -90 до 90'),
+		.max(90, 'Широта должна быть от -90 до 90')
+		.optional()
+		.nullable(),
 	longitude: z
 		.number()
 		.min(-180, 'Долгота должна быть от -180 до 180')
-		.max(180, 'Долгота должна быть от -180 до 180'),
+		.max(180, 'Долгота должна быть от -180 до 180')
+		.optional()
+		.nullable(),
 });
 
 type OrganizationFormData = z.infer<typeof organizationSchema>;
@@ -96,10 +100,13 @@ export function OrganizationModal({
 			const formData = watch();
 
 			const submitData = {
-				...formData,
-				latitude,
-				longitude,
-			};
+				name: formData.name,
+			} as any;
+
+			if (latitude !== null && longitude !== null) {
+				submitData.latitude = latitude;
+				submitData.longitude = longitude;
+			}
 
 			if (isEditing) {
 				await onSubmit(submitData as UpdateOrganizationDTO, organization.id);

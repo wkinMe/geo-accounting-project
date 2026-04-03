@@ -1,5 +1,5 @@
 // src/components/shared/LocationPicker/index.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import { divIcon } from 'leaflet';
 import { renderToString } from 'react-dom/server';

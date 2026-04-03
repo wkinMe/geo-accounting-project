@@ -15,7 +15,7 @@ import { useProfileData } from '@/hooks/useProfileData';
 import { getManagerFieldAvailable } from './utils';
 import type { WarehouseModalData } from './types';
 import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
-import { LocationPicker } from './components/LocationPicker';
+import { LocationPicker } from '../../../shared/LocationPicker';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
