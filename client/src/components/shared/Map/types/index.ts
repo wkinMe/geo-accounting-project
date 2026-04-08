@@ -13,6 +13,7 @@ export interface MapMarker {
 	description?: string;
 	data?: any;
 	onClick?: () => void;
+	onDetailsClick?: () => void;
 }
 
 export interface SearchableItem {

@@ -84,24 +84,23 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 	const managerField = isSupplier ? 'supplierManager' : 'customerManager';
 	const warehouseField = isSupplier ? 'supplierWarehouse' : 'customerWarehouse';
 
-	// Синхронизация с формой
 	useEffect(() => {
 		if (orgId !== null) {
 			setValue(orgField, orgId, { shouldValidate: true });
 		}
-	}, [orgId, orgField, setValue]);
+	}, [orgField]);
 
 	useEffect(() => {
 		if (managerId !== null) {
 			setValue(managerField, managerId, { shouldValidate: true });
 		}
-	}, [managerId, managerField, setValue]);
+	}, [managerId]);
 
 	useEffect(() => {
 		if (warehouseId !== null) {
 			setValue(warehouseField, warehouseId, { shouldValidate: true });
 		}
-	}, [warehouseId, warehouseField, setValue]);
+	}, [warehouseId]);
 
 	return (
 		<div className="space-y-4">

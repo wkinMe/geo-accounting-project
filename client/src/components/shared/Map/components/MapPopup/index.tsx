@@ -10,6 +10,17 @@ interface MapPopupProps {
 export function MapPopup({ marker, onDetailsClick }: MapPopupProps) {
 	const Icon = marker.type === 'warehouse' ? FaWarehouse : FaBuilding;
 
+	const handleDetailsClick = (e: React.MouseEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		e.nativeEvent.stopImmediatePropagation();
+
+		if (onDetailsClick) {
+			onDetailsClick();
+		}
+		return false;
+	};
+
 	return (
 		<div className="p-3 min-w-55">
 			<div className="flex items-center gap-2 mb-2">
@@ -24,7 +35,11 @@ export function MapPopup({ marker, onDetailsClick }: MapPopupProps) {
 			)}
 			{marker.type === 'warehouse' && onDetailsClick && (
 				<button
-					onClick={onDetailsClick}
+					onMouseDown={(e) => {
+						e.preventDefault();
+						e.stopPropagation();
+					}}
+					onClick={handleDetailsClick}
 					className="mt-3 text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 cursor-pointer font-medium"
 				>
 					Подробнее →

@@ -12,6 +12,7 @@ import { StatusSelect } from '../StatusSelect';
 import { ConfirmStatusModal } from '../ConfirmStatusModal';
 import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
 import type { AgreementFormValues } from '../../types';
+import { AgreementMap } from '../AgreementMap'; // ✅ Импорт карты
 
 interface Props {
 	mode?: 'create' | 'edit' | 'view';
@@ -133,6 +134,33 @@ export function AgreementForm({ mode = 'create' }: Props) {
 							agreement={agreementId ? store : undefined}
 							isEditing={!!agreementId}
 							currentStatus={currentStatus}
+						/>
+					</div>
+
+					{/* ✅ AgreementMap добавлен сюда */}
+					<div className="mt-8">
+						<AgreementMap
+							supplierWarehouseId={store.supplierWarehouse}
+							customerWarehouseId={store.customerWarehouse}
+							onSupplierSelect={(warehouse) => {
+								store.setSupplierOrg(warehouse.organization_id);
+								store.setSupplierWarehouse(warehouse.id);
+								store.setSupplierManager(warehouse.manager_id);
+
+								form.setValue('supplierOrg', warehouse.organization_id);
+								form.setValue('supplierWarehouse', warehouse.id);
+								form.setValue('supplierManager', warehouse.manager_id);
+							}}
+							onCustomerSelect={(warehouse) => {
+								store.setCustomerOrg(warehouse.organization_id);
+								store.setCustomerWarehouse(warehouse.id);
+								store.setCustomerManager(warehouse.manager_id);
+
+								form.setValue('customerOrg', warehouse.organization_id);
+								form.setValue('customerWarehouse', warehouse.id);
+								form.setValue('customerManager', warehouse.manager_id);
+							}}
+							readOnly={isViewMode || !canEdit}
 						/>
 					</div>
 

@@ -64,7 +64,7 @@ export function StatusSelect({
 		if (statusToUse && !availableStatuses.includes(statusToUse)) {
 			const defaultStatus = availableStatuses[0];
 			if (defaultStatus) {
-				setValue('status', defaultStatus, { shouldValidate: true });
+				setValue('status', defaultStatus);
 			}
 		}
 	}, [statusToUse, availableStatuses, setValue]);

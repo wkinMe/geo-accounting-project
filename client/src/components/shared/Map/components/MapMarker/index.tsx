@@ -5,34 +5,35 @@ import { createCustomIcon } from '../../helpers/createCustomIcon';
 import { MapPopup } from '../MapPopup';
 
 interface MapMarkerProps {
-  marker: MapMarkerType;
-  onMarkerClick?: (marker: MapMarkerType) => void;
+	marker: MapMarkerType;
+	onMarkerClick?: (marker: MapMarkerType) => void;
 }
 
 export function MapMarker({ marker, onMarkerClick }: MapMarkerProps) {
-  const handleClick = () => {
-    if (marker.onClick) {
-      marker.onClick();
-    }
-    onMarkerClick?.(marker);
-  };
+	const handleClick = () => {
+		// Только для выбора склада (не для "Подробнее")
+		if (marker.onClick) {
+			marker.onClick();
+		}
+		onMarkerClick?.(marker);
+	};
 
-  return (
-    <Marker
-      position={marker.position}
-      icon={createCustomIcon(marker.iconColor, marker.type)}
-      eventHandlers={{ click: handleClick }}
-    >
-      <Popup>
-        <MapPopup
-          marker={marker}
-          onDetailsClick={() => {
-            if (marker.type === 'warehouse' && marker.onClick) {
-              marker.onClick();
-            }
-          }}
-        />
-      </Popup>
-    </Marker>
-  );
+	const handleDetailsClick = () => {
+		// Отдельный обработчик для кнопки "Подробнее"
+		if (marker.onDetailsClick) {
+			marker.onDetailsClick();
+		}
+	};
+
+	return (
+		<Marker
+			position={marker.position}
+			icon={createCustomIcon(marker.iconColor, marker.type)}
+			eventHandlers={{ click: handleClick }}
+		>
+			<Popup>
+				<MapPopup marker={marker} onDetailsClick={handleDetailsClick} />
+			</Popup>
+		</Marker>
+	);
 }

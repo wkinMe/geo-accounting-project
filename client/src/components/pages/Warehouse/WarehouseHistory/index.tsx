@@ -42,10 +42,7 @@ const columns: Column<HistoryEntry>[] = [
 		render: (value: number | null, item: HistoryEntry) => {
 			if (!value) return <span>—</span>;
 			return (
-				<Link
-					to={`/agreements/${value}`}
-					className="cursor-pointer underline"
-				>
+				<Link to={`/agreements/${value}`} className="cursor-pointer underline">
 					Договор №{value}
 				</Link>
 			);
@@ -81,8 +78,6 @@ export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
 		queryFn: () => warehouseHistoryService.getByWarehouseId(warehouseId),
 		enabled: !!warehouseId,
 	});
-
-	console.log(history);
 
 	const elements = history?.data.map(mapHistoryToTableItem) || [];
 

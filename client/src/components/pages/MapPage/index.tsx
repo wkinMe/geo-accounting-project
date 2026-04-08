@@ -7,6 +7,7 @@ import { organizationService } from '@/services/organizationService';
 import { useProfile } from '@/hooks';
 import { atLeastManager } from '@/utils';
 import type { Map as LeafletMap } from 'leaflet';
+import { useNavigate } from 'react-router';
 
 export function MapPage() {
 	const mapRef = useRef<LeafletMap>(null);
@@ -99,6 +100,9 @@ export function MapPage() {
 				title: warehouse.name,
 				subtitle: warehouse.organization?.name,
 				description: `Менеджер: ${warehouse.manager?.name || 'Не назначен'}`,
+				onDetailsClick: () => {
+					window.open(`/warehouses/${warehouse.id}`, '_blank');
+				},
 			})) || [];
 
 	const allMarkers = [...organizationsMarkers, ...warehousesMarkers];

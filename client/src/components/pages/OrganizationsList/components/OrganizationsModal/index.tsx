@@ -89,8 +89,8 @@ export function OrganizationModal({
 	const handleLocationChange = (lat: number, lng: number) => {
 		setLatitude(lat);
 		setLongitude(lng);
-		setValue('latitude', lat, { shouldValidate: true });
-		setValue('longitude', lng, { shouldValidate: true });
+		setValue('latitude', lat);
+		setValue('longitude', lng);
 	};
 
 	const handleSubmit = async () => {
