@@ -15,11 +15,20 @@ import { useProfileData } from '@/hooks/useProfileData';
 import { getManagerFieldAvailable } from './utils';
 import type { WarehouseModalData } from './types';
 import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
+import { LocationPicker } from '../../../shared/LocationPicker';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
 	organization_id: z.number().positive('Выберите организацию'),
 	manager_id: z.number().optional().nullable(),
+	latitude: z
+		.number()
+		.min(-90, 'Широта должна быть от -90 до 90')
+		.max(90, 'Широта должна быть от -90 до 90'),
+	longitude: z
+		.number()
+		.min(-180, 'Долгота должна быть от -180 до 180')
+		.max(180, 'Долгота должна быть от -180 до 180'),
 });
 
 type WarehouseFormData = z.infer<typeof warehouseSchema>;
@@ -36,6 +45,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const queryClient = useQueryClient();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
 	const [managerSearchQuery, setManagerSearchQuery] = useState('');
+	const [latitude, setLatitude] = useState<number | undefined>(warehouse?.latitude ?? undefined);
+	const [longitude, setLongitude] = useState<number | undefined>(warehouse?.longitude ?? undefined);
 
 	const profileData = useProfileData();
 
@@ -53,7 +64,9 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 		defaultValues: {
 			name: '',
 			organization_id: 0,
-			manager_id: null, // Изменено с 0 на null
+			manager_id: null,
+			latitude: 0,
+			longitude: 0,
 		},
 		mode: 'onChange',
 	});
@@ -103,7 +116,11 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 				name: warehouse?.name ?? '',
 				organization_id: warehouse?.organization_id ?? 0,
 				manager_id: warehouse?.manager_id ?? null,
+				latitude: warehouse?.latitude,
+				longitude: warehouse?.longitude,
 			});
+			setLatitude(warehouse?.latitude);
+			setLongitude(warehouse?.longitude);
 			// Сброс поисковых запросов
 			setOrgSearchQuery('');
 			setManagerSearchQuery('');
@@ -114,6 +131,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					name: '',
 					organization_id: 0,
 					manager_id: null,
+					latitude: undefined,
+					longitude: undefined,
 				});
 			}, 200);
 
@@ -143,6 +162,13 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			// TODO отображение ошибки
 			throw new Error('Пожалуйста, исправьте ошибки в форме');
 		}
+	};
+
+	const handleLocationChange = (lat: number, lng: number) => {
+		setLatitude(lat);
+		setLongitude(lng);
+		setValue('latitude', lat, { shouldValidate: true });
+		setValue('longitude', lng, { shouldValidate: true });
 	};
 
 	const selectedManagerId = watch('manager_id');
@@ -186,7 +212,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					required
 					{...register('name')}
 				/>
-
 				<SearchableSelect
 					label="Организация"
 					value={selectedOrgId}
@@ -200,7 +225,6 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 					error={errors.organization_id?.message}
 					required
 				/>
-
 				{getManagerFieldAvailable(profileData, warehouse, !isEditing) && (
 					<div className="space-y-2">
 						<SearchableSelect
@@ -228,6 +252,16 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 						)}
 					</div>
 				)}
+
+				<LocationPicker
+					latitude={latitude}
+					longitude={longitude}
+					onLocationChange={handleLocationChange}
+					height="350px"
+					readOnly={!atLeastAdmin(profileData?.role)}
+					markerType="warehouse"
+					markerColor="#2E7D32"
+				/>
 			</div>
 		</ConfirmModal>
 	);

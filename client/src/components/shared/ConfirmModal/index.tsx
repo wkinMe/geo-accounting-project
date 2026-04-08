@@ -52,9 +52,9 @@ export function ConfirmModal({
 	return (
 		<Dialog.Root open={open} onOpenChange={setOpen}>
 			<Dialog.Portal>
-				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 data-closed:opacity-0 data-open:opacity-100" />
+				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 data-closed:opacity-0 data-open:opacity-100 z-1000" />
 
-				<Dialog.Viewport className="fixed inset-0 flex items-center justify-center p-4">
+				<Dialog.Viewport className="fixed inset-0 flex items-center justify-center p-4 z-1000">
 					<Dialog.Popup className="relative bg-white dark:bg-black rounded-lg shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-800 transition-all duration-300 data-closed:scale-95 data-closed:opacity-0 data-open:scale-100 data-open:opacity-100">
 						<Dialog.Close render={<CloseBtn />} className="absolute top-4 right-4" />
 

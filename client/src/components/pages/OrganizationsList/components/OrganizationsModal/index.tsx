@@ -1,5 +1,5 @@
 // client/src/pages/organizations/OrganizationModal.tsx
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,9 +7,22 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { TextField } from '@/components/shared/Fields';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
+import { LocationPicker } from '@/components/shared/LocationPicker';
 
 const organizationSchema = z.object({
-	name: z.string().min(1, 'Название обязательно'),
+	name: z.string().min(1, 'Название обязательное'),
+	latitude: z
+		.number()
+		.min(-90, 'Широта должна быть от -90 до 90')
+		.max(90, 'Широта должна быть от -90 до 90')
+		.optional()
+		.nullable(),
+	longitude: z
+		.number()
+		.min(-180, 'Долгота должна быть от -180 до 180')
+		.max(180, 'Долгота должна быть от -180 до 180')
+		.optional()
+		.nullable(),
 });
 
 type OrganizationFormData = z.infer<typeof organizationSchema>;
@@ -20,17 +33,29 @@ interface Props {
 	organization?: {
 		id: number;
 		name: string;
-	} | null; // null = режим создания
+		latitude?: number | null;
+		longitude?: number | null;
+	} | null;
 	onSubmit: (
 		data: CreateOrganizationDTO | UpdateOrganizationDTO,
 		id?: number
 	) => void | Promise<void>;
 	isLoading?: boolean;
+	canEdit?: boolean;
 }
 
-export function OrganizationModal({ open, setOpen, organization, onSubmit }: Props) {
+export function OrganizationModal({
+	open,
+	setOpen,
+	organization,
+	onSubmit,
+	canEdit = true,
+}: Props) {
 	const queryClient = useQueryClient();
 	const isEditing = !!organization?.id;
+
+	const [latitude, setLatitude] = useState<number | null>(organization?.latitude ?? null);
+	const [longitude, setLongitude] = useState<number | null>(organization?.longitude ?? null);
 
 	const {
 		register,
@@ -38,48 +63,63 @@ export function OrganizationModal({ open, setOpen, organization, onSubmit }: Pro
 		formState: { errors },
 		trigger,
 		watch,
+		setValue,
 	} = useForm<OrganizationFormData>({
 		resolver: zodResolver(organizationSchema),
 		defaultValues: {
 			name: organization?.name ?? '',
+			latitude: organization?.latitude ?? undefined,
+			longitude: organization?.longitude ?? undefined,
 		},
 		mode: 'onChange',
 	});
 
-	// Сброс формы при открытии с новыми данными
 	useEffect(() => {
 		if (open) {
 			reset({
 				name: organization?.name ?? '',
+				latitude: organization?.latitude ?? undefined,
+				longitude: organization?.longitude ?? undefined,
 			});
+			setLatitude(organization?.latitude ?? null);
+			setLongitude(organization?.longitude ?? null);
 		}
 	}, [open, organization, reset]);
 
-	// client/src/pages/organizations/OrganizationModal.tsx
+	const handleLocationChange = (lat: number, lng: number) => {
+		setLatitude(lat);
+		setLongitude(lng);
+		setValue('latitude', lat);
+		setValue('longitude', lng);
+	};
 
 	const handleSubmit = async () => {
-		// Запускаем валидацию всех полей
 		const isValid = await trigger();
 
 		if (isValid) {
-			// Получаем текущие значения формы
 			const formData = watch();
 
-			if (isEditing) {
-				await onSubmit(formData as UpdateOrganizationDTO, organization.id);
-			} else {
-				await onSubmit(formData as CreateOrganizationDTO);
+			const submitData = {
+				name: formData.name,
+			} as any;
+
+			if (latitude !== null && longitude !== null) {
+				submitData.latitude = latitude;
+				submitData.longitude = longitude;
 			}
 
-			// Инвалидируем кэш после обновления
+			if (isEditing) {
+				await onSubmit(submitData as UpdateOrganizationDTO, organization.id);
+			} else {
+				await onSubmit(submitData as CreateOrganizationDTO);
+			}
+
 			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
 
-			// Небольшая задержка перед закрытием для плавности
 			setTimeout(() => {
 				setOpen(false);
 			}, 150);
 		} else {
-			// Если есть ошибки валидации, выбрасываем ошибку, чтобы модалка не закрылась
 			throw new Error('Пожалуйста, исправьте ошибки в форме');
 		}
 	};
@@ -99,6 +139,15 @@ export function OrganizationModal({ open, setOpen, organization, onSubmit }: Pro
 					error={errors.name?.message}
 					required
 					{...register('name')}
+				/>
+
+				<LocationPicker
+					latitude={latitude}
+					longitude={longitude}
+					onLocationChange={handleLocationChange}
+					height="350px"
+					readOnly={!canEdit}
+					markerType="organization"
 				/>
 			</div>
 		</ConfirmModal>

@@ -1,15 +1,15 @@
-import type { BaseModel } from "./Base";
+import type { BaseModel, Point } from "./Base";
 import { Material, type WarehouseMaterial } from "./Material";
 import { Organization } from "./Organization";
 import { User } from "./User";
 
-export interface Warehouse extends BaseModel{
+export interface Warehouse extends BaseModel {
   name: string;
   organization_id: number;
   manager_id: number;
   latitude: number;
   longitude: number;
-  location: [number, number];
+  location: Point;
 }
 
 export interface WarehouseWithOrganization extends Warehouse {
@@ -22,7 +22,6 @@ export interface WarehouseWithMaterialsAndOrganization extends WarehouseWithOrga
   manager?: User | null;
 }
 
-// Или альтернативно, создайте отдельный интерфейс:
 export interface WarehouseWithManagerAndOrganization extends WarehouseWithOrganization {
   manager?: User | null;
 }

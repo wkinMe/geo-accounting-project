@@ -4,7 +4,4 @@ export interface BaseModel {
   updated_at: string;
 }
 
-export type Point = {
-  x: number; // longitude
-  y: number; // latitude
-};
+export type Point = [number, number]; // x,y

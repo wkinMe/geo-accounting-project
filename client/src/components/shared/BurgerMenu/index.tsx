@@ -15,6 +15,7 @@ import { userService } from '@/services/userService';
 import { useRole } from '@/hooks';
 import { type UserRole } from '@shared/models';
 import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
+import { FaMapMarked } from 'react-icons/fa';
 
 interface MenuItem {
 	path: string;
@@ -56,6 +57,7 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 	};
 
 	const menuItems: MenuItem[] = [
+		{ path: '/map', label: 'Карта', icon: <FaMapMarked /> },
 		{ path: '/warehouses', label: 'Склады', icon: <FaWarehouse /> },
 		{
 			path: '/agreements',

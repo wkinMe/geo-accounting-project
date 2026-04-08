@@ -19,21 +19,7 @@ export class WarehouseController {
 
   async findAll(req: Request, res: Response) {
     try {
-      // @ts-ignore - пользователь добавляется в req через middleware
-      const user = req.user;
-
-      // Контроллер подготавливает фильтры на основе пользователя
-      const filters: Record<string, string> = {};
-
-      if (
-        user.role === USER_ROLES.USER ||
-        user.role === USER_ROLES.MANAGER ||
-        user.role === USER_ROLES.ADMIN
-      ) {
-        filters.organization_id = user.organization_id; // Берем из токена/сессии
-      }
-
-      const warehouses = await this._warehouseService.findAll(filters);
+      const warehouses = await this._warehouseService.findAll();
 
       res.status(200).json({
         data: warehouses,
@@ -42,6 +28,29 @@ export class WarehouseController {
     } catch (e) {
       baseErrorHandling(e, res);
     }
+  }
+
+  async findByUserOrgId(req: Request, res: Response) {
+    // @ts-ignore - пользователь добавляется в req через middleware
+    const user = req.user;
+
+    // Контроллер подготавливает фильтры на основе пользователя
+    const filters: Record<string, string> = {};
+
+    if (
+      user.role === USER_ROLES.USER ||
+      user.role === USER_ROLES.MANAGER ||
+      user.role === USER_ROLES.ADMIN
+    ) {
+      filters.organization_id = user.organization_id; // Берем из токена/сессии
+    }
+
+    const warehouses = await this._warehouseService.findAll(filters);
+
+    res.status(200).json({
+      data: warehouses,
+      message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+    });
   }
 
   async findById(req: Request<{ id: string }>, res: Response) {

@@ -10,6 +10,6 @@ export interface UpdateWarehouseDTO {
   name?: string;
   organization_id?: number;
   manager_id?: number | null;
-  latitude?: number;
-  longitude?: number;
+  latitude: number;
+  longitude: number;
 }

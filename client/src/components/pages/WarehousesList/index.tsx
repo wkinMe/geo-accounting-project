@@ -13,6 +13,8 @@ import type { TableWarehouse } from './types';
 import { useWarehousePermissions } from './hooks';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
+import { useProfile, useRole } from '@/hooks';
+import { isSuperAdminRole } from '@/utils';
 
 const columns: Column<TableWarehouse>[] = [
 	{ key: 'id', label: 'ID' },
@@ -34,9 +36,15 @@ export function WarehousesList() {
 
 	const { canEdit, canDelete, canCreate } = useWarehousePermissions();
 
+	const role = useRole();
+	const profile = useProfile();
+
 	const { data: warehouses } = useQuery({
 		queryKey: ['warehouses'],
-		queryFn: () => warehouseService.findAll(),
+		queryFn: () =>
+			isSuperAdminRole(role)
+				? warehouseService.findAll()
+				: warehouseService.findByOrganizationId(profile.data?.data.organization_id || 0),
 	});
 
 	const { data: searchedWarehouses } = useQuery({
@@ -140,6 +148,8 @@ export function WarehousesList() {
 								name: selectedWarehouse.name,
 								organization_id: selectedWarehouse.organization_id,
 								manager_id: selectedWarehouse.managerId,
+								latitude: selectedWarehouse.latitude,
+								longitude: selectedWarehouse.longitude,
 							}
 						: null
 				}

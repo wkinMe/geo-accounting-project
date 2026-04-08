@@ -83,7 +83,15 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	});
 
 	useEffect(() => {
+		console.log('🔵 useAgreementForm mount/create', { agreementId, isEditing });
+		return () => {
+			console.log('🔴 useAgreementForm unmount');
+		};
+	}, []);
+
+	useEffect(() => {
 		if (isEditing && agreementId) {
+			console.log('🔴 useAgreementForm: resetting form for edit mode');
 			store.resetForm();
 		}
 	}, [isEditing, agreementId]);
@@ -210,6 +218,33 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 		await mutateAsync(data);
 	});
+
+	// Синхронизация данных из store в форму при создании нового договора
+	useEffect(() => {
+		// Только если это создание нового договора (нет agreementId)
+		if (!agreementId) {
+			const supplierOrg = store.supplierOrg;
+			const supplierWarehouse = store.supplierWarehouse;
+			const supplierManager = store.supplierManager;
+			const customerOrg = store.customerOrg;
+			const customerWarehouse = store.customerWarehouse;
+			const customerManager = store.customerManager;
+
+			// Заполняем данные поставщика
+			if (supplierOrg && supplierWarehouse) {
+				form.setValue('supplierOrg', supplierOrg);
+				form.setValue('supplierWarehouse', supplierWarehouse);
+				if (supplierManager) form.setValue('supplierManager', supplierManager);
+			}
+
+			// Заполняем данные покупателя
+			if (customerOrg && customerWarehouse) {
+				form.setValue('customerOrg', customerOrg);
+				form.setValue('customerWarehouse', customerWarehouse);
+				if (customerManager) form.setValue('customerManager', customerManager);
+			}
+		}
+	}, [store]);
 
 	// Синхронизация материалов из store в form
 	useEffect(() => {

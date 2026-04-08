@@ -8,6 +8,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { ProtectedRoute } from './components/shared/ProtectedRoute';
 import { RoleRoute } from './components/shared/RoleRoute';
 import { Auth } from './components/pages/Auth';
+import { MapPage } from './components/pages/MapPage';
 import { WarehousesList } from './components/pages/WarehousesList';
 import { UsersList } from './components/pages/UsersList';
 import { OrganizationsList } from './components/pages/OrganizationsList';
@@ -19,6 +20,7 @@ import { AgreementForm } from './components/pages/Agreement/components';
 import { MaterialsList } from './components/pages/MaterialsList';
 import { Register } from './components/pages/Register';
 import { USER_ROLES } from '@shared/constants';
+import 'leaflet/dist/leaflet.css';
 
 const queryClient = new QueryClient();
 
@@ -38,7 +40,11 @@ createRoot(document.getElementById('root')!).render(
 							</ProtectedRoute>
 						}
 					>
-						<Route index element={<Navigate to="/warehouses" replace />} />
+						<Route index element={<Navigate to="/map" replace />} />
+
+						{/* Карта - доступна всем авторизованным */}
+						<Route path="map" element={<MapPage />} />
+
 						{/* Склады - доступны всем авторизованным */}
 						<Route path="warehouses">
 							<Route index element={<WarehousesList />} />
@@ -49,7 +55,7 @@ createRoot(document.getElementById('root')!).render(
 						<Route
 							path="organizations"
 							element={
-								<RoleRoute fallbackPath="/warehouses">
+								<RoleRoute fallbackPath="/map">
 									<OrganizationsList />
 								</RoleRoute>
 							}
@@ -61,7 +67,7 @@ createRoot(document.getElementById('root')!).render(
 						<Route
 							path="materials"
 							element={
-								<RoleRoute fallbackPath="/warehouses">
+								<RoleRoute fallbackPath="/map">
 									<MaterialsList />
 								</RoleRoute>
 							}
@@ -76,7 +82,7 @@ createRoot(document.getElementById('root')!).render(
 								element={
 									<RoleRoute
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-										fallbackPath="/warehouses"
+										fallbackPath="/map"
 									>
 										<AgreementsList />
 									</RoleRoute>
@@ -87,7 +93,7 @@ createRoot(document.getElementById('root')!).render(
 								element={
 									<RoleRoute
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-										fallbackPath="/warehouses"
+										fallbackPath="/map"
 									>
 										<AgreementForm mode="create" />
 									</RoleRoute>
@@ -98,7 +104,7 @@ createRoot(document.getElementById('root')!).render(
 								element={
 									<RoleRoute
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-										fallbackPath="/warehouses"
+										fallbackPath="/map"
 									>
 										<AgreementForm mode="view" />
 									</RoleRoute>
@@ -109,7 +115,7 @@ createRoot(document.getElementById('root')!).render(
 								element={
 									<RoleRoute
 										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-										fallbackPath="/warehouses"
+										fallbackPath="/map"
 									>
 										<AgreementForm mode="edit" />
 									</RoleRoute>
@@ -123,7 +129,7 @@ createRoot(document.getElementById('root')!).render(
 							element={
 								<RoleRoute
 									allowedRoles={[USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-									fallbackPath="/warehouses"
+									fallbackPath="/map"
 								>
 									<UsersList />
 								</RoleRoute>
@@ -136,7 +142,7 @@ createRoot(document.getElementById('root')!).render(
 						<Route
 							path="reports"
 							element={
-								<RoleRoute fallbackPath="/warehouses" deniedRoles={[USER_ROLES.USER]}>
+								<RoleRoute fallbackPath="/map" deniedRoles={[USER_ROLES.USER]}>
 									<ReportsList />
 								</RoleRoute>
 							}
