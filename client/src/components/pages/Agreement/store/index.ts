@@ -49,7 +49,10 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 	setSupplierManager: (id) => set({ supplierManager: id }),
 	setSupplierWarehouse: (id) => set({ supplierWarehouse: id }),
 
-	setCustomerOrg: (id) => set({ customerOrg: id, customerWarehouse: null, customerManager: null }),
+	setCustomerOrg: (id) => {
+		console.log('🔵 STORE: setCustomerOrg called with', id, 'stack:', new Error().stack);
+		set({ customerOrg: id, customerWarehouse: null, customerManager: null });
+	},
 	setCustomerManager: (id) => set({ customerManager: id }),
 	setCustomerWarehouse: (id) => set({ customerWarehouse: id }),
 
@@ -80,5 +83,8 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 
 	setStatus: (status) => set({ status }), // Добавляем сеттер
 
-	resetForm: () => set(initialState),
+	resetForm: () => {
+		console.log('🔴 STORE: resetForm called', new Error().stack);
+		set(initialState);
+	},
 }));

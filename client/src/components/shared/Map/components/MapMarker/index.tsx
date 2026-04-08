@@ -11,7 +11,6 @@ interface MapMarkerProps {
 
 export function MapMarker({ marker, onMarkerClick }: MapMarkerProps) {
 	const handleClick = () => {
-		// Только для выбора склада (не для "Подробнее")
 		if (marker.onClick) {
 			marker.onClick();
 		}
@@ -19,9 +18,14 @@ export function MapMarker({ marker, onMarkerClick }: MapMarkerProps) {
 	};
 
 	const handleDetailsClick = () => {
-		// Отдельный обработчик для кнопки "Подробнее"
 		if (marker.onDetailsClick) {
 			marker.onDetailsClick();
+		}
+	};
+
+	const handleCreateAgreement = () => {
+		if (marker.onCreateAgreement) {
+			marker.onCreateAgreement();
 		}
 	};
 
@@ -32,7 +36,11 @@ export function MapMarker({ marker, onMarkerClick }: MapMarkerProps) {
 			eventHandlers={{ click: handleClick }}
 		>
 			<Popup>
-				<MapPopup marker={marker} onDetailsClick={handleDetailsClick} />
+				<MapPopup
+					marker={marker}
+					onDetailsClick={handleDetailsClick}
+					onCreateAgreement={handleCreateAgreement}
+				/>
 			</Popup>
 		</Marker>
 	);

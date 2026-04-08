@@ -1,16 +1,35 @@
 // src/components/pages/MapPage.tsx
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
 import { Map, MARKER_COLORS, type MapMarker, type SearchableItem } from '@/components/shared/Map';
 import { warehouseService } from '@/services/warehouseService';
 import { organizationService } from '@/services/organizationService';
 import { useProfile } from '@/hooks';
 import { atLeastManager } from '@/utils';
 import type { Map as LeafletMap } from 'leaflet';
-import { useNavigate } from 'react-router';
+import { CreateAgreementModal } from './components/CreateAgreementModal';
+import { useAgreementFormStore } from '@/components/pages/Agreement/store';
 
 export function MapPage() {
+	const navigate = useNavigate();
 	const mapRef = useRef<LeafletMap>(null);
+
+	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [selectedWarehouse, setSelectedWarehouse] = useState<{ id: number; name: string } | null>(
+		null
+	);
+
+	// Получаем сеттеры из store
+	const {
+		setSupplierOrg,
+		setSupplierWarehouse,
+		setSupplierManager,
+		setCustomerOrg,
+		setCustomerWarehouse,
+		setCustomerManager,
+		resetForm,
+	} = useAgreementFormStore();
 
 	const profileQuery = useProfile();
 	const profile = profileQuery.data?.data;
@@ -77,6 +96,38 @@ export function MapPage() {
 		}
 	};
 
+	// Обработчик создания договора
+	const handleCreateAgreement = (warehouseId: number, warehouseName: string) => {
+		setSelectedWarehouse({ id: warehouseId, name: warehouseName });
+		setIsModalOpen(true);
+	};
+
+	// Обработчик выбора роли
+	const handleRoleSelect = (warehouseId: number, role: 'supplier' | 'customer') => {
+		// Находим склад с данными об организации
+		const warehouse = warehousesData?.data?.find((w) => w.id === warehouseId);
+
+		if (warehouse) {
+			// Сбрасываем предыдущие данные формы
+			resetForm();
+
+			if (role === 'supplier') {
+				// Заполняем данные поставщика
+				setSupplierOrg(warehouse.organization_id);
+				setSupplierWarehouse(warehouse.id);
+				setSupplierManager(warehouse.manager_id);
+			} else {
+				// Заполняем данные покупателя
+				setCustomerOrg(warehouse.organization_id);
+				setCustomerWarehouse(warehouse.id);
+				setCustomerManager(warehouse.manager_id);
+			}
+
+			// Переход на страницу создания договора
+			navigate('/agreements/new');
+		}
+	};
+
 	const organizationsMarkers: MapMarker[] =
 		organizationsData?.data
 			?.filter((o) => o.latitude && o.longitude)
@@ -103,6 +154,7 @@ export function MapPage() {
 				onDetailsClick: () => {
 					window.open(`/warehouses/${warehouse.id}`, '_blank');
 				},
+				onCreateAgreement: () => handleCreateAgreement(warehouse.id, warehouse.name),
 			})) || [];
 
 	const allMarkers = [...organizationsMarkers, ...warehousesMarkers];
@@ -116,15 +168,28 @@ export function MapPage() {
 	}
 
 	return (
-		<div className="h-[95vh]">
-			<Map
-				ref={mapRef}
-				markers={allMarkers}
-				searchableItems={searchableItems}
-				enableSearch={true}
-				searchPlaceholder="Поиск организаций и складов..."
-				height="100%"
-			/>
-		</div>
+		<>
+			<div className="h-[95vh]">
+				<Map
+					ref={mapRef}
+					markers={allMarkers}
+					searchableItems={searchableItems}
+					enableSearch={true}
+					searchPlaceholder="Поиск организаций и складов..."
+					height="100%"
+				/>
+			</div>
+
+			{/* Модальное окно для выбора роли */}
+			{selectedWarehouse && (
+				<CreateAgreementModal
+					open={isModalOpen}
+					setOpen={setIsModalOpen}
+					warehouseId={selectedWarehouse.id}
+					warehouseName={selectedWarehouse.name}
+					onSelect={handleRoleSelect}
+				/>
+			)}
+		</>
 	);
 }

@@ -43,20 +43,23 @@ export function AgreementForm({ mode = 'create' }: Props) {
 		!agreementId ||
 		(initialStatus && !IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus));
 
-	// Сброс формы при unmount'e
 	useEffect(() => {
 		return () => {
-			form.reset({
-				supplierOrg: undefined,
-				supplierManager: undefined,
-				supplierWarehouse: undefined,
-				customerOrg: undefined,
-				customerManager: undefined,
-				customerWarehouse: undefined,
-				status: 'draft',
-				materials: [],
-			});
-			store.resetForm();
+			// Не сбрасываем форму, если был выбран склад из карты
+			const hasPreselectedData = store.supplierOrg || store.customerOrg;
+			if (!hasPreselectedData) {
+				form.reset({
+					supplierOrg: undefined,
+					supplierManager: undefined,
+					supplierWarehouse: undefined,
+					customerOrg: undefined,
+					customerManager: undefined,
+					customerWarehouse: undefined,
+					status: 'draft',
+					materials: [],
+				});
+				store.resetForm();
+			}
 		};
 	}, []);
 

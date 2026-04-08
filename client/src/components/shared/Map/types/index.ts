@@ -14,6 +14,7 @@ export interface MapMarker {
 	data?: any;
 	onClick?: () => void;
 	onDetailsClick?: () => void;
+	onCreateAgreement?: () => void;
 }
 
 export interface SearchableItem {
