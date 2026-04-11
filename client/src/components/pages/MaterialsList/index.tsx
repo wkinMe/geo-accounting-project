@@ -4,11 +4,12 @@ import { materialService } from '@/services/materialService';
 import { userService } from '@/services/userService';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaRegTrashAlt } from 'react-icons/fa';
+import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import { MaterialModal } from './components';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
+import { useNavigate } from 'react-router';
 
 export type TableMaterial = {
 	id: number;
@@ -35,6 +36,7 @@ const mapMaterialToTableItem = (material: any): TableMaterial => ({
 });
 
 export function MaterialsList() {
+	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
@@ -128,6 +130,11 @@ export function MaterialsList() {
 	const canModify = () => isSuperAdmin;
 
 	const actions: Action<TableMaterial>[] = [
+		{
+			name: 'Просмотреть',
+			action: (item: TableMaterial) => navigate(`${item.id}`),
+			icon: <FaRegEye />,
+		},
 		{
 			name: 'Редактировать',
 			action: (item: TableMaterial) => openEditModal(item),
