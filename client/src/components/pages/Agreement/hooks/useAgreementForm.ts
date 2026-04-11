@@ -83,15 +83,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	});
 
 	useEffect(() => {
-		console.log('🔵 useAgreementForm mount/create', { agreementId, isEditing });
-		return () => {
-			console.log('🔴 useAgreementForm unmount');
-		};
-	}, []);
-
-	useEffect(() => {
 		if (isEditing && agreementId) {
-			console.log('🔴 useAgreementForm: resetting form for edit mode');
 			store.resetForm();
 		}
 	}, [isEditing, agreementId]);
