@@ -28,3 +28,11 @@ export interface CreateAgreementMaterialDTO {
 export interface UpdateAgreementMaterialDTO {
   amount?: number;
 }
+
+export interface CreateMaterial3DObjectDTO {
+  material_id: number;
+  format: string;
+  model_data: ArrayBuffer;
+}
+
+export interface UpdateMaterial3DObjectDTO extends CreateMaterial3DObjectDTO {}

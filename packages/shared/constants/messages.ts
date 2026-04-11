@@ -29,6 +29,8 @@ export const SUCCESS_MESSAGES = {
       : `No ${entity}s found for manager ${managerName}`,
   ASSIGN_MANAGER: (managerName: string, isAssigned = true) =>
     `Manager ${managerName} has been ${!isAssigned && `un`}assigned`,
+
+  // Специфические для Material 3D object
 };
 
 export const ERROR_MESSAGES = {

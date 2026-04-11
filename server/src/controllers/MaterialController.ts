@@ -8,7 +8,7 @@ import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
 
 export class MaterialController {
   private _materialService: MaterialService;
-  private entityName = "material";
+  private _entityName = "material";
 
   constructor(dbConnection: Pool) {
     this._materialService = new MaterialService(dbConnection);
@@ -19,7 +19,7 @@ export class MaterialController {
       const materials = await this._materialService.findAll();
       res.status(200).json({
         data: materials,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+        message: SUCCESS_MESSAGES.FIND_ALL(this._entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -32,14 +32,14 @@ export class MaterialController {
 
       if (isNaN(id) || id <= 0) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
         });
       }
 
       const material = await this._materialService.findById(id);
       res.status(200).json({
         data: material,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this._entityName, id),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -66,7 +66,7 @@ export class MaterialController {
 
       res.status(201).json({
         data: result,
-        message: SUCCESS_MESSAGES.CREATE(this.entityName),
+        message: SUCCESS_MESSAGES.CREATE(this._entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -79,14 +79,14 @@ export class MaterialController {
 
       if (isNaN(id) || id <= 0) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
         });
       }
 
       const deletedMaterial = await this._materialService.delete(id);
       res.status(200).json({
         data: deletedMaterial,
-        message: SUCCESS_MESSAGES.DELETE(this.entityName),
+        message: SUCCESS_MESSAGES.DELETE(this._entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -103,7 +103,7 @@ export class MaterialController {
 
       if (isNaN(id) || id <= 0) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
+          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
         });
       }
 
@@ -127,7 +127,7 @@ export class MaterialController {
 
       res.status(200).json({
         data: updatedMaterial,
-        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
+        message: SUCCESS_MESSAGES.UPDATE(this._entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
@@ -149,7 +149,7 @@ export class MaterialController {
       res.status(200).json({
         data: searchedMaterials,
         message: SUCCESS_MESSAGES.SEARCH(
-          this.entityName,
+          this._entityName,
           searchedMaterials.length,
         ),
       });

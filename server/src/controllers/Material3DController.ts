@@ -1,0 +1,122 @@
+import { Pool } from "pg";
+import { Request, Response } from "express";
+import { Material3DService } from "../services/Material3DService";
+import { baseErrorHandling } from "../utils";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
+import {
+  CreateMaterial3DObjectDTO,
+  UpdateMaterial3DObjectDTO,
+} from "@shared/dto";
+
+export class Material3DController {
+  private _material3DService: Material3DService;
+  private _entityName = "material 3d object";
+
+  constructor(dbConnection: Pool) {
+    this._material3DService = new Material3DService(dbConnection);
+  }
+
+  async findById(req: Request<{ id: string }>, res: Response) {
+    const id = Number(req.params.id);
+
+    try {
+      const object = this._material3DService.findById(id);
+
+      res.status(200).json({
+        data: object,
+        message: SUCCESS_MESSAGES.FIND_BY_ID(this._entityName, id),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async findByMaterialId(req: Request<{ id: string }>, res: Response) {
+    const id = Number(req.params.id);
+
+    try {
+      const object = this._material3DService.findByMaterialId(id);
+
+      res.status(200).json({
+        data: object,
+        message: `3D oject of material with id=${id} has been retrieved`,
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async create(req: Request<{}, {}, CreateMaterial3DObjectDTO>, res: Response) {
+    const { material_id, format, model_data } = req.body;
+
+    if (!material_id) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`material_id`),
+      });
+    }
+
+    if (!format) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`format`),
+      });
+    }
+
+    if (!model_data) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`model_data`),
+      });
+    }
+
+    try {
+      const object = this._material3DService.create({
+        material_id: Number(material_id),
+        format,
+        model_data,
+      });
+
+      res.status(200).json({
+        data: object,
+        message: SUCCESS_MESSAGES.CREATE(this._entityName),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async update(req: Request<{}, {}, UpdateMaterial3DObjectDTO>, res: Response) {
+    const { material_id, format, model_data } = req.body;
+
+    if (!material_id) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`material_id`),
+      });
+    }
+
+    if (!format) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`format`),
+      });
+    }
+
+    if (!model_data) {
+      return res.status(400).json({
+        message: ERROR_MESSAGES.REQUIRED_FIELD(`model_data`),
+      });
+    }
+
+    try {
+      const object = this._material3DService.update({
+        material_id: Number(material_id),
+        format,
+        model_data,
+      });
+
+      res.status(200).json({
+        data: object,
+        message: SUCCESS_MESSAGES.CREATE(this._entityName),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+}

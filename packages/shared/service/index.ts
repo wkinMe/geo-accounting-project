@@ -73,10 +73,6 @@ export class UnauthorizedError extends ServiceError {
   }
 }
 
-/**
- * Ошибка доступа - возникает, когда у пользователя недостаточно прав
- * для выполнения операции, даже если он аутентифицирован
- */
 export class ForbiddenError extends ServiceError {
   public readonly requiredRole?: string;
   public readonly userRole?: string;
