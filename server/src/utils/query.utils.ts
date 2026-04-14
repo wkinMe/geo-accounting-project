@@ -44,3 +44,19 @@ export async function getSingleResult<T extends QueryResultRow>(
 
   return rows[0];
 }
+
+// Вспомогательный метод для получения одной записи БЕЗ выброса ошибки
+export async function findSingleResult<T extends QueryResultRow>(
+  db: Pool,
+  operation: string,
+  query: string,
+  parameters?: any[],
+): Promise<T | null> {
+  const rows = await executeQuery<T>(db, operation, query, parameters);
+
+  if (rows.length === 0) {
+    return null; // 👈 Просто возвращаем null, без ошибки
+  }
+
+  return rows[0];
+}

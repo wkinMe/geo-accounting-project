@@ -35,51 +35,44 @@ export class Material3DController {
     const id = Number(req.params.id);
 
     try {
-      const object = this._material3DService.findByMaterialId(id);
+      const object = await this._material3DService.findByMaterialId(id);
+
+      // Если объект не найден, возвращаем null без ошибки
+      if (!object) {
+        return res.status(200).json({
+          data: null,
+          message: `No 3D object found for material with id=${id}`,
+        });
+      }
 
       res.status(200).json({
         data: object,
-        message: `3D oject of material with id=${id} has been retrieved`,
+        message: `3D object of material with id=${id} has been retrieved`,
       });
     } catch (e) {
       baseErrorHandling(e, res);
     }
   }
 
-  async create(req: Request<{}, {}, CreateMaterial3DObjectDTO>, res: Response) {
-    const { material_id, format, model_data } = req.body;
-
-    if (!material_id) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`material_id`),
-      });
-    }
-
-    if (!format) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`format`),
-      });
-    }
-
-    if (!model_data) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`model_data`),
-      });
-    }
-
+  async create(req: Request, res: Response) {
     try {
-      const object = this._material3DService.create({
+      const { material_id, format } = req.body;
+      const model_data = req.file?.buffer;
+
+      if (!model_data) {
+        return res.status(400).json({ error: "Файл 3D объекта обязателен" });
+      }
+
+      const result = await this._material3DService.create({
         material_id: Number(material_id),
         format,
         model_data,
       });
 
-      res.status(200).json({
-        data: object,
-        message: SUCCESS_MESSAGES.CREATE(this._entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error in create:", error);
+      res.status(500).json({ error: "Failed to create 3D object" });
     }
   }
 

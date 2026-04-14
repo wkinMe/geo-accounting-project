@@ -2,6 +2,7 @@ import { useParams } from 'react-router';
 import { useMaterial } from './hooks/useMaterial';
 import Spinner from '@/components/shared/Spinner';
 import { MaterialInfo } from './components/MaterialInfo';
+import { Material3D } from './components/Material3D';
 
 export function Material() {
 	const params = useParams();
@@ -14,6 +15,7 @@ export function Material() {
 		materialDataError,
 		material3dObject,
 		isMaterial3dObjectPending,
+		material3dObjectError,
 	} = useMaterial(id);
 
 	if (isMaterialDataPending) {
@@ -29,8 +31,9 @@ export function Material() {
 	}
 
 	return (
-		<div className="flex flex-col gap-5">
+		<div className="flex flex-col gap-5 h-[85vh]">
 			{materialData && <MaterialInfo {...materialData.data} />}
+			<Material3D materialId={materialData?.data.id || 0} />
 		</div>
 	);
 }

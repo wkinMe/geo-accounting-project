@@ -29,10 +29,11 @@ export interface UpdateAgreementMaterialDTO {
   amount?: number;
 }
 
+// Для создания через FormData
 export interface CreateMaterial3DObjectDTO {
   material_id: number;
   format: string;
-  model_data: ArrayBuffer;
+  model_data: Buffer; // ← теперь Buffer, не ArrayBuffer
 }
 
 export interface UpdateMaterial3DObjectDTO extends CreateMaterial3DObjectDTO {}

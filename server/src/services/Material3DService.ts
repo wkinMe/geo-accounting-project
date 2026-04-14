@@ -1,6 +1,6 @@
 import { Material3D } from "@shared/models";
 import { DatabaseError, Pool } from "pg";
-import { executeQuery, getSingleResult } from "../utils";
+import { executeQuery, findSingleResult, getSingleResult } from "../utils";
 import {
   CreateMaterial3DObjectDTO,
   UpdateMaterial3DObjectDTO,
@@ -39,23 +39,28 @@ export class Material3DService {
     }
   }
 
-  async findByMaterialId(id: number): Promise<Material3D> {
+  async findByMaterialId(id: number): Promise<Material3D | null> {
     try {
-      const result = getSingleResult<Material3D>(
+      const result = await getSingleResult<Material3D>(
         this._dbConnection,
         `select`,
         `SELECT * FROM ${this._entityName} WHERE material_id=$1`,
         [id],
+        this._entityName,
+        id,
       );
-
       return result;
     } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+      if (error instanceof NotFoundError) {
+        return null;
+      }
+
+      if (error instanceof DatabaseError) {
         throw error;
       }
 
       throw new ServiceError(
-        `Filed to retrieve 3d object of material with id=${id}`,
+        `Failed to retrieve 3d object of material with id=${id}`,
         `Material3DService`,
         `findByMaterialId`,
         error,
@@ -65,69 +70,77 @@ export class Material3DService {
 
   async create({ material_id, format, model_data }: CreateMaterial3DObjectDTO) {
     try {
+      // Валидации
       if (!material_id) {
         throw new ValidationError(
-          `Material ID is required`,
-          `create`,
-          `Material3DService`,
-          `material_id`,
+          "Material ID is required",
+          "create",
+          "Material3DService",
+          "material_id",
           material_id,
         );
       }
 
       if (!format) {
         throw new ValidationError(
-          `File format is required`,
-          `create`,
-          `Material3DService`,
-          `format`,
+          "File format is required",
+          "create",
+          "Material3DService",
+          "format",
           format,
         );
       }
 
-      if (!model_data) {
+      if (
+        !model_data ||
+        !(model_data instanceof Buffer) ||
+        model_data.length === 0
+      ) {
         throw new ValidationError(
-          `Model data is required`,
-          `create`,
-          `Material3DService`,
-          `model_data`,
+          "Model data is required and must be a non-empty Buffer",
+          "create",
+          "Material3DService",
+          "model_data",
           model_data,
         );
       }
 
-      const existing3DObject = getSingleResult(
+      // Проверка на существование
+      const existing3DObject = await findSingleResult(
         this._dbConnection,
-        `create`,
+        "create",
         `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
         [material_id],
-        this._entityName,
-        material_id,
       );
 
       if (existing3DObject) {
         throw new ValidationError(
-          `Object to this material already exist`,
-          `create`,
-          `Material3DService`,
-          `material_id`,
+          "Object for this material already exists",
+          "create",
+          "Material3DService",
+          "material_id",
           material_id,
         );
       }
 
+      // Вставка (model_data уже Buffer)
       const rows = await executeQuery(
         this._dbConnection,
-        `create`,
-        `INSERT INTO ${this._entityName} VALUES ($1, $2, $3) RETURNING *`,
+        "create",
+        `INSERT INTO ${this._entityName} (material_id, format, model_data) 
+       VALUES ($1, $2, $3) RETURNING id, material_id, format, created_at`,
         [material_id, format, model_data],
       );
 
       if (!rows.length) {
         throw new ServiceError(
-          `Failed to create 3D object - no data returned`,
-          `Material3DService`,
-          `create`,
+          "Failed to create 3D object - no data returned",
+          "Material3DService",
+          "create",
         );
       }
+
+      return rows[0];
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -137,9 +150,9 @@ export class Material3DService {
         throw error;
       }
       throw new ServiceError(
-        `Failed to create 3d object`,
-        `Material3DService`,
-        `create`,
+        "Failed to create 3D object",
+        "Material3DService",
+        "create",
         error,
       );
     }

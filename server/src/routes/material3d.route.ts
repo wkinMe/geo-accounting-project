@@ -6,6 +6,7 @@ import {
   CreateMaterial3DObjectDTO,
   UpdateMaterial3DObjectDTO,
 } from "@shared/dto";
+import { upload } from "../middleware/upload";
 
 export const material3DRouter = Router();
 const material3DController = new Material3DController(pool);
@@ -20,10 +21,10 @@ material3DRouter.get(
     material3DController.findByMaterialId(req, res);
   },
 );
-
 material3DRouter.post(
   "/",
-  (req: Request<{}, {}, CreateMaterial3DObjectDTO>, res: Response) => {
+  upload.single("model_data"),
+  (req: Request, res: Response) => {
     material3DController.create(req, res);
   },
 );
