@@ -1,5 +1,5 @@
 import express from "express";
-import router from "./routes"; // Импортируем основной роутер
+import router from "./routes";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { errorHandler } from "./handlers/error-handler";
@@ -12,7 +12,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: true,
     credentials: true,
   }),
 );

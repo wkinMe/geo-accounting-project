@@ -21,6 +21,7 @@ import { MaterialsList } from './components/pages/MaterialsList';
 import { Register } from './components/pages/Register';
 import { USER_ROLES } from '@shared/constants';
 import 'leaflet/dist/leaflet.css';
+import { Material } from './components/pages/Material';
 
 const queryClient = new QueryClient();
 
@@ -64,15 +65,16 @@ createRoot(document.getElementById('root')!).render(
 						</Route>
 
 						{/* Материалы - просмотр всем, управление только super_admin */}
-						<Route
-							path="materials"
-							element={
-								<RoleRoute fallbackPath="/map">
-									<MaterialsList />
-								</RoleRoute>
-							}
-						>
-							<Route index element={<MaterialsList />} />
+						<Route path="materials">
+							<Route
+								index
+								element={
+									<RoleRoute fallbackPath="/map">
+										<MaterialsList />
+									</RoleRoute>
+								}
+							/>
+							<Route path=":id" element={<Material />} />
 						</Route>
 
 						{/* Договоры - доступны менеджерам, админам и суперадминам */}

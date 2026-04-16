@@ -9,7 +9,7 @@ import {
   ServiceError,
   ValidationError,
 } from "@shared/service";
-import { executeQuery, getSingleResult } from "@src/utils";
+import { executeQuery, findSingleResult, getSingleResult } from "@src/utils";
 
 export class MaterialService {
   private _db: Pool;
@@ -58,7 +58,7 @@ export class MaterialService {
         `Failed to find material with id ${id}`,
         "MaterialService",
         "findById",
-        error instanceof Error ? error : new Error(String(error)),
+        error,
       );
     }
   }
@@ -83,14 +83,14 @@ export class MaterialService {
         );
       }
 
-      const existingMaterials = await executeQuery<Material>(
+      const existingMaterial = await findSingleResult<Material>(
         this._db,
         "checkUniqueName",
         "SELECT * FROM materials WHERE LOWER(name) = LOWER($1)",
         [value.name.trim()],
       );
 
-      if (existingMaterials.length > 0) {
+      if (existingMaterial) {
         throw new ValidationError(
           `Material with name "${value.name}" already exists`,
           "create",
@@ -156,14 +156,14 @@ export class MaterialService {
       }
 
       if (name.trim() !== existingMaterial.name) {
-        const existingMaterials = await executeQuery<Material>(
+        const existingMaterial = await executeQuery<Material>(
           this._db,
           "checkUniqueNameUpdate",
           "SELECT * FROM materials WHERE LOWER(name) = LOWER($1) AND id != $2",
           [name.trim(), id],
         );
 
-        if (existingMaterials.length > 0) {
+        if (existingMaterial.length > 0) {
           throw new ValidationError(
             `Material with name "${name}" already exists`,
             "update",
