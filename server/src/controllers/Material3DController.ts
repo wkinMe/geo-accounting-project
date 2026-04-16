@@ -112,4 +112,18 @@ export class Material3DController {
       baseErrorHandling(error, res);
     }
   }
+
+  async delete(req: Request<{ id: string }>, res: Response) {
+    const material_id = Number(req.params.id);
+
+    try {
+      await this._material3DService.delete(material_id);
+
+      res.status(200).json({
+        message: SUCCESS_MESSAGES.DELETE(this._entityName),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
 }

@@ -9,7 +9,7 @@ import {
   ServiceError,
   ValidationError,
 } from "@shared/service";
-import { executeQuery, getSingleResult } from "@src/utils";
+import { executeQuery, findSingleResult, getSingleResult } from "@src/utils";
 
 export class MaterialService {
   private _db: Pool;
@@ -83,7 +83,7 @@ export class MaterialService {
         );
       }
 
-      const existingMaterial = await getSingleResult<Material>(
+      const existingMaterial = await findSingleResult<Material>(
         this._db,
         "checkUniqueName",
         "SELECT * FROM materials WHERE LOWER(name) = LOWER($1)",

@@ -190,7 +190,7 @@ export class Material3DService {
         );
       }
 
-      const existing3DObject = getSingleResult(
+      const existing3DObject = await getSingleResult(
         this._dbConnection,
         `update`,
         `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
@@ -223,6 +223,8 @@ export class Material3DService {
           `update`,
         );
       }
+
+      return rows[0];
     } catch (error) {
       if (
         error instanceof DatabaseError ||
@@ -235,6 +237,60 @@ export class Material3DService {
         `Failed to update 3d object`,
         `Material3DService`,
         `update`,
+        error,
+      );
+    }
+  }
+
+  async delete(material_id: number): Promise<void> {
+    try {
+      if (!material_id) {
+        throw new ValidationError(
+          `Material ID is required`,
+          `delete`,
+          `Material3DService`,
+          `material_id`,
+          material_id,
+        );
+      }
+
+      // Проверяем, существует ли объект
+      const existing3DObject = await findSingleResult(
+        this._dbConnection,
+        `delete`,
+        `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
+        [material_id],
+      );
+
+      if (!existing3DObject) {
+        throw new NotFoundError(
+          `3D object for material with id=${material_id} not found`,
+          this._entityName,
+          "Material3DService",
+          material_id,
+        );
+      }
+
+      // Выполняем удаление
+      await executeQuery(
+        this._dbConnection,
+        `delete`,
+        `DELETE FROM ${this._entityName} WHERE material_id=$1`,
+        [material_id],
+      );
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof ValidationError ||
+        error instanceof NotFoundError ||
+        error instanceof ServiceError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Failed to delete 3D object for material with id=${material_id}`,
+        `Material3DService`,
+        `delete`,
         error,
       );
     }

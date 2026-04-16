@@ -11,7 +11,9 @@ export class Material3DService {
 	}
 
 	async findByMaterialId(id: number): Promise<SuccessResponse<Material3D>> {
-		const response = await instance.get<SuccessResponse<Material3D>>(`${this.baseUrl}/material/${id}`);
+		const response = await instance.get<SuccessResponse<Material3D>>(
+			`${this.baseUrl}/material/${id}`
+		);
 		return response.data;
 	}
 
@@ -26,7 +28,16 @@ export class Material3DService {
 	}
 
 	async update(formData: FormData): Promise<Material3D> {
-		const response = await instance.patch(`${this.baseUrl}`, formData);
+		const response = await instance.patch(`${this.baseUrl}`, formData, {
+			headers: {
+				'Content-Type': 'multipart/form-data',
+			},
+		});
+		return response.data;
+	}
+
+	async delete(materialId: number): Promise<SuccessResponse<void>> {
+		const response = await instance.delete<SuccessResponse<void>>(`${this.baseUrl}/${materialId}`);
 		return response.data;
 	}
 }
