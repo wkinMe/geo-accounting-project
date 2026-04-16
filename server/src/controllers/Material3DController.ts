@@ -76,40 +76,40 @@ export class Material3DController {
     }
   }
 
-  async update(req: Request<{}, {}, UpdateMaterial3DObjectDTO>, res: Response) {
-    const { material_id, format, model_data } = req.body;
-
-    if (!material_id) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`material_id`),
-      });
-    }
-
-    if (!format) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`format`),
-      });
-    }
-
-    if (!model_data) {
-      return res.status(400).json({
-        message: ERROR_MESSAGES.REQUIRED_FIELD(`model_data`),
-      });
-    }
-
+  async update(req: Request, res: Response) {
     try {
-      const object = this._material3DService.update({
+      const { material_id, format } = req.body;
+      const model_data = req.file?.buffer;
+
+      if (!material_id) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("material_id"),
+        });
+      }
+
+      if (!format) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.REQUIRED_FIELD("format"),
+        });
+      }
+
+      if (!model_data) {
+        return res.status(400).json({ error: "Файл 3D объекта обязателен" });
+      }
+
+      const result = await this._material3DService.update({
         material_id: Number(material_id),
         format,
         model_data,
       });
 
       res.status(200).json({
-        data: object,
-        message: SUCCESS_MESSAGES.CREATE(this._entityName),
+        data: result,
+        message: SUCCESS_MESSAGES.UPDATE(this._entityName),
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      console.error("Error in update:", error);
+      baseErrorHandling(error, res);
     }
   }
 }

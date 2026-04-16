@@ -25,8 +25,8 @@ export class Material3DService {
 		return response.data;
 	}
 
-	async update(data: any) {
-		const response = await instance.patch(`${this.baseUrl}`, data);
+	async update(formData: FormData): Promise<Material3D> {
+		const response = await instance.patch(`${this.baseUrl}`, formData);
 		return response.data;
 	}
 }

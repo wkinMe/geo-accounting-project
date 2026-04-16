@@ -5,10 +5,12 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import * as THREE from 'three';
-import { FaUpload, FaSave, FaSpinner } from 'react-icons/fa';
+import { FaUpload, FaSave, FaSpinner, FaEdit } from 'react-icons/fa';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Material3D } from '@shared/models';
 import { material3dService } from '@/services/material3DService';
+import { useRole } from '@/hooks/useRole'; // импортируйте ваш хук
+import { atLeastManager } from '@/utils';
 
 interface Material3DComponentProps {
 	materialId: number;
@@ -143,14 +145,24 @@ function ModelViewer({ modelData, format }: { modelData: any; format: string | n
 
 export function Material3D({ materialId }: Material3DComponentProps) {
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const [isEditMode, setIsEditMode] = useState(false);
 	const [modelDataForView, setModelDataForView] = useState<any>(null);
 	const [modelFormat, setModelFormat] = useState<string | null>(null);
 	const [errorMessage, setErrorMessage] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const queryClient = useQueryClient();
+	const role = useRole(); 
+	const canEdit = atLeastManager(role); // могут редактировать только Manager и выше
 
-	console.log('[Material3D] Компонент рендерится, materialId:', materialId);
+	console.log(
+		'[Material3D] Компонент рендерится, materialId:',
+		materialId,
+		'role:',
+		role,
+		'canEdit:',
+		canEdit
+	);
 
 	// TanStack Query для получения 3D объекта
 	const { data: response, isLoading } = useQuery({
@@ -196,6 +208,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			setSuccessMessage('3D объект успешно сохранён');
 			setSelectedFile(null);
 			setModelDataForView(null);
+			setIsEditMode(false);
 			setErrorMessage(null);
 			setTimeout(() => setSuccessMessage(null), 3000);
 			queryClient.invalidateQueries({ queryKey: ['material3d', materialId] });
@@ -204,6 +217,39 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			console.error('[Material3D] Ошибка при сохранении:', err);
 			setErrorMessage(
 				`Ошибка при сохранении: ${err?.response?.data?.error || err?.message || 'Неизвестная ошибка'}`
+			);
+			setTimeout(() => setErrorMessage(null), 3000);
+		},
+		retry: false,
+	});
+
+	// Mutation для обновления 3D объекта
+	const updateMutation = useMutation({
+		mutationFn: async (formData: FormData) => {
+			console.log('[Material3D] Отправка FormData на сервер для обновления');
+			for (const pair of formData.entries()) {
+				console.log(
+					'[Material3D] FormData entry:',
+					pair[0],
+					pair[1] instanceof File ? `File: ${pair[1].name}, size: ${pair[1].size}` : pair[1]
+				);
+			}
+			return material3dService.update(formData);
+		},
+		onSuccess: () => {
+			console.log('[Material3D] 3D объект успешно обновлён на сервере');
+			setSuccessMessage('3D объект успешно обновлён');
+			setSelectedFile(null);
+			setModelDataForView(null);
+			setIsEditMode(false);
+			setErrorMessage(null);
+			setTimeout(() => setSuccessMessage(null), 3000);
+			queryClient.invalidateQueries({ queryKey: ['material3d', materialId] });
+		},
+		onError: (err: any) => {
+			console.error('[Material3D] Ошибка при обновлении:', err);
+			setErrorMessage(
+				`Ошибка при обновлении: ${err?.response?.data?.error || err?.message || 'Неизвестная ошибка'}`
 			);
 			setTimeout(() => setErrorMessage(null), 3000);
 		},
@@ -320,6 +366,50 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		createMutation.mutate(formData);
 	};
 
+	const handleUpdate = () => {
+		console.log('[Material3D] Нажата кнопка Обновить');
+
+		if (!selectedFile) {
+			console.warn('[Material3D] Нет выбранного файла для обновления');
+			setErrorMessage('Выберите 3D объект для обновления');
+			setTimeout(() => setErrorMessage(null), 3000);
+			return;
+		}
+
+		const formData = new FormData();
+		formData.append('material_id', String(materialId));
+		formData.append('format', modelFormat || 'unknown');
+		formData.append('model_data', selectedFile);
+
+		console.log('[Material3D] Подготовлен FormData для обновления:', {
+			material_id: materialId,
+			format: modelFormat,
+			file_name: selectedFile.name,
+			file_size: selectedFile.size,
+		});
+
+		updateMutation.mutate(formData);
+	};
+
+	const handleEditClick = () => {
+		console.log('[Material3D] Вход в режим редактирования');
+		setIsEditMode(true);
+		setSelectedFile(null);
+		setModelDataForView(null);
+		setModelFormat(null);
+	};
+
+	const handleCancelEdit = () => {
+		console.log('[Material3D] Выход из режима редактирования');
+		setIsEditMode(false);
+		setSelectedFile(null);
+		// Восстанавливаем исходные данные для просмотра
+		if (material3D?.model_data?.data) {
+			setModelDataForView(material3D.model_data.data);
+			setModelFormat(material3D.format);
+		}
+	};
+
 	const handleUploadClick = () => {
 		console.log('[Material3D] Клик по области загрузки');
 		fileInputRef.current?.click();
@@ -336,8 +426,10 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 
 	const hasExistingModel = !!material3D?.model_data?.data;
 	const hasNewFile = !!selectedFile;
-	const showUploadButton = !hasExistingModel && !hasNewFile;
-	const showSaveButton = hasNewFile;
+	const showUploadButton = !hasExistingModel && !hasNewFile && !isEditMode;
+	const showSaveButton = hasNewFile && !hasExistingModel;
+	const showUpdateButton = hasNewFile && hasExistingModel && isEditMode;
+	const showEditButton = hasExistingModel && !isEditMode && canEdit;
 	const hasDataToView = !!modelDataForView;
 
 	console.log('[Material3D] Состояние UI:', {
@@ -345,8 +437,12 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		hasNewFile,
 		showUploadButton,
 		showSaveButton,
+		showUpdateButton,
+		showEditButton,
+		isEditMode,
 		modelFormat,
 		hasDataToView,
+		canEdit,
 	});
 
 	return (
@@ -363,7 +459,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 				</div>
 			)}
 
-			<div className="flex justify-end mb-4">
+			<div className="flex justify-end gap-2 mb-4">
 				{showSaveButton && (
 					<button
 						onClick={handleSave}
@@ -372,6 +468,36 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 					>
 						{createMutation.isPending ? <FaSpinner className="animate-spin" /> : <FaSave />}
 						Сохранить 3D объект
+					</button>
+				)}
+
+				{showUpdateButton && (
+					<button
+						onClick={handleUpdate}
+						disabled={updateMutation.isPending}
+						className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						{updateMutation.isPending ? <FaSpinner className="animate-spin" /> : <FaSave />}
+						Обновить 3D объект
+					</button>
+				)}
+
+				{showEditButton && (
+					<button
+						onClick={handleEditClick}
+						className="flex items-center gap-2 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors"
+					>
+						<FaEdit />
+						Заменить модель
+					</button>
+				)}
+
+				{isEditMode && hasExistingModel && (
+					<button
+						onClick={handleCancelEdit}
+						className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+					>
+						Отмена
 					</button>
 				)}
 			</div>
@@ -429,7 +555,21 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 					</div>
 				)}
 
-				{!showUploadButton && !hasDataToView && (
+				{isEditMode && !hasNewFile && hasExistingModel && (
+					<div
+						className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm cursor-pointer hover:bg-gray-50 transition-colors rounded-lg"
+						onClick={handleUploadClick}
+					>
+						<FaUpload className="text-gray-400 text-5xl mb-4" />
+						<p className="text-gray-500 text-lg">Выберите новую модель для замены</p>
+						<p className="text-gray-400 text-sm mt-2">
+							Поддерживаемые форматы: {ALLOWED_3D_EXTENSIONS.join(', ')}
+						</p>
+						<p className="text-gray-400 text-xs mt-1">Перетащите файл или кликните для выбора</p>
+					</div>
+				)}
+
+				{!showUploadButton && !hasDataToView && !isEditMode && (
 					<div className="absolute inset-0 flex items-center justify-center">
 						<p className="text-gray-400">Нет данных для отображения</p>
 					</div>

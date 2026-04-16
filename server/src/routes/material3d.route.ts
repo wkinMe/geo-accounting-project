@@ -29,9 +29,6 @@ material3DRouter.post(
   },
 );
 
-material3DRouter.patch(
-  `/`,
-  (req: Request<{}, {}, UpdateMaterial3DObjectDTO>, res: Response) => {
-    material3DController.update(req, res);
-  },
-);
+material3DRouter.patch("/", upload.single("model_data"), (req, res) => {
+  material3DController.update(req, res);
+});

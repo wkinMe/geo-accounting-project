@@ -199,9 +199,9 @@ export class Material3DService {
         material_id,
       );
 
-      if (existing3DObject) {
+      if (!existing3DObject) {
         throw new ValidationError(
-          `Object to this material already exist`,
+          `There is no 3d object to this material`,
           `update`,
           `Material3DService`,
           `material_id`,
