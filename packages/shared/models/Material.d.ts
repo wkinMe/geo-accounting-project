@@ -5,6 +5,10 @@ export interface Material extends BaseModel {
   unit: string;
 }
 
+export interface MaterialWithImage extends Material {
+  image: Buffer;
+}
+
 // Промежуточная таблица warehouses и materials
 export interface WarehouseMaterial {
   warehouse_id: number;

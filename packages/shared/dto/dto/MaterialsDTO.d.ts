@@ -1,12 +1,13 @@
 export interface CreateMaterialDTO {
   name: string;
+  image?: Buffer;
   unit: string;
 }
 
 export interface UpdateMaterialDTO {
-  id: number;
-  name: string;
-  unit: string;
+  name?: string;
+  unit?: string;
+  image?: Buffer;
 }
 
 export interface CreateWarehouseMaterialDTO {

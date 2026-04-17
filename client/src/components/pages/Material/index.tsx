@@ -1,3 +1,4 @@
+// client/src/pages/materials/Material.tsx
 import { useParams } from 'react-router';
 import { useMaterial } from './hooks/useMaterial';
 import Spinner from '@/components/shared/Spinner';
@@ -6,17 +7,9 @@ import { Material3D } from './components/Material3D';
 
 export function Material() {
 	const params = useParams();
-
 	const id = Number(params?.id);
 
-	const {
-		materialData,
-		isMaterialDataPending,
-		materialDataError,
-		material3dObject,
-		isMaterial3dObjectPending,
-		material3dObjectError,
-	} = useMaterial(id);
+	const { materialData, isMaterialDataPending, materialDataError } = useMaterial(id);
 
 	if (isMaterialDataPending) {
 		return <Spinner />;

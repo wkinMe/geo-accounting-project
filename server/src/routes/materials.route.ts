@@ -1,54 +1,59 @@
 import { MaterialController } from "@src/controllers";
 import { pool } from "@src/db";
-import { authMiddleware } from "@src/middleware/auth-middleware";
 import { Router } from "express";
 import { Request, Response } from "express";
+import multer from "multer";
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
 
 export const materialsRouter = Router();
 const materialController = new MaterialController(pool);
 
-// GET /api/materials - получить все материалы
-materialsRouter.get("/", (req: Request, res: Response) => {
-  materialController.findAll(req, res);
-});
-
-// GET /api/materials/search?q=wood - поиск материалов
-materialsRouter.get(
-  "/search",
-
-  (req: Request, res: Response) => {
-    materialController.search(req, res);
-  },
+// Основные CRUD
+materialsRouter.get("/", (req: Request, res: Response) =>
+  materialController.findAll(req, res),
 );
-
-// GET /api/materials/:id - получить материал по ID
-materialsRouter.get(
-  "/:id",
-
-  (req: Request<{ id: string }>, res: Response) => {
-    materialController.findById(req, res);
-  },
+materialsRouter.get("/search", (req: Request, res: Response) =>
+  materialController.search(req, res),
 );
-
-// POST /api/materials - создать новый материал
-materialsRouter.post("/", (req: Request, res: Response) => {
-  materialController.create(req, res);
-});
-
-// PATCH /api/materials/:id - обновить материал
+materialsRouter.get("/:id", (req: Request<{ id: string }>, res: Response) =>
+  materialController.findById(req, res),
+);
+materialsRouter.post(
+  "/",
+  upload.single("image"),
+  (req: Request, res: Response) => materialController.create(req, res),
+);
 materialsRouter.patch(
   "/:id",
-
-  (req: Request<{ id: string }>, res: Response) => {
-    materialController.update(req, res);
-  },
+  upload.single("image"),
+  (req: Request<{ id: string }>, res: Response) =>
+    materialController.update(req, res),
+);
+materialsRouter.delete("/:id", (req: Request<{ id: string }>, res: Response) =>
+  materialController.delete(req, res),
 );
 
-// DELETE /api/materials/:id - удалить материал
-materialsRouter.delete(
-  "/:id",
+// Работа с изображениями (один материал = одно изображение)
+materialsRouter.get(
+  "/:id/image",
+  (req: Request<{ id: string }>, res: Response) =>
+    materialController.getImage(req, res),
+);
 
-  (req: Request<{ id: string }>, res: Response) => {
-    materialController.delete(req, res);
-  },
+materialsRouter.put(
+  "/:id/image",
+  upload.single("image"),
+  (req: Request<{ id: string }>, res: Response) =>
+    materialController.upsertImage(req, res),
+);
+
+materialsRouter.delete(
+  "/:id/image",
+  (req: Request<{ id: string }>, res: Response) =>
+    materialController.deleteImage(req, res),
 );

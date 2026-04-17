@@ -1,17 +1,25 @@
-// Новый тип для колонки
+// client/src/components/shared/Table/types.ts
+import { ReactNode } from 'react';
+
 export interface Column<T> {
-	key: keyof T; // Ключ для доступа к данным
-	label: string; // Отображаемый заголовок
-	width?: string; // Опциональная ширина
+	key: keyof T;
+	label: string;
+	width?: string;
 	align?: 'left' | 'center' | 'right';
-	render?: (value: any, item: T) => React.ReactNode;
+	render?: (value: any, item: T) => ReactNode;
+}
+
+export interface HoverDelayAction<T> {
+	delay?: number;
+	onHoverDelayComplete: (item: T, event: React.MouseEvent) => void;
 }
 
 export interface Action<T> {
 	name: string;
 	action: (item: T) => void | Promise<void>;
-	icon: string | React.ReactNode;
-	needConfirmation?: boolean;
-	confirmationBody?: (item: T) => React.ReactNode;
+	icon: ReactNode;
 	hidden?: (item: T) => boolean;
+	needConfirmation?: boolean;
+	confirmationBody?: (item: T) => ReactNode;
+	hoverDelay?: HoverDelayAction<T>;
 }

@@ -6,10 +6,10 @@ import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { MaterialModal } from './components';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
 import { useNavigate } from 'react-router';
+import { MaterialModal } from './components';
 
 export type TableMaterial = {
 	id: number;
@@ -49,7 +49,6 @@ export function MaterialsList() {
 		updated_at: string;
 	} | null>(null);
 
-	// Получаем текущего пользователя
 	const { data: currentUserData } = useQuery({
 		queryKey: ['currentUser'],
 		queryFn: () => userService.getProfile(),
@@ -126,7 +125,6 @@ export function MaterialsList() {
 		}
 	};
 
-	// Только суперадмин может редактировать и удалять
 	const canModify = () => isSuperAdmin;
 
 	const actions: Action<TableMaterial>[] = [

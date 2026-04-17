@@ -1,17 +1,15 @@
-// server/src/controllers/MaterialController.ts
-import { CreateMaterialDTO, UpdateMaterialDTO } from "@shared/dto";
-import { MaterialService } from "@src/services";
-import { baseErrorHandling } from "@src/utils";
 import { Request, Response } from "express";
 import { Pool } from "pg";
-import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
+import { MaterialService } from "@src/services";
+import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
+import { baseErrorHandling } from "@src/utils";
 
 export class MaterialController {
   private _materialService: MaterialService;
-  private _entityName = "material";
+  private _entityName = "Material";
 
-  constructor(dbConnection: Pool) {
-    this._materialService = new MaterialService(dbConnection);
+  constructor(pool: Pool) {
+    this._materialService = new MaterialService(pool);
   }
 
   async findAll(req: Request, res: Response) {
@@ -28,13 +26,8 @@ export class MaterialController {
 
   async findById(req: Request<{ id: string }>, res: Response) {
     try {
-      const id = Number(req.params.id);
-
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
-        });
-      }
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
 
       const material = await this._materialService.findById(id);
       res.status(200).json({
@@ -46,26 +39,51 @@ export class MaterialController {
     }
   }
 
-  async create(req: Request<{}, {}, CreateMaterialDTO>, res: Response) {
+  async search(req: Request, res: Response) {
+    try {
+      const { q } = req.query;
+
+      if (!q || typeof q !== "string" || q.trim() === "") {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+        });
+      }
+
+      const materials = await this._materialService.search(q);
+      res.status(200).json({
+        data: materials,
+        message: SUCCESS_MESSAGES.SEARCH(this._entityName, materials.length),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async create(req: Request, res: Response) {
     try {
       const { name, unit } = req.body;
+      const image = req.file?.buffer;
 
-      if (!name || name.trim() === "") {
+      if (!name?.trim()) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Material name"),
+          message: ERROR_MESSAGES.EMPTY_FIELD("Material name"),
         });
       }
 
-      if (!unit || unit.trim() === "") {
+      if (!unit?.trim()) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Material unit"),
+          message: ERROR_MESSAGES.EMPTY_FIELD("Material unit"),
         });
       }
 
-      const result = await this._materialService.create({ name, unit });
+      const newMaterial = await this._materialService.create({
+        name: name.trim(),
+        unit: unit.trim(),
+        image: image || null,
+      });
 
       res.status(201).json({
-        data: result,
+        data: newMaterial,
         message: SUCCESS_MESSAGES.CREATE(this._entityName),
       });
     } catch (e) {
@@ -73,57 +91,35 @@ export class MaterialController {
     }
   }
 
-  async delete(req: Request<{ id: string }>, res: Response) {
+  async update(req: Request<{ id: string }>, res: Response) {
     try {
-      const id = Number(req.params.id);
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
 
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
-        });
-      }
-
-      const deletedMaterial = await this._materialService.delete(id);
-      res.status(200).json({
-        data: deletedMaterial,
-        message: SUCCESS_MESSAGES.DELETE(this._entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async update(
-    req: Request<{ id: string }, {}, Omit<UpdateMaterialDTO, "id">>,
-    res: Response,
-  ) {
-    try {
-      const id = Number(req.params.id);
       const { name, unit } = req.body;
+      const image = req.file?.buffer;
+      const removeImage = req.body.remove_image === "true";
 
-      if (isNaN(id) || id <= 0) {
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name?.trim();
+      if (unit !== undefined) updateData.unit = unit?.trim();
+
+      if (image) {
+        updateData.image = image;
+      } else if (removeImage) {
+        updateData.image = null;
+      }
+
+      if (Object.keys(updateData).length === 0) {
         return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
+          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
         });
       }
 
-      if (!name || name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("Material name"),
-        });
-      }
-
-      if (!unit || unit.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("Material unit"),
-        });
-      }
-
-      const updatedMaterial = await this._materialService.update({
+      const updatedMaterial = await this._materialService.update(
         id,
-        name,
-        unit,
-      });
+        updateData,
+      );
 
       res.status(200).json({
         data: updatedMaterial,
@@ -134,27 +130,87 @@ export class MaterialController {
     }
   }
 
-  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
+  async delete(req: Request<{ id: string }>, res: Response) {
     try {
-      const { q } = req.query;
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
 
-      if (!q || q.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
-        });
-      }
-
-      const searchedMaterials = await this._materialService.search(q);
+      await this._materialService.delete(id);
 
       res.status(200).json({
-        data: searchedMaterials,
-        message: SUCCESS_MESSAGES.SEARCH(
-          this._entityName,
-          searchedMaterials.length,
-        ),
+        message: SUCCESS_MESSAGES.DELETE(this._entityName),
       });
     } catch (e) {
       baseErrorHandling(e, res);
     }
+  }
+
+  async getImage(req: Request<{ id: string }>, res: Response) {
+    try {
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
+
+      const image = await this._materialService.getImage(id);
+
+      if (!image) {
+        return res.status(404).json({
+          message: ERROR_MESSAGES.NOT_FOUND("Image", id),
+        });
+      }
+
+      res.setHeader("Content-Type", "image/jpeg");
+      res.send(image);
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async upsertImage(req: Request<{ id: string }>, res: Response) {
+    try {
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
+
+      const image = req.file?.buffer;
+
+      if (!image || image.length === 0) {
+        return res.status(400).json({
+          message: ERROR_MESSAGES.EMPTY_FIELD("Image"),
+        });
+      }
+
+      await this._materialService.upsertImage(id, image);
+
+      res.status(200).json({
+        message: SUCCESS_MESSAGES.UPDATE(`${this._entityName} image`),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  async deleteImage(req: Request<{ id: string }>, res: Response) {
+    try {
+      const id = this.validateId(req.params.id, res);
+      if (!id) return;
+
+      await this._materialService.deleteImage(id);
+
+      res.status(200).json({
+        message: SUCCESS_MESSAGES.DELETE(`${this._entityName} image`),
+      });
+    } catch (e) {
+      baseErrorHandling(e, res);
+    }
+  }
+
+  private validateId(idStr: string, res: Response): number | null {
+    const id = parseInt(idStr);
+    if (isNaN(id) || id <= 0) {
+      res.status(400).json({
+        message: ERROR_MESSAGES.INVALID_ID_FORMAT(this._entityName),
+      });
+      return null;
+    }
+    return id;
   }
 }
