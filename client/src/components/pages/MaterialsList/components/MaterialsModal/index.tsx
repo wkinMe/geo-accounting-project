@@ -1,11 +1,14 @@
 // client/src/pages/materials/MaterialModal.tsx
-import { useEffect } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { TextField } from '@/components/shared/Fields';
+import { DropZone } from '@/components/shared/DropZone';
+import { FaImage } from 'react-icons/fa';
+import { materialService } from '@/services/materialService';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 
 const materialSchema = z.object({
@@ -30,6 +33,18 @@ interface Props {
 export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 	const queryClient = useQueryClient();
 	const isEditing = !!material?.id;
+	const [imageFile, setImageFile] = useState<File | null>(null);
+	const [imagePreview, setImagePreview] = useState<string | null>(null);
+	const [removeImage, setRemoveImage] = useState(false);
+	const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
+
+	// Загружаем существующее изображение при редактировании
+	const { data: existingImageBlob } = useQuery({
+		queryKey: ['materialImage', material?.id],
+		queryFn: () => materialService.getImageBlob(material!.id),
+		enabled: isEditing && !!material?.id && open,
+	});
 
 	const {
 		register,
@@ -46,29 +61,104 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 		mode: 'onChange',
 	});
 
-	// Сброс формы при открытии с новыми данными
+	// Загружаем превью существующего изображения
+	useEffect(() => {
+		if (existingImageBlob && !imageFile && !removeImage) {
+			const url = URL.createObjectURL(existingImageBlob);
+			setExistingImageUrl(url);
+			return () => {
+				URL.revokeObjectURL(url);
+			};
+		} else {
+			setExistingImageUrl(null);
+		}
+	}, [existingImageBlob, imageFile, removeImage]);
+
+	// Сброс формы при открытии
 	useEffect(() => {
 		if (open) {
 			reset({
 				name: material?.name ?? '',
 				unit: material?.unit ?? '',
 			});
+			setImageFile(null);
+			setImagePreview(null);
+			setRemoveImage(false);
+			setExistingImageUrl(null);
 		}
 	}, [open, material, reset]);
+
+	const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const file = e.target.files?.[0];
+		if (file) {
+			setImageFile(file);
+			setRemoveImage(false);
+			const preview = URL.createObjectURL(file);
+			setImagePreview(preview);
+		}
+	};
+
+	const handleRemoveImage = () => {
+		setImageFile(null);
+		setImagePreview(null);
+		setRemoveImage(true);
+		if (fileInputRef.current) {
+			fileInputRef.current.value = '';
+		}
+	};
+
+	const handleDragOver = (e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+	};
+
+	const handleDrop = (e: React.DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		const file = e.dataTransfer.files?.[0];
+		if (file && file.type.startsWith('image/')) {
+			setImageFile(file);
+			setRemoveImage(false);
+			const preview = URL.createObjectURL(file);
+			setImagePreview(preview);
+		}
+	};
+
+	const handleClick = () => {
+		fileInputRef.current?.click();
+	};
 
 	const handleSubmit = async () => {
 		const isValid = await trigger();
 
 		if (isValid) {
 			const formData = watch();
+			const submitData: any = {
+				name: formData.name,
+				unit: formData.unit,
+			};
 
-			if (isEditing) {
-				await onSubmit(formData as UpdateMaterialDTO, material.id);
-			} else {
-				await onSubmit(formData as CreateMaterialDTO);
+			if (imageFile) {
+				submitData.image = imageFile;
+			} else if (removeImage && isEditing) {
+				submitData.image = null;
 			}
 
+			if (isEditing) {
+				await onSubmit(submitData as UpdateMaterialDTO, material.id);
+			} else {
+				await onSubmit(submitData as CreateMaterialDTO);
+			}
+
+			// Инвалидируем все связанные кеши
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
+			await queryClient.invalidateQueries({ queryKey: ['materialImage', material?.id] });
+
+			// Очищаем локальное состояние
+			setImageFile(null);
+			setImagePreview(null);
+			setRemoveImage(false);
+			setExistingImageUrl(null);
 
 			setTimeout(() => {
 				setOpen(false);
@@ -77,6 +167,8 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			throw new Error('Пожалуйста, исправьте ошибки в форме');
 		}
 	};
+
+	const displayImage = imagePreview || existingImageUrl;
 
 	return (
 		<ConfirmModal
@@ -101,6 +193,45 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 					{...register('unit')}
 					placeholder="шт, кг, л, м и т.д."
 				/>
+
+				<div className="space-y-2">
+					<label className="block text-sm font-medium text-gray-700">Изображение</label>
+
+					<input
+						ref={fileInputRef}
+						type="file"
+						accept="image/*"
+						onChange={handleImageChange}
+						className="hidden"
+					/>
+
+					{displayImage ? (
+						<div className="relative inline-block">
+							<img
+								src={displayImage}
+								alt="Preview"
+								className="w-32 h-32 object-cover rounded-lg border"
+							/>
+							<button
+								type="button"
+								onClick={handleRemoveImage}
+								className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+							>
+								×
+							</button>
+						</div>
+					) : (
+						<DropZone
+							onClick={handleClick}
+							onDragOver={handleDragOver}
+							onDrop={handleDrop}
+							title="Загрузить изображение"
+							subtitle="Поддерживаемые форматы: JPEG, PNG, GIF, WEBP"
+							hint="Перетащите файл или кликните для выбора"
+							icon={<FaImage className="text-gray-400 text-4xl mb-3" />}
+						/>
+					)}
+				</div>
 			</div>
 		</ConfirmModal>
 	);

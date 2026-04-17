@@ -1,0 +1,1 @@
+export { useMaterialImage } from './useMaterialImage';
