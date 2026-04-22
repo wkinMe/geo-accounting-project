@@ -16,24 +16,18 @@ export type TableMaterial = {
 	id: number;
 	name: string;
 	unit: string;
-	createdAt: string;
-	updatedAt: string;
 };
 
 const columns: Column<TableMaterial>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
 	{ key: 'unit', label: 'Ед. измерения' },
-	{ key: 'createdAt', label: 'Дата добавления' },
-	{ key: 'updatedAt', label: 'Дата изменения' },
 ];
 
 const mapMaterialToTableItem = (material: any): TableMaterial => ({
 	id: material.id,
 	name: material.name,
 	unit: material.unit,
-	createdAt: new Date(material.createdAt).toLocaleDateString('ru-RU'),
-	updatedAt: new Date(material.updatedAt).toLocaleDateString('ru-RU'),
 });
 
 export function MaterialsList() {

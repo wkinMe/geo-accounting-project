@@ -4,8 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils';
 import type { Material } from '@shared/models';
 import { MaterialImage } from './components/MaterialImage';
+import type { TableMaterial } from '@/components/pages/MaterialsList';
 
-interface MaterialInfoProps extends Material {
+interface MaterialInfoProps extends TableMaterial {
 	className?: string;
 }
 
@@ -13,8 +14,8 @@ export function MaterialInfo({
 	id,
 	name,
 	unit,
-	created_at,
-	updated_at,
+	createdAt,
+	updatedAt,
 	className = '',
 }: MaterialInfoProps) {
 	const queryClient = useQueryClient();
@@ -42,14 +43,6 @@ export function MaterialInfo({
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Единица измерения:</td>
 								<td className="py-3">{unit}</td>
-							</tr>
-							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Дата создания:</td>
-								<td className="py-3">{formatDateToDDMMYYYY(created_at)}</td>
-							</tr>
-							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Последнее обновление:</td>
-								<td className="py-3">{getDaysAgoText(updated_at)}</td>
 							</tr>
 						</tbody>
 					</table>

@@ -38,7 +38,7 @@ export class OrganizationService {
     }
   }
 
-  async findById(id: number): Promise<Organization> {
+  async findById(id: number): Promise<Organization> { 
     try {
       const organization = await getSingleResult<Organization>(
         this._db,

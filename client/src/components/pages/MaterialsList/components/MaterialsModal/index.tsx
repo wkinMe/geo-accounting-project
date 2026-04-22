@@ -10,6 +10,7 @@ import { DropZone } from '@/components/shared/DropZone';
 import { FaImage } from 'react-icons/fa';
 import { materialService } from '@/services/materialService';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
+import { RxCross1 } from 'react-icons/rx';
 
 const materialSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
@@ -206,30 +207,34 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 					/>
 
 					{displayImage ? (
-						<div className="relative inline-block">
-							<img
-								src={displayImage}
-								alt="Preview"
-								className="w-32 h-32 object-cover rounded-lg border"
-							/>
-							<button
-								type="button"
-								onClick={handleRemoveImage}
-								className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
-							>
-								×
-							</button>
+						<div className="my-4 flex justify-center items-center">
+							<div className="relative inline-block">
+								<img
+									src={displayImage}
+									alt="Preview"
+									className="w-64 h-64 object-cover rounded-lg border"
+								/>
+								<button
+									type="button"
+									onClick={handleRemoveImage}
+									className="cursor-pointer absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600"
+								>
+									<RxCross1 size={'12'} />
+								</button>
+							</div>
 						</div>
 					) : (
-						<DropZone
-							onClick={handleClick}
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							title="Загрузить изображение"
-							subtitle="Поддерживаемые форматы: JPEG, PNG, GIF, WEBP"
-							hint="Перетащите файл или кликните для выбора"
-							icon={<FaImage className="text-gray-400 text-4xl mb-3" />}
-						/>
+						<div className="h-50">
+							<DropZone
+								onClick={handleClick}
+								onDragOver={handleDragOver}
+								onDrop={handleDrop}
+								title="Загрузить изображение"
+								subtitle="Поддерживаемые форматы: JPEG, PNG, GIF, WEBP"
+								hint="Перетащите файл или кликните для выбора"
+								icon={<FaImage className="text-gray-400 text-4xl mb-3" />}
+							/>
+						</div>
 					)}
 				</div>
 			</div>

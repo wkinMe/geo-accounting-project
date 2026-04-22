@@ -25,7 +25,7 @@ export function DropZone({
 }: DropZoneProps) {
 	return (
 		<div
-			className={`w-full h-48 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors ${className}`}
+			className={`w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors ${className}`}
 			onClick={onClick}
 			onDragOver={onDragOver}
 			onDrop={onDrop}

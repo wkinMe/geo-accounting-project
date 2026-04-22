@@ -15,13 +15,16 @@ export function useModelMutations({ materialId, onSuccess, onError }: UseModelMu
 		mutationFn: async ({ format, file }: { format: string; file: File }) => {
 			return await material3dService.create(materialId, format, file);
 		},
-		onSuccess: () => {
-			// Инвалидируем оба запроса (инфо и модель)
-			queryClient.invalidateQueries({ queryKey: ['material3d', 'info', materialId] });
+		onSuccess: (data) => {
+			// Обновляем кеш без перезапроса
+			queryClient.setQueryData(['material3d', 'info', materialId], data);
+
+			// Для модели создаем новый Blob из загруженного файла
+			// Но мы не знаем формат, поэтому лучше перезапросить модель
 			queryClient.invalidateQueries({ queryKey: ['material3d', 'model', materialId] });
 			onSuccess?.();
 		},
-		retry: false, // Без повторных попыток при ошибке
+		retry: false,
 		onError,
 	});
 
@@ -29,9 +32,17 @@ export function useModelMutations({ materialId, onSuccess, onError }: UseModelMu
 		mutationFn: async ({ format, file }: { format?: string; file?: File }) => {
 			return await material3dService.update(materialId, format, file);
 		},
-		onSuccess: () => {
-			queryClient.invalidateQueries({ queryKey: ['material3d', 'info', materialId] });
-			queryClient.invalidateQueries({ queryKey: ['material3d', 'model', materialId] });
+		onSuccess: async (data, variables) => {
+			// Обновляем информацию в кеше
+			queryClient.setQueryData(['material3d', 'info', materialId], data);
+
+			// Если был загружен новый файл, обновляем модель в кеше
+			if (variables.file) {
+				// Создаем Blob из выбранного файла
+				const newModelBlob = variables.file;
+				queryClient.setQueryData(['material3d', 'model', materialId], newModelBlob);
+			}
+
 			onSuccess?.();
 		},
 		retry: false,
@@ -43,7 +54,7 @@ export function useModelMutations({ materialId, onSuccess, onError }: UseModelMu
 			await material3dService.delete(materialId);
 		},
 		onSuccess: () => {
-			// Очищаем кеш после удаления
+			// Удаляем из кеша
 			queryClient.removeQueries({ queryKey: ['material3d', 'info', materialId] });
 			queryClient.removeQueries({ queryKey: ['material3d', 'model', materialId] });
 			onSuccess?.();

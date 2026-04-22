@@ -15,9 +15,9 @@ interface Material3DComponentProps {
 }
 
 export function Material3D({ materialId }: Material3DComponentProps) {
-	const [isEditMode, setIsEditMode] = useState(false);
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	const [sceneKey, setSceneKey] = useState(0);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const role = useRole();
@@ -41,14 +41,10 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 
 	const handleSuccess = () => {
 		setSuccessMessage(
-			createMutation.isPending
-				? '3D объект успешно сохранён'
-				: updateMutation.isPending
-					? '3D объект успешно обновлён'
-					: '3D объект успешно удалён'
+			createMutation.isPending ? '3D объект успешно сохранён' : '3D объект успешно обновлён'
 		);
+		setSceneKey((prev) => prev + 1);
 		resetFile();
-		setIsEditMode(false);
 		setTimeout(() => setSuccessMessage(null), 3000);
 	};
 
@@ -65,7 +61,6 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			setFileError('Выберите 3D объект для сохранения');
 			return;
 		}
-
 		const format = fileFormat || 'unknown';
 		createMutation.mutate({ format, file: selectedFile });
 	};
@@ -75,7 +70,6 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			setFileError('Выберите 3D объект для обновления');
 			return;
 		}
-
 		const format = fileFormat || 'unknown';
 		updateMutation.mutate({ format, file: selectedFile });
 	};
@@ -85,17 +79,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		setIsDeleteModalOpen(false);
 	};
 
-	const handleEditClick = () => {
-		setIsEditMode(true);
-		resetFile();
-	};
-
-	const handleCancelEdit = () => {
-		setIsEditMode(false);
-		resetFile();
-	};
-
-	const handleUploadClick = () => {
+	const handleReplaceClick = () => {
 		fileInputRef.current?.click();
 	};
 
@@ -104,6 +88,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		if (file) {
 			handleFileSelect(file);
 		}
+		e.target.value = '';
 	};
 
 	const handleDragOver = (e: React.DragEvent) => {
@@ -124,18 +109,16 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 	const isPending =
 		createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-	// Данные для просмотра: если есть выбранный файл - показываем его, иначе серверные
 	const viewData = hasNewFile ? selectedFile : serverModelData;
 	const viewFormat = hasNewFile ? fileFormat : serverModelFormat;
 	const hasDataToView = !!viewData && !!viewFormat;
 
-	// Логика отображения кнопок
-	const showUploadButton = !hasExistingModel && !hasNewFile && !isEditMode && canEdit;
-	const showSaveButton = hasNewFile && !hasExistingModel;
-	const showUpdateButton = hasNewFile && hasExistingModel && isEditMode;
-	const showEditButton = hasExistingModel && !isEditMode && canEdit;
-	const showDeleteButton = hasExistingModel && !isEditMode && canEdit;
-	const showCancelButton = (isEditMode && hasExistingModel) || (hasNewFile && !hasExistingModel);
+	// Логика кнопок
+	const showSaveButton = hasNewFile && !hasExistingModel; // Нет модели - показываем "Сохранить"
+	const showUpdateButton = hasNewFile && hasExistingModel; // Есть модель - показываем "Обновить"
+	const showEditButton = hasExistingModel && !hasNewFile && canEdit;
+	const showDeleteButton = hasExistingModel && !hasNewFile && canEdit;
+	const showCancelButton = hasNewFile;
 
 	if (isLoading) {
 		return (
@@ -181,9 +164,9 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 					isPending={isPending}
 					onSave={handleSave}
 					onUpdate={handleUpdate}
-					onEdit={handleEditClick}
+					onEdit={handleReplaceClick}
 					onDelete={() => setIsDeleteModalOpen(true)}
-					onCancel={handleCancelEdit}
+					onCancel={() => resetFile()}
 				/>
 
 				<div
@@ -191,13 +174,12 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 					onDragOver={handleDragOver}
 					onDrop={handleDrop}
 				>
-					{/* Всегда показываем сцену если есть данные */}
-					{hasDataToView && <ModelScene modelData={viewData} format={viewFormat} />}
+					{hasDataToView && <ModelScene key={sceneKey} modelData={viewData} format={viewFormat} />}
 
-					{/* Показываем зону загрузки когда нет модели и не выбран файл */}
-					{showUploadButton && (
+					{/* Если нет модели и пользователь может редактировать - показываем DropZone */}
+					{!hasExistingModel && !hasNewFile && canEdit && (
 						<DropZone
-							onClick={handleUploadClick}
+							onClick={handleReplaceClick}
 							onDragOver={handleDragOver}
 							onDrop={handleDrop}
 							title="Загрузить 3D объект"
@@ -207,39 +189,24 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 						/>
 					)}
 
-					{/* В режиме редактирования и нет выбранного файла - показываем зону для замены */}
-					{isEditMode && !hasNewFile && hasExistingModel && (
-						<DropZone
-							onClick={handleUploadClick}
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							title="Выберите новую модель для замены"
-							subtitle={`Поддерживаемые форматы: ${ALLOWED_3D_EXTENSIONS.join(', ')}`}
-							hint="Перетащите файл или кликните для выбора"
-							icon={<FaCube className="text-gray-400 text-4xl mb-3" />}
-						/>
-					)}
-
-					{/* Если нет данных, не в режиме загрузки и нет выбранного файла */}
-					{!hasDataToView && !showUploadButton && !isEditMode && !hasNewFile && (
+					{/* Если нет модели и пользователь НЕ может редактировать - показываем заглушку */}
+					{!hasExistingModel && !hasNewFile && !canEdit && (
 						<div className="absolute inset-0 flex flex-col items-center justify-center">
 							<FaCube className="text-gray-300 text-6xl mb-4" />
 							<p className="text-gray-400">Нет 3D модели для этого материала</p>
-							{canEdit && (
-								<button
-									onClick={handleEditClick}
-									className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-								>
-									Загрузить 3D модель
-								</button>
-							)}
 						</div>
 					)}
 
-					{/* Если выбран файл, но еще не сохранен - показываем превью и сообщение */}
-					{hasNewFile && !hasExistingModel && !isPending && (
-						<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg shadow-md">
-							💡 Файл выбран. Нажмите "Сохранить 3D объект" для загрузки
+					{/* Если есть модель, но нет данных для просмотра */}
+					{hasExistingModel && !hasDataToView && !hasNewFile && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center">
+							<FaSpinner className="animate-spin text-gray-400 text-2xl" />
+						</div>
+					)}
+
+					{hasNewFile && (
+						<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg shadow-md z-10">
+							💡 Выбран файл: {selectedFile.name}
 						</div>
 					)}
 				</div>

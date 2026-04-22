@@ -12,12 +12,13 @@ export function useMaterial3DData(materialId: number) {
 		queryKey: ['material3d', 'info', materialId],
 		queryFn: () => material3dService.findByMaterialId(materialId),
 		enabled: !!materialId,
-		retry: false, // Без повторных попыток
-		staleTime: 5 * 60 * 1000, // 5 минут считаем данные свежими
-		gcTime: 10 * 60 * 1000, // Храним в кеше 10 минут
+		retry: false,
+		staleTime: 5 * 60 * 1000,
+		gcTime: 10 * 60 * 1000,
 	});
 
 	// Запрос для скачивания бинарных данных модели
+	// Теперь не зависит от modelInfo - всегда пытаемся скачать, если есть materialId
 	const {
 		data: modelBlob,
 		isLoading: isModelLoading,
@@ -25,14 +26,14 @@ export function useMaterial3DData(materialId: number) {
 	} = useQuery({
 		queryKey: ['material3d', 'model', materialId],
 		queryFn: () => material3dService.downloadModel(materialId),
-		enabled: !!materialId && !!modelInfo, // Скачиваем только если модель существует
-		retry: false, // Без повторных попыток
-		staleTime: Infinity, // Бинарные данные не устаревают
-		gcTime: 30 * 60 * 1000, // Храним в кеше 30 минут
+		enabled: !!materialId, // Всегда пытаемся скачать, ошибка обработается в queryFn
+		retry: false,
+		staleTime: Infinity,
+		gcTime: 30 * 60 * 1000,
 	});
 
 	return {
-		isLoading: isLoading || (!!modelInfo && isModelLoading),
+		isLoading: isLoading || isModelLoading,
 		hasExistingModel: !!modelInfo,
 		modelDataForView: modelBlob || null,
 		modelFormat: modelInfo?.format || null,
