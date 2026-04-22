@@ -1,11 +1,11 @@
+import type { AgreementMaterialChangeData } from "@shared/types";
 import type { AgreementStatus } from "../constants";
 
-export interface MaterialRow {
+export interface MaterialRow extends AgreementMaterialChangeData {
 	id: string;
-	material_id: number;
 	name: string;
-	amount: number;
 	maxAmount?: number;
+	item_price: number;
 }
 
 export interface AgreementFormState {

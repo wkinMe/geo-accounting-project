@@ -38,6 +38,8 @@ type AgreementFormStore = AgreementFormState & {
 	addMaterial: (material: Omit<MaterialRow, 'id'>) => void;
 	removeMaterial: (id: string) => void;
 	updateMaterialAmount: (id: string, amount: number) => void;
+
+	updateItemPrice: (id: string, price: number) => void;
 	setStatus: (status: AgreementStatus) => void; // Добавляем сеттер для статуса
 	resetForm: () => void;
 };
@@ -50,7 +52,6 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 	setSupplierWarehouse: (id) => set({ supplierWarehouse: id }),
 
 	setCustomerOrg: (id) => {
-		console.log('🔵 STORE: setCustomerOrg called with', id, 'stack:', new Error().stack);
 		set({ customerOrg: id, customerWarehouse: null, customerManager: null });
 	},
 	setCustomerManager: (id) => set({ customerManager: id }),
@@ -81,10 +82,14 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 			materials: state.materials.map((m) => (m.id === id ? { ...m, amount } : m)),
 		})),
 
+	updateItemPrice: (id, price) =>
+		set((state) => ({
+			materials: state.materials.map((m) => (m.id === id ? { ...m, item_price: price } : m)),
+		})),
+
 	setStatus: (status) => set({ status }), // Добавляем сеттер
 
 	resetForm: () => {
-		console.log('🔴 STORE: resetForm called', new Error().stack);
 		set(initialState);
 	},
 }));

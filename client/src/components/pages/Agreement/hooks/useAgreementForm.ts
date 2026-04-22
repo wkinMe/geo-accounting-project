@@ -83,15 +83,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 	});
 
 	useEffect(() => {
-		console.log('🔵 useAgreementForm mount/create', { agreementId, isEditing });
-		return () => {
-			console.log('🔴 useAgreementForm unmount');
-		};
-	}, []);
-
-	useEffect(() => {
 		if (isEditing && agreementId) {
-			console.log('🔴 useAgreementForm: resetting form for edit mode');
 			store.resetForm();
 		}
 	}, [isEditing, agreementId]);
@@ -122,11 +114,13 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				const materialsMap = new Map(warehouseMaterials.data.map((m) => [m.material_id, m.amount]));
 
 				data.materials.forEach((material) => {
+					console.log(data.materials);
 					store.addMaterial({
 						material_id: material.material.id,
 						name: material.material?.name || 'Материал',
 						amount: material.amount,
 						maxAmount: materialsMap.get(material.material.id) || material.amount,
+						item_price: material.item_price,
 					});
 				});
 			}
@@ -163,6 +157,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 					materials: data.materials.map((m) => ({
 						material_id: m.material_id,
 						amount: m.amount,
+						item_price: m.item_price,
 					})),
 				};
 				return await agreementService.update(params);
@@ -179,6 +174,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 					materials: data.materials.map((m) => ({
 						material_id: m.material_id,
 						amount: m.amount,
+						item_price: m.item_price,
 					})),
 				};
 				return await agreementService.create(params);

@@ -1,6 +1,5 @@
 // client/src/pages/Agreements/components/PartySection/index.tsx
 import { useFormContext, Controller } from 'react-hook-form';
-import { useEffect } from 'react';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import type { Organization, User, Warehouse } from '@shared/models';
 import type { PartyType, AgreementFormValues } from '../../types';
@@ -83,8 +82,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 	const orgField = isSupplier ? 'supplierOrg' : 'customerOrg';
 	const managerField = isSupplier ? 'supplierManager' : 'customerManager';
 	const warehouseField = isSupplier ? 'supplierWarehouse' : 'customerWarehouse';
-
-	console.log(orgField, orgId);
 
 	return (
 		<div className="space-y-4">

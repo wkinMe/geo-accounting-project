@@ -14,6 +14,13 @@ export interface HoverDelayAction<T> {
 	onHoverDelayComplete: (item: T, event: React.MouseEvent) => void;
 }
 
+export interface HoverPopupConfig<T> {
+	delay?: number;
+	renderContent: (item: T) => ReactNode;
+	onOpen?: (item: T) => void;
+	onClose?: (item: T) => void;
+}
+
 export interface Action<T> {
 	name: string;
 	action: (item: T) => void | Promise<void>;

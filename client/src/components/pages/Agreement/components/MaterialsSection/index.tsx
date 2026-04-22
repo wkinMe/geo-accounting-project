@@ -25,6 +25,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 		addMaterial,
 		removeMaterial,
 		updateMaterialAmount,
+		updateItemPrice,
 	} = useAgreementFormStore();
 
 	const { data: displayMaterials } = useMaterialsByWarehouse(
@@ -44,6 +45,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 			name: material.name,
 			amount: 0,
 			maxAmount: material.amount,
+			item_price: 0,
 		});
 		setMaterialSearchQuery('');
 		setIsSearchFocused(false);
@@ -63,8 +65,13 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 	const showDropdown =
 		isSearchFocused && canEdit && displayMaterials && displayMaterials.length > 0;
 
+	const sum = materials.reduce((acc, cur) => {
+		acc += cur.item_price * cur.amount;
+		return acc;
+	}, 0);
+
 	return (
-		<div className="space-y-4">
+		<div className="mt-4">
 			<h2 className="text-lg font-semibold">
 				Материалы
 				{!canEdit && isEditing && (
@@ -123,7 +130,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 			</div>
 
 			{materials.length > 0 ? (
-				<div className="overflow-x-auto">
+				<div className="overflow-x-auto pb-4 bg-white">
 					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 						<thead className="bg-gray-50 dark:bg-gray-900">
 							<tr>
@@ -131,10 +138,16 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 									Материал
 								</th>
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+									Доступно
+								</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
 									Количество
 								</th>
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-									Доступно
+									Цена за ед. товара
+								</th>
+								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+									Цена за полный объём товара
 								</th>
 								{canEdit && (
 									<th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -149,6 +162,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 									key={material.id}
 									material={material}
 									onUpdateAmount={updateMaterialAmount}
+									onUpdatePrice={updateItemPrice}
 									onRemove={removeMaterial}
 									canEdit={canEdit}
 								/>
@@ -162,6 +176,11 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 					<p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.materials.message}</p>
 				)
 			)}
+
+			<div className="bg-white border-t px-5 py-8 h-5 flex justify-between items-center">
+				<span>Итоговая сумма договора</span>
+				<span>{sum} руб.</span>
+			</div>
 		</div>
 	);
 }

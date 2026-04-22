@@ -156,7 +156,8 @@ export class AgreementService {
             CASE WHEN m.id IS NOT NULL THEN
               json_build_object(
                 'material', m.*,
-                'amount', am.amount
+                'amount', am.amount,
+                'item_price', am.item_price
               )
             ELSE NULL END
           ) FILTER (WHERE m.id IS NOT NULL),
@@ -191,6 +192,7 @@ export class AgreementService {
         materials: Array<{
           material: Material;
           amount: number;
+          item_price: number;
         }>;
       }>(this._db, "findById", query, [id], this.entityName, id);
 
@@ -451,9 +453,14 @@ export class AgreementService {
               }
 
               await client.query(
-                `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-               VALUES ($1, $2, $3)`,
-                [agreementId, material.material_id, material.amount],
+                `INSERT INTO agreement_material (agreement_id, material_id, amount, item_price) 
+               VALUES ($1, $2, $3, $4)`,
+                [
+                  agreementId,
+                  material.material_id,
+                  material.amount,
+                  material.item_price,
+                ],
               );
             }
           }
@@ -791,9 +798,14 @@ export class AgreementService {
               }
 
               await client.query(
-                `INSERT INTO agreement_material (agreement_id, material_id, amount) 
-               VALUES ($1, $2, $3)`,
-                [id, material.material_id, material.amount],
+                `INSERT INTO agreement_material (agreement_id, material_id, amount, item_price) 
+               VALUES ($1, $2, $3, $4)`,
+                [
+                  id,
+                  material.material_id,
+                  material.amount,
+                  material.item_price,
+                ],
               );
             }
           }
@@ -948,6 +960,7 @@ export class AgreementService {
       ) {
         throw error;
       }
+      console.log(error);
       throw new ServiceError(
         `Failed to update agreement with id ${id}`,
         "AgreementService",

@@ -1,19 +1,17 @@
 // client/src/components/shared/Table/index.tsx
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 import { SearchInput } from '../SearchInput';
 import { Button } from '../Button';
 import { getColumns, getVisibleActions } from './utils';
-import type { Action, Column } from './types';
+import type { Action, Column, HoverPopupConfig } from './types';
+import { TableRow } from './components/TableRow';
 
 interface Props<T extends { id: number }> {
 	roundedT?: boolean;
 	roundedB?: boolean;
-	// Поддерживаю оба варианта (headers и columns) для обратной совместимости
 	headers?: readonly (keyof T)[];
 	columns?: Column<T>[];
-
 	itemName: string;
 	elements: T[];
 	actions?: Action<T>[];
@@ -22,6 +20,7 @@ interface Props<T extends { id: number }> {
 	isCreateDisabled?: boolean;
 	onSearch?: (query: string) => void;
 	onCreate?: () => void;
+	hoverPopupConfig?: HoverPopupConfig<T>;
 }
 
 export function Table<T extends { id: number }>({
@@ -37,6 +36,7 @@ export function Table<T extends { id: number }>({
 	isCreateDisabled = false,
 	onSearch,
 	onCreate,
+	hoverPopupConfig,
 }: Props<T>) {
 	const [openModal, setOpenModal] = useState(false);
 	const [currentAction, setCurrentAction] = useState<null | Action<T>>(null);
@@ -45,10 +45,19 @@ export function Table<T extends { id: number }>({
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
 	const useColumns = getColumns<T>(columns, headers);
 
-	// Проверяем, есть ли хотя бы одно видимое действие для любого элемента
 	const hasAnyVisibleActions = elements?.some(
 		(item) => actions && getVisibleActions<T>(item, actions).length > 0
 	);
+
+	const handleActionClick = (action: Action<T>, item: T) => {
+		if (!action.needConfirmation) {
+			action.action(item);
+		} else {
+			setOpenModal(true);
+			setCurrentItem(item);
+			setCurrentAction(action);
+		}
+	};
 
 	return (
 		<>
@@ -111,12 +120,13 @@ export function Table<T extends { id: number }>({
 									<th
 										key={idx}
 										scope="col"
-										className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${col.width ? `w-${col.width}` : ''}`}
+										className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+											col.width ? `w-${col.width}` : ''
+										}`}
 									>
 										{col.label}
 									</th>
 								))}
-
 								{hasAnyVisibleActions && (
 									<th
 										scope="col"
@@ -127,57 +137,18 @@ export function Table<T extends { id: number }>({
 								)}
 							</tr>
 						</thead>
-
 						<tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
 							{elements.map((item) => {
 								const visibleActions = getVisibleActions<T>(item, actions);
-
 								return (
-									<tr
+									<TableRow
 										key={item.id}
-										className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors"
-									>
-										{useColumns.map((col, colIdx) => {
-											const value = item[col.key];
-											return (
-												<td
-													key={colIdx}
-													className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 ${col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'}`}
-												>
-													{col.render ? col.render(value, item) : String(value ?? '')}
-												</td>
-											);
-										})}
-
-										{visibleActions.length > 0 && (
-											<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-												<div className="flex justify-end gap-2">
-													{visibleActions.map((action, actionIdx) => (
-														<button
-															key={actionIdx}
-															onClick={() => {
-																if (!action.needConfirmation) {
-																	action.action(item);
-																} else {
-																	setOpenModal(true);
-																	setCurrentItem(item);
-																	setCurrentAction(action);
-																}
-															}}
-															className="text-gray-600 cursor-pointer dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-															title={action.name}
-														>
-															{typeof action.icon === 'string' ? (
-																<img className="sr-only" src={action.icon} />
-															) : (
-																action.icon
-															)}
-														</button>
-													))}
-												</div>
-											</td>
-										)}
-									</tr>
+										item={item}
+										columns={useColumns}
+										visibleActions={visibleActions}
+										onActionClick={handleActionClick}
+										hoverPopupConfig={hoverPopupConfig}
+									/>
 								);
 							})}
 						</tbody>

@@ -6,10 +6,11 @@ import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import type { Action, Column } from '@/components/shared/Table/types';
+import type { Action, Column, HoverPopupConfig } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
 import { useNavigate } from 'react-router';
 import { MaterialModal } from './components';
+import { MaterialImagePopup } from './components/MaterialsImagePopup';
 
 export type TableMaterial = {
 	id: number;
@@ -41,13 +42,7 @@ export function MaterialsList() {
 
 	const [searchQuery, setSearchQuery] = useState('');
 	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedMaterial, setSelectedMaterial] = useState<{
-		id: number;
-		name: string;
-		unit: string;
-		created_at: string;
-		updated_at: string;
-	} | null>(null);
+	const [selectedMaterial, setSelectedMaterial] = useState<TableMaterial | null>(null);
 
 	const { data: currentUserData } = useQuery({
 		queryKey: ['currentUser'],
@@ -93,6 +88,9 @@ export function MaterialsList() {
 			materialService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
+			if (selectedMaterial) {
+				await queryClient.invalidateQueries({ queryKey: ['materialImage', selectedMaterial.id] });
+			}
 			setTimeout(() => {
 				setIsModalOpen(false);
 				setSelectedMaterial(null);
@@ -117,6 +115,7 @@ export function MaterialsList() {
 		setIsModalOpen(true);
 	};
 
+
 	const handleSubmit = async (data: CreateMaterialDTO | UpdateMaterialDTO) => {
 		if (selectedMaterial) {
 			await updateMutate({ id: selectedMaterial.id, data: data as UpdateMaterialDTO });
@@ -126,6 +125,12 @@ export function MaterialsList() {
 	};
 
 	const canModify = () => isSuperAdmin;
+
+	// Абстрактная конфигурация для попапа при наведении
+	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
+		delay: 200,
+		renderContent: (item) => <MaterialImagePopup materialId={item.id} />,
+	};
 
 	const actions: Action<TableMaterial>[] = [
 		{
@@ -168,6 +173,7 @@ export function MaterialsList() {
 				elements={elements}
 				actions={actions}
 				onCreate={canModify() ? openCreateModal : undefined}
+				hoverPopupConfig={hoverPopupConfig}
 			/>
 			<MaterialModal
 				open={isModalOpen}

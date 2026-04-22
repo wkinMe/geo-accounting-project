@@ -7,14 +7,24 @@ interface MaterialRowProps {
 	material: MaterialRowType;
 	canEdit: boolean;
 	onUpdateAmount: (id: string, amount: number) => void;
+	onUpdatePrice: (id: string, price: number) => void;
 	onRemove: (id: string) => void;
 }
 
-export function MaterialRow({ material, canEdit, onUpdateAmount, onRemove }: MaterialRowProps) {
+export function MaterialRow({
+	material,
+	canEdit,
+	onUpdateAmount,
+	onUpdatePrice,
+	onRemove,
+}: MaterialRowProps) {
 	return (
 		<tr className="hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors">
 			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
 				{material.name}
+			</td>
+			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+				{material.maxAmount}
 			</td>
 			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
 				<NumberField
@@ -24,13 +34,29 @@ export function MaterialRow({ material, canEdit, onUpdateAmount, onRemove }: Mat
 					min={1}
 					max={material.maxAmount}
 					step={0.01}
-					required
 					disabled={!canEdit}
 				/>
 			</td>
-			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-				{material.maxAmount}
+			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+				<NumberField
+					label=""
+					value={material.item_price}
+					onChange={(newValue) => onUpdatePrice(material.id, newValue)}
+					min={0}
+					max={999_999_999_999}
+					step={0.01}
+					disabled={!canEdit}
+				/>
 			</td>
+			<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+				<NumberField
+					label=""
+					value={material.item_price * material.amount}
+					onChange={() => null}
+					disabled={true}
+				/>
+			</td>
+
 			{canEdit && (
 				<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 					<button
