@@ -1,5 +1,5 @@
 // client/src/components/shared/HoverPopup.tsx
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface HoverPopupProps {

@@ -21,5 +21,6 @@ export interface AgreementWithDetails extends Agreement {
   materials: {
     material: Material;
     amount: number;
+    item_price: number;
   }[];
 }

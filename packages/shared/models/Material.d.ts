@@ -24,5 +24,5 @@ export interface AgreementMaterial {
   agreement_id: number;
   material_id: number;
   amount: number;
+  item_price: string;
 }
-

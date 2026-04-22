@@ -44,6 +44,7 @@ export const agreementSchema = z.object({
 				material_id: z.number(),
 				name: z.string(),
 				amount: z.number().min(1, 'Количество должно быть больше 0'),
+				item_price: z.number().nonnegative('Цена не может быть меньше 0'),
 				maxAmount: z.number().optional(),
 			})
 		)
