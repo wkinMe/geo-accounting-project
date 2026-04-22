@@ -13,8 +13,8 @@ import type { Action, Column } from '@/components/shared/Table/types';
 type TableOrganization = {
 	id: number;
 	name: string;
-	created_at: string;
-	updated_at: string;
+	createdAt: string;
+	updatedAt: string;
 	latitude?: number | null;
 	longitude?: number | null;
 };
@@ -22,8 +22,7 @@ type TableOrganization = {
 const columns: Column<TableOrganization>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
-	{ key: 'created_at', label: 'Дата создания' },
-	{ key: 'updated_at', label: 'Дата обновления' },
+	{ key: 'createdAt', label: 'Дата создания' },
 ];
 
 const mapOrganizationToTableItem = (org: any): TableOrganization => ({
@@ -31,8 +30,8 @@ const mapOrganizationToTableItem = (org: any): TableOrganization => ({
 	name: org.name,
 	latitude: org.latitude,
 	longitude: org.longitude,
-	created_at: new Date(org.created_at).toLocaleDateString('ru-RU'),
-	updated_at: new Date(org.updated_at).toLocaleDateString('ru-RU'),
+	createdAt: org.createdAt ? new Date(org.createdAt).toLocaleDateString('ru-RU') : '',
+	updatedAt: org.updatedAt ? new Date(org.updatedAt).toLocaleDateString('ru-RU') : '',
 });
 
 export function OrganizationsList() {
@@ -43,13 +42,10 @@ export function OrganizationsList() {
 	const [selectedOrganization, setSelectedOrganization] = useState<{
 		id: number;
 		name: string;
-		created_at: string;
-		updated_at: string;
 		latitude?: number | null;
 		longitude?: number | null;
 	} | null>(null);
 
-	// Получаем текущего пользователя
 	const { data: currentUserData } = useQuery({
 		queryKey: ['currentUser'],
 		queryFn: () => userService.getProfile(),
@@ -78,14 +74,12 @@ export function OrganizationsList() {
 		},
 	});
 
+	// Убираем автоматическое закрытие модалки из мутаций
 	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
 		mutationFn: async (data: CreateOrganizationDTO) => organizationService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedOrganization(null);
-			}, 300);
+			// Модалка закроется из ConfirmModal при успехе
 		},
 	});
 
@@ -94,17 +88,14 @@ export function OrganizationsList() {
 			organizationService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedOrganization(null);
-			}, 300);
+			// Модалка закроется из ConfirmModal при успехе
 		},
 	});
 
 	const elements =
 		searchQuery && searchedOrganizations
-			? searchedOrganizations.data.map(mapOrganizationToTableItem)
-			: organizations?.data.map(mapOrganizationToTableItem) || [];
+			? searchedOrganizations.map(mapOrganizationToTableItem)
+			: organizations?.map(mapOrganizationToTableItem) || [];
 
 	const openEditModal = (org: TableOrganization) => {
 		setSelectedOrganization({
@@ -112,12 +103,8 @@ export function OrganizationsList() {
 			name: org.name,
 			latitude: org.latitude,
 			longitude: org.longitude,
-			created_at: org.created_at,
-			updated_at: org.updated_at,
 		});
-		setTimeout(() => {
-			setIsModalOpen(true);
-		}, 50);
+		setIsModalOpen(true);
 	};
 
 	const openCreateModal = () => {
@@ -133,7 +120,6 @@ export function OrganizationsList() {
 		}
 	};
 
-	// Только суперадмин может редактировать и удалять
 	const canModify = () => isSuperAdmin;
 
 	const actions: Action<TableOrganization>[] = [
@@ -156,9 +142,7 @@ export function OrganizationsList() {
 
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
-		setTimeout(() => {
-			setSelectedOrganization(null);
-		}, 300);
+		setSelectedOrganization(null);
 	};
 
 	return (

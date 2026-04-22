@@ -33,7 +33,6 @@ export function ConfirmModal({
 			setIsLoading(true);
 			try {
 				await onConfirm();
-				console.log("SUCCESS");
 				setOpen(false);
 			} catch (error) {
 				console.error('Ошибка при подтверждении:', error);

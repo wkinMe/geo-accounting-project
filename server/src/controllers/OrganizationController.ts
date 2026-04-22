@@ -1,164 +1,149 @@
-import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@shared/dto";
-import { OrganizationService } from "@src/services";
-import { baseErrorHandling } from "@src/utils";
+// controllers/OrganizationController.ts
 import { Request, Response } from "express";
-import { Pool } from "pg";
-import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
+import { OrganizationService } from "../services/OrganizationService";
+import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@shared/dto";
+import { ValidationError, NotFoundError } from "@shared/service";
 
 export class OrganizationController {
-  private _organizationService: OrganizationService;
-  private entityName = "organization";
+  constructor(private organizationService: OrganizationService) {}
 
-  constructor(dbConnection: Pool) {
-    this._organizationService = new OrganizationService(dbConnection);
-  }
-
-  async findAll(req: Request, res: Response) {
+  getAll = async (req: Request, res: Response) => {
     try {
-      const organizations = await this._organizationService.findAll();
-      res.status(200).json({
-        data: organizations,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+      const organizations = await this.organizationService.findAll();
+
+      res.json({
+        success: true,
+        data: organizations.map((o) => o.toJSON()),
+        count: organizations.length,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async findById(req: Request<{ id: string }>, res: Response) {
+  getById = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const id = this.parseId(req.params.id);
+      const organization = await this.organizationService.findById(id);
 
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const organization = await this._organizationService.findById(id);
-      res.status(200).json({
-        data: organization,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
+      res.json({
+        success: true,
+        data: organization.toJSON(),
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async delete(req: Request<{ id: string }>, res: Response) {
+  create = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
-
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const deletedOrganization = await this._organizationService.delete(id);
-      res.status(200).json({
-        data: deletedOrganization,
-        message: SUCCESS_MESSAGES.DELETE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async create(req: Request<{}, {}, CreateOrganizationDTO>, res: Response) {
-    try {
-      const createData = req.body;
-
-      if (!createData || typeof createData !== "object") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUEST_BODY_REQUIRED,
-        });
-      }
-
-      if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Organization name"),
-        });
-      }
-
-      const createdOrganization =
-        await this._organizationService.create(createData);
+      const dto: CreateOrganizationDTO = req.body;
+      const organization = await this.organizationService.create(dto);
 
       res.status(201).json({
-        data: createdOrganization,
-        message: SUCCESS_MESSAGES.CREATE(this.entityName),
+        success: true,
+        data: organization.toJSON(),
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async update(
-    req: Request<{ id: string }, {}, Omit<UpdateOrganizationDTO, "id">>,
-    res: Response,
-  ) {
+  update = async (req: Request, res: Response) => {
     try {
-      const { id } = req.params;
-      const { name, latitude, longitude } = req.body;
+      const id = this.parseId(req.params.id);
+      const dto: UpdateOrganizationDTO = req.body;
+      const organization = await this.organizationService.update(id, dto);
 
-      const numId = Number(id);
-
-      if (isNaN(numId) || numId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const updateData = { name, latitude, longitude };
-      if (Object.values(updateData).every((value) => value === undefined)) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
-        });
-      }
-
-      if (name !== undefined && name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("Organization name"),
-        });
-      }
-
-      const updatedOrganization = await this._organizationService.update({
-        id: numId,
-        name,
-        latitude,
-        longitude,
+      res.json({
+        success: true,
+        data: organization.toJSON(),
       });
-
-      res.status(200).json({
-        data: updatedOrganization,
-        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
+  delete = async (req: Request, res: Response) => {
+    try {
+      const id = this.parseId(req.params.id);
+      await this.organizationService.delete(id);
+
+      res.json({
+        success: true,
+        message: "Organization deleted successfully",
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  search = async (req: Request, res: Response) => {
     try {
       const { q } = req.query;
 
-      if (!q || q.trim() === "") {
+      if (!q || typeof q !== "string") {
         return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
+          success: false,
+          error: "Search query parameter 'q' is required",
         });
       }
 
-      const searchedOrganizations = await this._organizationService.search(q);
+      const organizations = await this.organizationService.search(q);
 
-      res.status(200).json({
-        data: searchedOrganizations,
-        message: SUCCESS_MESSAGES.SEARCH(
-          this.entityName,
-          searchedOrganizations.length,
-        ),
+      res.json({
+        success: true,
+        data: organizations.map((o) => o.toJSON()),
+        count: organizations.length,
+        query: q,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  // ========== Private helpers ==========
+
+  private parseId(idParam: string | string[] | undefined): number {
+    if (!idParam) {
+      throw new ValidationError(
+        "ID parameter is required",
+        "parseId",
+        "id",
+        "undefined",
+      );
+    }
+
+    const idString = Array.isArray(idParam) ? idParam[0] : idParam;
+    const id = parseInt(idString, 10);
+
+    if (isNaN(id)) {
+      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+    }
+
+    return id;
+  }
+
+  private handleError(error: unknown, res: Response): void {
+    console.error("OrganizationController error:", error);
+
+    if (error instanceof ValidationError) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        field: error.field,
+        operation: error.operation,
+      });
+    } else if (error instanceof NotFoundError) {
+      res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+      });
     }
   }
 }

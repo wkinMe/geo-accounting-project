@@ -3,14 +3,13 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useQueryClient } from '@tanstack/react-query';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { TextField } from '@/components/shared/Fields';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import { LocationPicker } from '@/components/shared/LocationPicker';
 
 const organizationSchema = z.object({
-	name: z.string().min(1, 'Название обязательное'),
+	name: z.string().min(1, 'Название обязательно'),
 	latitude: z
 		.number()
 		.min(-90, 'Широта должна быть от -90 до 90')
@@ -51,8 +50,8 @@ export function OrganizationModal({
 	onSubmit,
 	canEdit = true,
 }: Props) {
-	const queryClient = useQueryClient();
 	const isEditing = !!organization?.id;
+	const [error, setError] = useState<string | null>(null);
 
 	const [latitude, setLatitude] = useState<number | null>(organization?.latitude ?? null);
 	const [longitude, setLongitude] = useState<number | null>(organization?.longitude ?? null);
@@ -83,6 +82,7 @@ export function OrganizationModal({
 			});
 			setLatitude(organization?.latitude ?? null);
 			setLongitude(organization?.longitude ?? null);
+			setError(null);
 		}
 	}, [open, organization, reset]);
 
@@ -94,33 +94,37 @@ export function OrganizationModal({
 	};
 
 	const handleSubmit = async () => {
+		setError(null);
+
 		const isValid = await trigger();
 
-		if (isValid) {
-			const formData = watch();
+		if (!isValid) {
+			setError('Пожалуйста, исправьте ошибки в форме');
+			throw new Error('Пожалуйста, исправьте ошибки в форме');
+		}
 
-			const submitData = {
-				name: formData.name,
-			} as any;
+		const formData = watch();
+		const submitData: any = {
+			name: formData.name,
+		};
 
-			if (latitude !== null && longitude !== null) {
-				submitData.latitude = latitude;
-				submitData.longitude = longitude;
-			}
+		if (latitude !== null && longitude !== null) {
+			submitData.latitude = latitude;
+			submitData.longitude = longitude;
+		}
 
+		try {
 			if (isEditing) {
-				await onSubmit(submitData as UpdateOrganizationDTO, organization.id);
+				await onSubmit(submitData as UpdateOrganizationDTO, organization!.id);
 			} else {
 				await onSubmit(submitData as CreateOrganizationDTO);
 			}
-
-			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
-
-			setTimeout(() => {
-				setOpen(false);
-			}, 150);
-		} else {
-			throw new Error('Пожалуйста, исправьте ошибки в форме');
+			// Модалка закроется из ConfirmModal при успехе
+		} catch (err: any) {
+			const errorMessage =
+				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
+			setError(errorMessage);
+			throw new Error(errorMessage);
 		}
 	};
 
@@ -134,10 +138,17 @@ export function OrganizationModal({
 			cancelText="Отмена"
 		>
 			<div className="space-y-4">
+				{error && (
+					<div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+						❌ {error}
+					</div>
+				)}
+
 				<TextField
 					label="Название организации"
 					error={errors.name?.message}
 					required
+					disabled={!canEdit}
 					{...register('name')}
 				/>
 
