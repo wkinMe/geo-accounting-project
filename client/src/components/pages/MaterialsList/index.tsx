@@ -66,18 +66,16 @@ export function MaterialsList() {
 		},
 	});
 
-	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
+	// Убираем автоматическое закрытие из мутаций
+	const { mutateAsync: createMutate } = useMutation({
 		mutationFn: async (data: CreateMaterialDTO) => materialService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedMaterial(null);
-			}, 300);
+			// НЕ закрываем модалку здесь - это сделает ConfirmModal при успехе
 		},
 	});
 
-	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
+	const { mutateAsync: updateMutate } = useMutation({
 		mutationFn: ({ id, data }: { id: number; data: UpdateMaterialDTO }) =>
 			materialService.update(id, data),
 		onSuccess: async () => {
@@ -85,10 +83,6 @@ export function MaterialsList() {
 			if (selectedMaterial) {
 				await queryClient.invalidateQueries({ queryKey: ['materialImage', selectedMaterial.id] });
 			}
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedMaterial(null);
-			}, 300);
 		},
 	});
 
@@ -99,9 +93,7 @@ export function MaterialsList() {
 
 	const openEditModal = (material: TableMaterial) => {
 		setSelectedMaterial(material);
-		setTimeout(() => {
-			setIsModalOpen(true);
-		}, 50);
+		setIsModalOpen(true);
 	};
 
 	const openCreateModal = () => {
@@ -119,7 +111,6 @@ export function MaterialsList() {
 
 	const canModify = () => isSuperAdmin;
 
-	// Абстрактная конфигурация для попапа при наведении
 	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
 		delay: 200,
 		renderContent: (item) => <MaterialImagePopup materialId={item.id} />,
@@ -150,9 +141,7 @@ export function MaterialsList() {
 
 	const handleCloseModal = () => {
 		setIsModalOpen(false);
-		setTimeout(() => {
-			setSelectedMaterial(null);
-		}, 300);
+		setSelectedMaterial(null);
 	};
 
 	return (
@@ -176,7 +165,6 @@ export function MaterialsList() {
 				}}
 				material={selectedMaterial}
 				onSubmit={handleSubmit}
-				isLoading={isCreating || isUpdating}
 			/>
 		</>
 	);

@@ -28,7 +28,6 @@ interface Props {
 		unit: string;
 	} | null;
 	onSubmit: (data: CreateMaterialDTO | UpdateMaterialDTO, id?: number) => void | Promise<void>;
-	isLoading?: boolean;
 }
 
 export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
@@ -38,6 +37,7 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 	const [imagePreview, setImagePreview] = useState<string | null>(null);
 	const [removeImage, setRemoveImage] = useState(false);
 	const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// Загружаем существующее изображение при редактировании
@@ -86,6 +86,7 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			setImagePreview(null);
 			setRemoveImage(false);
 			setExistingImageUrl(null);
+			setError(null); // Сбрасываем ошибку при открытии
 		}
 	}, [open, material, reset]);
 
@@ -130,28 +131,35 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 	};
 
 	const handleSubmit = async () => {
+		setError(null);
+
 		const isValid = await trigger();
 
-		if (isValid) {
-			const formData = watch();
-			const submitData: any = {
-				name: formData.name,
-				unit: formData.unit,
-			};
+		if (!isValid) {
+			setError('Пожалуйста, исправьте ошибки в форме');
+			throw new Error('Исправьте ошибки в форме');
+		}
 
-			if (imageFile) {
-				submitData.image = imageFile;
-			} else if (removeImage && isEditing) {
-				submitData.image = null;
-			}
+		const formData = watch();
+		const submitData: any = {
+			name: formData.name,
+			unit: formData.unit,
+		};
 
+		if (imageFile) {
+			submitData.image = imageFile;
+		} else if (removeImage && isEditing) {
+			submitData.image = null;
+		}
+
+		try {
 			if (isEditing) {
 				await onSubmit(submitData as UpdateMaterialDTO, material.id);
 			} else {
 				await onSubmit(submitData as CreateMaterialDTO);
 			}
 
-			// Инвалидируем все связанные кеши
+			// Инвалидируем кеши
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
 			await queryClient.invalidateQueries({ queryKey: ['materialImage', material?.id] });
 
@@ -160,12 +168,11 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			setImagePreview(null);
 			setRemoveImage(false);
 			setExistingImageUrl(null);
-
-			setTimeout(() => {
-				setOpen(false);
-			}, 150);
-		} else {
-			throw new Error('Пожалуйста, исправьте ошибки в форме');
+		} catch (err: any) {
+			const errorMessage =
+				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
+			setError(errorMessage);
+			throw new Error(errorMessage);
 		}
 	};
 
@@ -181,6 +188,12 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			cancelText="Отмена"
 		>
 			<div className="space-y-4">
+				{error && (
+					<div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+						❌ {error}
+					</div>
+				)}
+
 				<TextField
 					label="Название материала"
 					error={errors.name?.message}
