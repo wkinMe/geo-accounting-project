@@ -1,59 +1,39 @@
-import { MaterialController } from "@src/controllers";
-import { pool } from "@src/db";
+// server/src/routes/materials.route.ts
 import { Router } from "express";
-import { Request, Response } from "express";
 import multer from "multer";
+import { MaterialController } from "../controllers/MaterialController";
+import { MaterialService } from "../services/MaterialService";
+import { MaterialRepository } from "../repositories/MaterialRepository";
+import { MaterialImageRepository } from "../repositories/MaterialImageRepository";
+import { pool } from "../db";
 
-const storage = multer.memoryStorage();
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-});
+const upload = multer({ storage: multer.memoryStorage() });
+const materialsRouter = Router();
 
-export const materialsRouter = Router();
-const materialController = new MaterialController(pool);
+// Инициализация зависимостей
+const materialRepository = new MaterialRepository(pool);
+const imageRepository = new MaterialImageRepository(pool);
+const materialService = new MaterialService(
+  materialRepository,
+  imageRepository,
+);
+const materialController = new MaterialController(materialService);
 
-// Основные CRUD
-materialsRouter.get("/", (req: Request, res: Response) =>
-  materialController.findAll(req, res),
-);
-materialsRouter.get("/search", (req: Request, res: Response) =>
-  materialController.search(req, res),
-);
-materialsRouter.get("/:id", (req: Request<{ id: string }>, res: Response) =>
-  materialController.findById(req, res),
-);
+// CRUD
+materialsRouter.get("/", materialController.getAll);
+materialsRouter.get("/search", materialController.search);
+materialsRouter.get("/:id", materialController.getById);
+materialsRouter.post("/", upload.single("image"), materialController.create); // 👈 Добавляем поддержку файла
+materialsRouter.put("/:id", upload.single("image"), materialController.update); // 👈 МЕНЯЕМ на single
+materialsRouter.delete("/:id", materialController.delete);
+
+// Image endpoints
+materialsRouter.get("/:id/image", materialController.getImage);
 materialsRouter.post(
-  "/",
-  upload.single("image"),
-  (req: Request, res: Response) => materialController.create(req, res),
-);
-materialsRouter.patch(
-  "/:id",
-  upload.single("image"),
-  (req: Request<{ id: string }>, res: Response) =>
-    materialController.update(req, res),
-);
-materialsRouter.delete("/:id", (req: Request<{ id: string }>, res: Response) =>
-  materialController.delete(req, res),
-);
-
-// Работа с изображениями (один материал = одно изображение)
-materialsRouter.get(
-  "/:id/image",
-  (req: Request<{ id: string }>, res: Response) =>
-    materialController.getImage(req, res),
-);
-
-materialsRouter.put(
   "/:id/image",
   upload.single("image"),
-  (req: Request<{ id: string }>, res: Response) =>
-    materialController.upsertImage(req, res),
+  materialController.uploadImage,
 );
+materialsRouter.delete("/:id/image", materialController.deleteImage);
 
-materialsRouter.delete(
-  "/:id/image",
-  (req: Request<{ id: string }>, res: Response) =>
-    materialController.deleteImage(req, res),
-);
+export { materialsRouter };

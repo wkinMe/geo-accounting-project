@@ -1,27 +1,39 @@
+// routes/material3d.routes.ts
 import { Router } from "express";
+import multer from "multer";
 import { Material3DController } from "../controllers/Material3DController";
+import { Material3DService } from "../services/Material3DService";
+import { Material3DRepository } from "../repositories/Material3DRepository";
+import { MaterialRepository } from "../repositories/MaterialRepository";
 import { pool } from "../db";
-import { upload } from "../middleware/upload";
 
-export const material3DRouter = Router();
-const material3DController = new Material3DController(pool);
-
-material3DRouter.get("/:id", (req, res) => {
-  material3DController.findById(req, res);
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
 });
 
-material3DRouter.get("/material/:id", (req, res) => {
-  material3DController.findByMaterialId(req, res);
-});
+const router = Router();
 
-material3DRouter.post("/", upload.single("model_data"), (req, res) => {
-  material3DController.create(req, res);
-});
+// Инициализация зависимостей
+const material3DRepo = new Material3DRepository(pool);
+const materialRepo = new MaterialRepository(pool);
+const material3DService = new Material3DService(material3DRepo, materialRepo);
+const material3DController = new Material3DController(material3DService);
 
-material3DRouter.patch("/", upload.single("model_data"), (req, res) => {
-  material3DController.update(req, res);
-});
+// GET endpoints
+router.get("/material/:materialId", material3DController.getByMaterialId);
+router.get(
+  "/material/:materialId/download",
+  material3DController.downloadModel,
+);
 
-material3DRouter.delete("/:id", (req, res) => {
-  material3DController.delete(req, res);
-});
+// POST/PUT/DELETE
+router.post("/", upload.single("model"), material3DController.create);
+router.put(
+  "/material/:materialId",
+  upload.single("model"),
+  material3DController.update,
+);
+router.delete("/material/:materialId", material3DController.delete);
+
+export { router as material3DRouter };

@@ -1,44 +1,70 @@
+// client/src/services/material3DService.ts
 import { instance } from '@/api/instance';
-import type { Material3D } from '@shared/models';
-import type { SuccessResponse } from '@shared/types';
 
-export class Material3DService {
+export interface Material3DResponse {
+	id: number;
+	materialId: number;
+	format: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+class Material3DService {
 	private baseUrl = '/materials3d';
 
-	async findById(id: number): Promise<SuccessResponse<Material3D>> {
-		const response = await instance.get<SuccessResponse<Material3D>>(`${this.baseUrl}/${id}`);
-		return response.data;
-	}
-
-	async findByMaterialId(id: number): Promise<SuccessResponse<Material3D>> {
-		const response = await instance.get<SuccessResponse<Material3D>>(
-			`${this.baseUrl}/material/${id}`
+	async findByMaterialId(materialId: number): Promise<Material3DResponse | null> {
+		const response = await instance.get<{ success: boolean; data: Material3DResponse | null }>(
+			`${this.baseUrl}/material/${materialId}`
 		);
-		return response.data;
+		return response.data.data;
 	}
 
-	// Принимает FormData, а не объект
-	async create(formData: FormData): Promise<Material3D> {
-		const response = await instance.post(`${this.baseUrl}`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
+	async downloadModel(materialId: number): Promise<Blob> {
+		const response = await instance.get(`${this.baseUrl}/material/${materialId}/download`, {
+			responseType: 'blob',
 		});
 		return response.data;
 	}
 
-	async update(formData: FormData): Promise<Material3D> {
-		const response = await instance.patch(`${this.baseUrl}`, formData, {
-			headers: {
-				'Content-Type': 'multipart/form-data',
-			},
-		});
-		return response.data;
+	// ВАЖНО: поле 'model', а не 'model_data' как было раньше
+	async create(materialId: number, format: string, file: File): Promise<Material3DResponse> {
+		const formData = new FormData();
+		formData.append('materialId', materialId.toString());
+		formData.append('format', format);
+		formData.append('model', file); // ← ключевое изменение
+
+		const response = await instance.post<{ success: boolean; data: Material3DResponse }>(
+			`${this.baseUrl}/`,
+			formData,
+			{
+				headers: { 'Content-Type': 'multipart/form-data' },
+			}
+		);
+		return response.data.data;
 	}
 
-	async delete(materialId: number): Promise<SuccessResponse<void>> {
-		const response = await instance.delete<SuccessResponse<void>>(`${this.baseUrl}/${materialId}`);
-		return response.data;
+	// ВАЖНО: поле 'model', а не 'model_data' как было раньше
+	async update(materialId: number, format?: string, file?: File): Promise<Material3DResponse> {
+		const formData = new FormData();
+		if (format) formData.append('format', format);
+		if (file) formData.append('model', file); // ← ключевое изменение
+
+		const response = await instance.put<{ success: boolean; data: Material3DResponse }>(
+			`${this.baseUrl}/material/${materialId}`,
+			formData,
+			{
+				headers: { 'Content-Type': 'multipart/form-data' },
+			}
+		);
+		return response.data.data;
+	}
+
+	async delete(materialId: number): Promise<void> {
+		await instance.delete(`${this.baseUrl}/material/${materialId}`);
+	}
+
+	getDownloadUrl(materialId: number): string {
+		return `${instance.defaults.baseURL}${this.baseUrl}/material/${materialId}/download`;
 	}
 }
 

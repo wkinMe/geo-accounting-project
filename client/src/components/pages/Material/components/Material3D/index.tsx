@@ -1,4 +1,4 @@
-// client/src/components/Material3D/index.tsx (или где он у вас)
+// client/src/components/Material3D/index.tsx
 import { useState, useRef } from 'react';
 import { FaSpinner, FaCube } from 'react-icons/fa';
 import { useRole } from '@/hooks/useRole';
@@ -66,12 +66,8 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			return;
 		}
 
-		const formData = new FormData();
-		formData.append('material_id', String(materialId));
-		formData.append('format', fileFormat || 'unknown');
-		formData.append('model_data', selectedFile);
-
-		createMutation.mutate(formData);
+		const format = fileFormat || 'unknown';
+		createMutation.mutate({ format, file: selectedFile });
 	};
 
 	const handleUpdate = () => {
@@ -80,12 +76,8 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			return;
 		}
 
-		const formData = new FormData();
-		formData.append('material_id', String(materialId));
-		formData.append('format', fileFormat || 'unknown');
-		formData.append('model_data', selectedFile);
-
-		updateMutation.mutate(formData);
+		const format = fileFormat || 'unknown';
+		updateMutation.mutate({ format, file: selectedFile });
 	};
 
 	const handleDeleteConfirm = async () => {
@@ -132,20 +124,18 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 	const isPending =
 		createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-	const viewData = isEditMode && hasNewFile ? selectedFile : serverModelData;
-	const viewFormat = isEditMode && hasNewFile ? fileFormat : serverModelFormat;
+	// Данные для просмотра: если есть выбранный файл - показываем его, иначе серверные
+	const viewData = hasNewFile ? selectedFile : serverModelData;
+	const viewFormat = hasNewFile ? fileFormat : serverModelFormat;
 	const hasDataToView = !!viewData && !!viewFormat;
 
-	const showUploadButton = !hasExistingModel && !hasNewFile && !isEditMode;
+	// Логика отображения кнопок
+	const showUploadButton = !hasExistingModel && !hasNewFile && !isEditMode && canEdit;
 	const showSaveButton = hasNewFile && !hasExistingModel;
 	const showUpdateButton = hasNewFile && hasExistingModel && isEditMode;
 	const showEditButton = hasExistingModel && !isEditMode && canEdit;
 	const showDeleteButton = hasExistingModel && !isEditMode && canEdit;
-	const showCancelButton = isEditMode && hasExistingModel;
-
-	if (!hasExistingModel && !isEditMode && !isLoading) {
-		return null;
-	}
+	const showCancelButton = (isEditMode && hasExistingModel) || (hasNewFile && !hasExistingModel);
 
 	if (isLoading) {
 		return (
@@ -197,12 +187,14 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 				/>
 
 				<div
-					className="flex-1 min-h-[400px] relative bg-white rounded-lg overflow-hidden"
+					className="flex-1 min-h-100 relative bg-white rounded-lg overflow-hidden"
 					onDragOver={handleDragOver}
 					onDrop={handleDrop}
 				>
-					<ModelScene modelData={viewData} format={viewFormat} />
+					{/* Всегда показываем сцену если есть данные */}
+					{hasDataToView && <ModelScene modelData={viewData} format={viewFormat} />}
 
+					{/* Показываем зону загрузки когда нет модели и не выбран файл */}
 					{showUploadButton && (
 						<DropZone
 							onClick={handleUploadClick}
@@ -215,6 +207,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 						/>
 					)}
 
+					{/* В режиме редактирования и нет выбранного файла - показываем зону для замены */}
 					{isEditMode && !hasNewFile && hasExistingModel && (
 						<DropZone
 							onClick={handleUploadClick}
@@ -227,9 +220,26 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 						/>
 					)}
 
-					{!showUploadButton && !hasDataToView && !isEditMode && (
-						<div className="absolute inset-0 flex items-center justify-center">
-							<p className="text-gray-400">Нет данных для отображения</p>
+					{/* Если нет данных, не в режиме загрузки и нет выбранного файла */}
+					{!hasDataToView && !showUploadButton && !isEditMode && !hasNewFile && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center">
+							<FaCube className="text-gray-300 text-6xl mb-4" />
+							<p className="text-gray-400">Нет 3D модели для этого материала</p>
+							{canEdit && (
+								<button
+									onClick={handleEditClick}
+									className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+								>
+									Загрузить 3D модель
+								</button>
+							)}
+						</div>
+					)}
+
+					{/* Если выбран файл, но еще не сохранен - показываем превью и сообщение */}
+					{hasNewFile && !hasExistingModel && !isPending && (
+						<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg shadow-md">
+							💡 Файл выбран. Нажмите "Сохранить 3D объект" для загрузки
 						</div>
 					)}
 				</div>

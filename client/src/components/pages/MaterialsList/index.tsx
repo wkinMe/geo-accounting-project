@@ -16,24 +16,24 @@ export type TableMaterial = {
 	id: number;
 	name: string;
 	unit: string;
-	created_at: string;
-	updated_at: string;
+	createdAt: string;
+	updatedAt: string;
 };
 
 const columns: Column<TableMaterial>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
 	{ key: 'unit', label: 'Ед. измерения' },
-	{ key: 'created_at', label: 'Дата добавления' },
-	{ key: 'updated_at', label: 'Дата изменения' },
+	{ key: 'createdAt', label: 'Дата добавления' },
+	{ key: 'updatedAt', label: 'Дата изменения' },
 ];
 
 const mapMaterialToTableItem = (material: any): TableMaterial => ({
 	id: material.id,
 	name: material.name,
 	unit: material.unit,
-	created_at: new Date(material.created_at).toLocaleDateString('ru-RU'),
-	updated_at: new Date(material.updated_at).toLocaleDateString('ru-RU'),
+	createdAt: new Date(material.createdAt).toLocaleDateString('ru-RU'),
+	updatedAt: new Date(material.updatedAt).toLocaleDateString('ru-RU'),
 });
 
 export function MaterialsList() {
@@ -100,8 +100,8 @@ export function MaterialsList() {
 
 	const elements =
 		searchQuery && searchedMaterials
-			? searchedMaterials.data.map(mapMaterialToTableItem)
-			: materials?.data.map(mapMaterialToTableItem) || [];
+			? searchedMaterials.map(mapMaterialToTableItem)
+			: materials?.map(mapMaterialToTableItem) || [];
 
 	const openEditModal = (material: TableMaterial) => {
 		setSelectedMaterial(material);
@@ -114,7 +114,6 @@ export function MaterialsList() {
 		setSelectedMaterial(null);
 		setIsModalOpen(true);
 	};
-
 
 	const handleSubmit = async (data: CreateMaterialDTO | UpdateMaterialDTO) => {
 		if (selectedMaterial) {

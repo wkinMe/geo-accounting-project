@@ -1,3 +1,4 @@
+// client/src/components/Material3D/hooks/useModelMutations.ts
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { material3dService } from '@/services/material3DService';
 
@@ -10,41 +11,45 @@ interface UseModelMutationsProps {
 export function useModelMutations({ materialId, onSuccess, onError }: UseModelMutationsProps) {
 	const queryClient = useQueryClient();
 
-	const invalidateQuery = () => {
-		queryClient.invalidateQueries({ queryKey: ['material3d', materialId] });
-	};
-
 	const createMutation = useMutation({
-		mutationFn: async (formData: FormData) => {
-			return material3dService.create(formData);
+		mutationFn: async ({ format, file }: { format: string; file: File }) => {
+			return await material3dService.create(materialId, format, file);
 		},
 		onSuccess: () => {
-			invalidateQuery();
+			// Инвалидируем оба запроса (инфо и модель)
+			queryClient.invalidateQueries({ queryKey: ['material3d', 'info', materialId] });
+			queryClient.invalidateQueries({ queryKey: ['material3d', 'model', materialId] });
 			onSuccess?.();
 		},
-		onError: (err) => onError?.(err),
+		retry: false, // Без повторных попыток при ошибке
+		onError,
 	});
 
 	const updateMutation = useMutation({
-		mutationFn: async (formData: FormData) => {
-			return material3dService.update(formData);
+		mutationFn: async ({ format, file }: { format?: string; file?: File }) => {
+			return await material3dService.update(materialId, format, file);
 		},
 		onSuccess: () => {
-			invalidateQuery();
+			queryClient.invalidateQueries({ queryKey: ['material3d', 'info', materialId] });
+			queryClient.invalidateQueries({ queryKey: ['material3d', 'model', materialId] });
 			onSuccess?.();
 		},
-		onError: (err) => onError?.(err),
+		retry: false,
+		onError,
 	});
 
 	const deleteMutation = useMutation({
 		mutationFn: async () => {
-			return material3dService.delete(materialId);
+			await material3dService.delete(materialId);
 		},
 		onSuccess: () => {
-			invalidateQuery();
+			// Очищаем кеш после удаления
+			queryClient.removeQueries({ queryKey: ['material3d', 'info', materialId] });
+			queryClient.removeQueries({ queryKey: ['material3d', 'model', materialId] });
 			onSuccess?.();
 		},
-		onError: (err) => onError?.(err),
+		retry: false,
+		onError,
 	});
 
 	return {
