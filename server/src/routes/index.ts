@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { materialsRouter } from "./materials.route";
-import organizationsRouter from "./organizations.route";
 import usersRouter from "./users.route";
 import warehousesRouter from "./warehouses.route";
 import agreementsRouter from "./agreements.route";
 import warehouseHistoryRouter from "./warehouseHistory.route";
 import { material3DRouter } from "./material3d.route";
+import { organizationsRouter } from "./organizations.route";
 
 const router = Router();
 
