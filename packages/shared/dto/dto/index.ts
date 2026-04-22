@@ -3,3 +3,4 @@ export type * from "./MaterialsDTO";
 export type * from "./OrganizationsDTO";
 export type * from "./WarehousesDTO";
 export type * from "./UserDTO";
+export type * from "./Material3DDTO";

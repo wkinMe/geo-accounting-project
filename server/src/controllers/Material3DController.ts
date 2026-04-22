@@ -1,129 +1,170 @@
-import { Pool } from "pg";
+// controllers/Material3DController.ts
 import { Request, Response } from "express";
 import { Material3DService } from "../services/Material3DService";
-import { baseErrorHandling } from "../utils";
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
-import {
-  CreateMaterial3DObjectDTO,
-  UpdateMaterial3DObjectDTO,
-} from "@shared/dto";
+import { CreateMaterial3DDTO, UpdateMaterial3DDTO } from "@shared/dto";
+import { ValidationError, NotFoundError } from "@shared/service";
 
 export class Material3DController {
-  private _material3DService: Material3DService;
-  private _entityName = "material 3d object";
+  constructor(private material3DService: Material3DService) {}
 
-  constructor(dbConnection: Pool) {
-    this._material3DService = new Material3DService(dbConnection);
-  }
-
-  async findById(req: Request<{ id: string }>, res: Response) {
-    const id = Number(req.params.id);
-
+  getByMaterialId = async (req: Request, res: Response) => {
     try {
-      const object = this._material3DService.findById(id);
+      const materialId = this.parseId(req.params.materialId);
+      const material3D =
+        await this.material3DService.findByMaterialId(materialId);
 
-      res.status(200).json({
-        data: object,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this._entityName, id),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async findByMaterialId(req: Request<{ id: string }>, res: Response) {
-    const id = Number(req.params.id);
-
-    try {
-      const object = await this._material3DService.findByMaterialId(id);
-
-      // Если объект не найден, возвращаем null без ошибки
-      if (!object) {
-        return res.status(200).json({
-          data: null,
-          message: `No 3D object found for material with id=${id}`,
+      if (!material3D) {
+        return res.status(404).json({
+          success: false,
+          error: `3D object for material ${materialId} not found`,
         });
       }
 
-      res.status(200).json({
-        data: object,
-        message: `3D object of material with id=${id} has been retrieved`,
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async create(req: Request, res: Response) {
-    try {
-      const { material_id, format } = req.body;
-      const model_data = req.file?.buffer;
-
-      if (!model_data) {
-        return res.status(400).json({ error: "Файл 3D объекта обязателен" });
-      }
-
-      const result = await this._material3DService.create({
-        material_id: Number(material_id),
-        format,
-        model_data,
-      });
-
-      res.status(201).json(result);
-    } catch (error) {
-      console.error("Error in create:", error);
-      res.status(500).json({ error: "Failed to create 3D object" });
-    }
-  }
-
-  async update(req: Request, res: Response) {
-    try {
-      const { material_id, format } = req.body;
-      const model_data = req.file?.buffer;
-
-      if (!material_id) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("material_id"),
-        });
-      }
-
-      if (!format) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("format"),
-        });
-      }
-
-      if (!model_data) {
-        return res.status(400).json({ error: "Файл 3D объекта обязателен" });
-      }
-
-      const result = await this._material3DService.update({
-        material_id: Number(material_id),
-        format,
-        model_data,
-      });
-
-      res.status(200).json({
-        data: result,
-        message: SUCCESS_MESSAGES.UPDATE(this._entityName),
+      res.json({
+        success: true,
+        data: material3D.toJSON(),
       });
     } catch (error) {
-      console.error("Error in update:", error);
-      baseErrorHandling(error, res);
+      this.handleError(error, res);
     }
+  };
+
+  create = async (req: Request, res: Response) => {
+    try {
+      const dto: CreateMaterial3DDTO = {
+        materialId: parseInt(req.body.materialId),
+        format: req.body.format,
+        modelData: req.file?.buffer,
+      };
+
+      const material3D = await this.material3DService.create(dto);
+
+      res.status(201).json({
+        success: true,
+        data: material3D.toJSON(),
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  update = async (req: Request, res: Response) => {
+    try {
+      const materialId = this.parseId(req.params.materialId);
+
+      const dto: UpdateMaterial3DDTO = {};
+
+      if (req.body.format) {
+        dto.format = req.body.format;
+      }
+
+      if (req.file) {
+        dto.modelData = req.file.buffer;
+      }
+
+      const material3D = await this.material3DService.update(materialId, dto);
+
+      res.json({
+        success: true,
+        data: material3D.toJSON(),
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  delete = async (req: Request, res: Response) => {
+    try {
+      const materialId = this.parseId(req.params.materialId);
+      await this.material3DService.delete(materialId);
+
+      res.json({
+        success: true,
+        message: "3D object deleted successfully",
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  downloadModel = async (req: Request, res: Response) => {
+    try {
+      const materialId = this.parseId(req.params.materialId);
+      const modelData = await this.material3DService.getModelData(materialId);
+
+      if (!modelData) {
+        return res.status(404).json({
+          success: false,
+          error: "3D model not found",
+        });
+      }
+
+      // Определяем MIME тип по формату
+      const material3D =
+        await this.material3DService.findByMaterialId(materialId);
+      const mimeType = this.getMimeType(material3D?.format || "gltf");
+
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="model.${material3D?.format}"`,
+      );
+      res.send(modelData);
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  private parseId(idParam: string | string[] | undefined): number {
+    if (!idParam) {
+      throw new ValidationError(
+        "ID parameter is required",
+        "parseId",
+        "id",
+        "undefined",
+      );
+    }
+
+    const idString = Array.isArray(idParam) ? idParam[0] : idParam;
+    const id = parseInt(idString, 10);
+
+    if (isNaN(id)) {
+      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+    }
+
+    return id;
   }
 
-  async delete(req: Request<{ id: string }>, res: Response) {
-    const material_id = Number(req.params.id);
+  private getMimeType(format: string): string {
+    const mimeTypes: Record<string, string> = {
+      gltf: "model/gltf+json",
+      glb: "model/gltf-binary",
+      obj: "text/plain",
+      fbx: "application/octet-stream",
+      stl: "application/sla",
+    };
+    return mimeTypes[format.toLowerCase()] || "application/octet-stream";
+  }
 
-    try {
-      await this._material3DService.delete(material_id);
+  private handleError(error: unknown, res: Response): void {
+    console.error("Material3DController error:", error);
 
-      res.status(200).json({
-        message: SUCCESS_MESSAGES.DELETE(this._entityName),
+    if (error instanceof ValidationError) {
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        field: error.field,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } else if (error instanceof NotFoundError) {
+      res.status(404).json({
+        success: false,
+        error: error.message,
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: "Internal server error",
+      });
     }
   }
 }

@@ -19,7 +19,6 @@ export class MaterialImageService {
         [materialId],
       );
 
-
       return result?.image || null;
     } catch (error) {
       if (error instanceof DatabaseError) {

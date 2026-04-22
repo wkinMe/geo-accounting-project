@@ -25,8 +25,8 @@ export function Material() {
 
 	return (
 		<div className="flex flex-col gap-5 h-[85vh]">
-			{materialData && <MaterialInfo {...materialData.data} />}
-			<Material3D materialId={materialData?.data.id || 0} />
+			{materialData && <MaterialInfo {...materialData} />}
+			<Material3D materialId={materialData?.id || 0} />
 		</div>
 	);
 }

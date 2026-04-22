@@ -1,4 +1,4 @@
-// client/src/components/Material3D/index.tsx (или где он у вас)
+// client/src/components/Material3D/index.tsx
 import { useState, useRef } from 'react';
 import { FaSpinner, FaCube } from 'react-icons/fa';
 import { useRole } from '@/hooks/useRole';
@@ -15,9 +15,9 @@ interface Material3DComponentProps {
 }
 
 export function Material3D({ materialId }: Material3DComponentProps) {
-	const [isEditMode, setIsEditMode] = useState(false);
 	const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
+	const [sceneKey, setSceneKey] = useState(0);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	const role = useRole();
@@ -41,14 +41,10 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 
 	const handleSuccess = () => {
 		setSuccessMessage(
-			createMutation.isPending
-				? '3D объект успешно сохранён'
-				: updateMutation.isPending
-					? '3D объект успешно обновлён'
-					: '3D объект успешно удалён'
+			createMutation.isPending ? '3D объект успешно сохранён' : '3D объект успешно обновлён'
 		);
+		setSceneKey((prev) => prev + 1);
 		resetFile();
-		setIsEditMode(false);
 		setTimeout(() => setSuccessMessage(null), 3000);
 	};
 
@@ -65,13 +61,8 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			setFileError('Выберите 3D объект для сохранения');
 			return;
 		}
-
-		const formData = new FormData();
-		formData.append('material_id', String(materialId));
-		formData.append('format', fileFormat || 'unknown');
-		formData.append('model_data', selectedFile);
-
-		createMutation.mutate(formData);
+		const format = fileFormat || 'unknown';
+		createMutation.mutate({ format, file: selectedFile });
 	};
 
 	const handleUpdate = () => {
@@ -79,13 +70,8 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 			setFileError('Выберите 3D объект для обновления');
 			return;
 		}
-
-		const formData = new FormData();
-		formData.append('material_id', String(materialId));
-		formData.append('format', fileFormat || 'unknown');
-		formData.append('model_data', selectedFile);
-
-		updateMutation.mutate(formData);
+		const format = fileFormat || 'unknown';
+		updateMutation.mutate({ format, file: selectedFile });
 	};
 
 	const handleDeleteConfirm = async () => {
@@ -93,17 +79,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		setIsDeleteModalOpen(false);
 	};
 
-	const handleEditClick = () => {
-		setIsEditMode(true);
-		resetFile();
-	};
-
-	const handleCancelEdit = () => {
-		setIsEditMode(false);
-		resetFile();
-	};
-
-	const handleUploadClick = () => {
+	const handleReplaceClick = () => {
 		fileInputRef.current?.click();
 	};
 
@@ -112,6 +88,7 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 		if (file) {
 			handleFileSelect(file);
 		}
+		e.target.value = '';
 	};
 
 	const handleDragOver = (e: React.DragEvent) => {
@@ -132,20 +109,16 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 	const isPending =
 		createMutation.isPending || updateMutation.isPending || deleteMutation.isPending;
 
-	const viewData = isEditMode && hasNewFile ? selectedFile : serverModelData;
-	const viewFormat = isEditMode && hasNewFile ? fileFormat : serverModelFormat;
+	const viewData = hasNewFile ? selectedFile : serverModelData;
+	const viewFormat = hasNewFile ? fileFormat : serverModelFormat;
 	const hasDataToView = !!viewData && !!viewFormat;
 
-	const showUploadButton = !hasExistingModel && !hasNewFile && !isEditMode;
-	const showSaveButton = hasNewFile && !hasExistingModel;
-	const showUpdateButton = hasNewFile && hasExistingModel && isEditMode;
-	const showEditButton = hasExistingModel && !isEditMode && canEdit;
-	const showDeleteButton = hasExistingModel && !isEditMode && canEdit;
-	const showCancelButton = isEditMode && hasExistingModel;
-
-	if (!hasExistingModel && !isEditMode && !isLoading) {
-		return null;
-	}
+	// Логика кнопок
+	const showSaveButton = hasNewFile && !hasExistingModel; // Нет модели - показываем "Сохранить"
+	const showUpdateButton = hasNewFile && hasExistingModel; // Есть модель - показываем "Обновить"
+	const showEditButton = hasExistingModel && !hasNewFile && canEdit;
+	const showDeleteButton = hasExistingModel && !hasNewFile && canEdit;
+	const showCancelButton = hasNewFile;
 
 	if (isLoading) {
 		return (
@@ -191,21 +164,22 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 					isPending={isPending}
 					onSave={handleSave}
 					onUpdate={handleUpdate}
-					onEdit={handleEditClick}
+					onEdit={handleReplaceClick}
 					onDelete={() => setIsDeleteModalOpen(true)}
-					onCancel={handleCancelEdit}
+					onCancel={() => resetFile()}
 				/>
 
 				<div
-					className="flex-1 min-h-[400px] relative bg-white rounded-lg overflow-hidden"
+					className="flex-1 min-h-100 relative bg-white rounded-lg overflow-hidden"
 					onDragOver={handleDragOver}
 					onDrop={handleDrop}
 				>
-					<ModelScene modelData={viewData} format={viewFormat} />
+					{hasDataToView && <ModelScene key={sceneKey} modelData={viewData} format={viewFormat} />}
 
-					{showUploadButton && (
+					{/* Если нет модели и пользователь может редактировать - показываем DropZone */}
+					{!hasExistingModel && !hasNewFile && canEdit && (
 						<DropZone
-							onClick={handleUploadClick}
+							onClick={handleReplaceClick}
 							onDragOver={handleDragOver}
 							onDrop={handleDrop}
 							title="Загрузить 3D объект"
@@ -215,21 +189,24 @@ export function Material3D({ materialId }: Material3DComponentProps) {
 						/>
 					)}
 
-					{isEditMode && !hasNewFile && hasExistingModel && (
-						<DropZone
-							onClick={handleUploadClick}
-							onDragOver={handleDragOver}
-							onDrop={handleDrop}
-							title="Выберите новую модель для замены"
-							subtitle={`Поддерживаемые форматы: ${ALLOWED_3D_EXTENSIONS.join(', ')}`}
-							hint="Перетащите файл или кликните для выбора"
-							icon={<FaCube className="text-gray-400 text-4xl mb-3" />}
-						/>
+					{/* Если нет модели и пользователь НЕ может редактировать - показываем заглушку */}
+					{!hasExistingModel && !hasNewFile && !canEdit && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center">
+							<FaCube className="text-gray-300 text-6xl mb-4" />
+							<p className="text-gray-400">Нет 3D модели для этого материала</p>
+						</div>
 					)}
 
-					{!showUploadButton && !hasDataToView && !isEditMode && (
-						<div className="absolute inset-0 flex items-center justify-center">
-							<p className="text-gray-400">Нет данных для отображения</p>
+					{/* Если есть модель, но нет данных для просмотра */}
+					{hasExistingModel && !hasDataToView && !hasNewFile && (
+						<div className="absolute inset-0 flex flex-col items-center justify-center">
+							<FaSpinner className="animate-spin text-gray-400 text-2xl" />
+						</div>
+					)}
+
+					{hasNewFile && (
+						<div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-700 px-4 py-2 rounded-lg shadow-md z-10">
+							💡 Выбран файл: {selectedFile.name}
 						</div>
 					)}
 				</div>

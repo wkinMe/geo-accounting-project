@@ -1,297 +1,164 @@
-import { Material3D } from "@shared/models";
-import { DatabaseError, Pool } from "pg";
-import { executeQuery, findSingleResult, getSingleResult } from "../utils";
-import {
-  CreateMaterial3DObjectDTO,
-  UpdateMaterial3DObjectDTO,
-} from "@shared/dto";
-import { NotFoundError, ServiceError, ValidationError } from "@shared/service";
+// services/Material3DService.ts
+import { Material3D } from "../domain/entities/Material3D";
+import { Material3DRepository } from "../repositories/Material3DRepository";
+import { MaterialRepository } from "../repositories/MaterialRepository";
+import { CreateMaterial3DDTO, UpdateMaterial3DDTO } from "@shared/dto";
+import { ValidationError, NotFoundError } from "@shared/service";
 
 export class Material3DService {
-  private _dbConnection: Pool;
-  private _entityName = "materials_3d";
+  constructor(
+    private material3DRepo: Material3DRepository,
+    private materialRepo: MaterialRepository,
+  ) {}
 
-  constructor(dbConnection) {
-    this._dbConnection = dbConnection;
-  }
-
-  async findById(id: number): Promise<Material3D> {
-    try {
-      const result = getSingleResult<Material3D>(
-        this._dbConnection,
-        `select`,
-        `SELECT * FROM ${this._entityName} WHERE id=$1`,
-        [id],
-        `material_3d`,
-      );
-
-      return result;
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to thrieve material 3d object with id=${id}`,
-        `Material3DService`,
-        `findById`,
-        error,
+  async findByMaterialId(materialId: number): Promise<Material3D | null> {
+    // Проверяем существование материала
+    const material = await this.materialRepo.findById(materialId);
+    if (!material) {
+      throw new NotFoundError(
+        `Material with id ${materialId} not found`,
+        "Material",
+        "findByMaterialId",
+        materialId,
       );
     }
+
+    return await this.material3DRepo.findByMaterialId(materialId);
   }
 
-  async findByMaterialId(id: number): Promise<Material3D | null> {
-    try {
-      const result = await getSingleResult<Material3D>(
-        this._dbConnection,
-        `select`,
-        `SELECT * FROM ${this._entityName} WHERE material_id=$1`,
-        [id],
-        this._entityName,
-        id,
-      );
-      return result;
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        return null;
-      }
+  async create(dto: CreateMaterial3DDTO): Promise<Material3D> {
+    // Валидация
+    this.validateCreateDTO(dto);
 
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-
-      throw new ServiceError(
-        `Failed to retrieve 3d object of material with id=${id}`,
-        `Material3DService`,
-        `findByMaterialId`,
-        error,
-      );
-    }
-  }
-
-  async create({ material_id, format, model_data }: CreateMaterial3DObjectDTO) {
-    try {
-      // Валидации
-      if (!material_id) {
-        throw new ValidationError(
-          "Material ID is required",
-          "create",
-          "Material3DService",
-          "material_id",
-          material_id,
-        );
-      }
-
-      if (!format) {
-        throw new ValidationError(
-          "File format is required",
-          "create",
-          "Material3DService",
-          "format",
-          format,
-        );
-      }
-
-      if (
-        !model_data ||
-        !(model_data instanceof Buffer) ||
-        model_data.length === 0
-      ) {
-        throw new ValidationError(
-          "Model data is required and must be a non-empty Buffer",
-          "create",
-          "Material3DService",
-          "model_data",
-          model_data,
-        );
-      }
-
-      // Проверка на существование
-      const existing3DObject = await findSingleResult(
-        this._dbConnection,
+    // Проверяем существование материала
+    const material = await this.materialRepo.findById(dto.materialId);
+    if (!material) {
+      throw new NotFoundError(
+        `Material with id ${dto.materialId} not found`,
+        "Material",
         "create",
-        `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
-        [material_id],
-      );
-
-      if (existing3DObject) {
-        throw new ValidationError(
-          "Object for this material already exists",
-          "create",
-          "Material3DService",
-          "material_id",
-          material_id,
-        );
-      }
-
-      // Вставка (model_data уже Buffer)
-      const rows = await executeQuery(
-        this._dbConnection,
-        "create",
-        `INSERT INTO ${this._entityName} (material_id, format, model_data) 
-       VALUES ($1, $2, $3) RETURNING id, material_id, format, created_at`,
-        [material_id, format, model_data],
-      );
-
-      if (!rows.length) {
-        throw new ServiceError(
-          "Failed to create 3D object - no data returned",
-          "Material3DService",
-          "create",
-        );
-      }
-
-      return rows[0];
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to create 3D object",
-        "Material3DService",
-        "create",
-        error,
+        dto.materialId,
       );
     }
-  }
 
-  async update({ material_id, format, model_data }: UpdateMaterial3DObjectDTO) {
-    try {
-      if (!material_id) {
-        throw new ValidationError(
-          `Material ID is required`,
-          `update`,
-          `Material3DService`,
-          `material_id`,
-          material_id,
-        );
-      }
-
-      if (!format) {
-        throw new ValidationError(
-          `File format is required`,
-          `update`,
-          `Material3DService`,
-          `format`,
-          format,
-        );
-      }
-
-      if (!model_data) {
-        throw new ValidationError(
-          `Model data is required`,
-          `update`,
-          `Material3DService`,
-          `model_data`,
-          model_data,
-        );
-      }
-
-      const existing3DObject = await getSingleResult(
-        this._dbConnection,
-        `update`,
-        `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
-        [material_id],
-        this._entityName,
-        material_id,
-      );
-
-      if (!existing3DObject) {
-        throw new ValidationError(
-          `There is no 3d object to this material`,
-          `update`,
-          `Material3DService`,
-          `material_id`,
-          material_id,
-        );
-      }
-
-      const rows = await executeQuery(
-        this._dbConnection,
-        `update`,
-        `UPDATE ${this._entityName} SET format=$1, model_data=$2 WHERE material_id=$3 RETURNING *`,
-        [format, model_data, material_id],
-      );
-
-      if (!rows.length) {
-        throw new ServiceError(
-          `Failed to update 3D object - no data returned`,
-          `Material3DService`,
-          `update`,
-        );
-      }
-
-      return rows[0];
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to update 3d object`,
-        `Material3DService`,
-        `update`,
-        error,
+    // Проверяем, нет ли уже 3D объекта для этого материала
+    const existing = await this.material3DRepo.findByMaterialId(dto.materialId);
+    if (existing) {
+      throw new ValidationError(
+        `3D object already exists for material ${dto.materialId}`,
+        "create",
+        "materialId",
+        dto.materialId.toString(),
       );
     }
+
+    // Создаем сущность
+    const material3D = Material3D.create(
+      dto.materialId,
+      dto.format,
+      dto.modelData,
+    );
+
+    // Сохраняем
+    return await this.material3DRepo.save(material3D);
   }
 
-  async delete(material_id: number): Promise<void> {
-    try {
-      if (!material_id) {
-        throw new ValidationError(
-          `Material ID is required`,
-          `delete`,
-          `Material3DService`,
-          `material_id`,
-          material_id,
-        );
-      }
-
-      // Проверяем, существует ли объект
-      const existing3DObject = await findSingleResult(
-        this._dbConnection,
-        `delete`,
-        `SELECT id FROM ${this._entityName} WHERE material_id=$1`,
-        [material_id],
+  async update(
+    materialId: number,
+    dto: UpdateMaterial3DDTO,
+  ): Promise<Material3D> {
+    // Находим существующий объект
+    const existing = await this.material3DRepo.findByMaterialId(materialId);
+    if (!existing) {
+      throw new NotFoundError(
+        `3D object for material ${materialId} not found`,
+        "Material3D",
+        "update",
+        materialId,
       );
+    }
 
-      if (!existing3DObject) {
-        throw new NotFoundError(
-          `3D object for material with id=${material_id} not found`,
-          this._entityName,
-          "Material3DService",
-          material_id,
-        );
-      }
+    // Обновляем сущность
+    if (dto.format) {
+      existing.updateFormat(dto.format);
+    }
 
-      // Выполняем удаление
-      await executeQuery(
-        this._dbConnection,
-        `delete`,
-        `DELETE FROM ${this._entityName} WHERE material_id=$1`,
-        [material_id],
+    if (dto.modelData) {
+      existing.updateModelData(dto.modelData);
+    }
+
+    // Сохраняем изменения
+    return await this.material3DRepo.update(materialId, existing);
+  }
+
+  async delete(materialId: number): Promise<void> {
+    // Проверяем существование материала
+    const material = await this.materialRepo.findById(materialId);
+    if (!material) {
+      throw new NotFoundError(
+        `Material with id ${materialId} not found`,
+        "Material",
+        "delete",
+        materialId,
       );
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof NotFoundError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to delete 3D object for material with id=${material_id}`,
-        `Material3DService`,
-        `delete`,
-        error,
+    }
+
+    // Удаляем 3D объект
+    await this.material3DRepo.delete(materialId);
+  }
+
+  async getModelData(materialId: number): Promise<Buffer | null> {
+    const material3D = await this.findByMaterialId(materialId);
+    return material3D?.modelData || null;
+  }
+
+  // Private validation
+  private validateCreateDTO(dto: CreateMaterial3DDTO): void {
+    if (!dto.materialId || dto.materialId <= 0) {
+      throw new ValidationError(
+        "Valid material ID is required",
+        "create",
+        "materialId",
+        dto.materialId?.toString(),
+      );
+    }
+
+    if (!dto.format || dto.format.trim().length === 0) {
+      throw new ValidationError(
+        "Format is required (e.g., 'gltf', 'obj', 'fbx')",
+        "create",
+        "format",
+        dto.format,
+      );
+    }
+
+    const allowedFormats = ["gltf", "glb", "obj", "fbx", "stl"];
+    if (!allowedFormats.includes(dto.format.toLowerCase())) {
+      throw new ValidationError(
+        `Format must be one of: ${allowedFormats.join(", ")}`,
+        "create",
+        "format",
+        dto.format,
+      );
+    }
+
+    if (!dto.modelData || dto.modelData.length === 0) {
+      throw new ValidationError(
+        "Model data is required",
+        "create",
+        "modelData",
+        "empty",
+      );
+    }
+
+    // Максимальный размер 50MB
+    const maxSize = 50 * 1024 * 1024;
+    if (dto.modelData.length > maxSize) {
+      throw new ValidationError(
+        `Model data too large. Max ${maxSize / 1024 / 1024}MB`,
+        "create",
+        "modelData",
+        `${dto.modelData.length} bytes`,
       );
     }
   }

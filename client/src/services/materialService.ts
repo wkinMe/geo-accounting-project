@@ -8,17 +8,18 @@ import type { SuccessResponse } from '@shared/types';
 class MaterialService {
 	private readonly baseUrl = '/materials';
 
-	async findAll(): Promise<SuccessResponse<Material[]>> {
+	async findAll(): Promise<Material[]> {
 		const response = await instance.get<SuccessResponse<Material[]>>(`${this.baseUrl}/`);
-		return response.data;
+		// Возвращаем data.data, так как ответ обернут в { success, data }
+		return response.data.data;
 	}
 
-	async findById(id: number): Promise<SuccessResponse<Material>> {
+	async findById(id: number): Promise<Material> {
 		const response = await instance.get<SuccessResponse<Material>>(`${this.baseUrl}/${id}`);
-		return response.data;
+		return response.data.data;
 	}
 
-	async create(data: CreateMaterialDTO): Promise<SuccessResponse<Material>> {
+	async create(data: CreateMaterialDTO): Promise<Material> {
 		const formData = new FormData();
 		formData.append('name', data.name);
 		formData.append('unit', data.unit);
@@ -31,20 +32,26 @@ class MaterialService {
 				'Content-Type': 'multipart/form-data',
 			},
 		});
-		return response.data;
+		return response.data.data;
 	}
 
-	async update(id: number, data: UpdateMaterialDTO): Promise<SuccessResponse<Material>> {
+	async update(id: number, data: UpdateMaterialDTO): Promise<Material> {
 		const formData = new FormData();
 		if (data.name) formData.append('name', data.name);
 		if (data.unit) formData.append('unit', data.unit);
-		if (data.image) {
-			formData.append('image', data.image);
-		} else if (data.image === null) {
-			formData.append('remove_image', 'true');
+
+		// Обработка изображения согласно новому API
+		if (data.image !== undefined) {
+			if (data.image === null) {
+				// Отправляем null, чтобы удалить изображение
+				formData.append('image', 'null');
+			} else if (data.image instanceof File) {
+				formData.append('image', data.image);
+			}
 		}
 
-		const response = await instance.patch<SuccessResponse<Material>>(
+		// Используем PUT вместо PATCH (согласно новым роутам)
+		const response = await instance.put<SuccessResponse<Material>>(
 			`${this.baseUrl}/${id}`,
 			formData,
 			{
@@ -53,42 +60,59 @@ class MaterialService {
 				},
 			}
 		);
-		return response.data;
+		return response.data.data;
 	}
 
-	async delete(id: number): Promise<SuccessResponse<Material>> {
-		const response = await instance.delete<SuccessResponse<Material>>(`${this.baseUrl}/${id}`);
-		return response.data;
+	async delete(id: number): Promise<void> {
+		const response = await instance.delete<SuccessResponse<{ message: string }>>(
+			`${this.baseUrl}/${id}`
+		);
+		// Не возвращаем данные, только успешный статус
+		if (!response.data.success) {
+			throw new Error('Failed to delete material');
+		}
 	}
 
-	async search(query: string): Promise<SuccessResponse<Material[]>> {
+	async search(query: string): Promise<Material[]> {
 		const response = await instance.get<SuccessResponse<Material[]>>(`${this.baseUrl}/search`, {
 			params: { q: query },
 		});
-		return response.data;
+		return response.data.data;
 	}
 
+	// Image endpoints
 	async getImageUrl(materialId: number): Promise<string> {
-		return `${this.baseUrl}/${materialId}/image`;
+		// Возвращаем полный URL для изображения
+		return `${instance.defaults.baseURL}${this.baseUrl}/${materialId}/image`;
 	}
 
 	async getImageBlob(materialId: number): Promise<Blob | null> {
-		const response = await instance.get(`${this.baseUrl}/${materialId}/image`, {
-			responseType: 'blob',
-		});
+		try {
+			const response = await instance.get(`${this.baseUrl}/${materialId}/image`, {
+				responseType: 'blob',
+			});
 
-		if (response.status === 404) {
-			return null;
+			// Если изображение не найдено, возвращаем null
+			if (response.status === 404) {
+				return null;
+			}
+
+			return response.data;
+		} catch (error: any) {
+			// Если ошибка 404, возвращаем null
+			if (error.response?.status === 404) {
+				return null;
+			}
+			throw error;
 		}
-
-		return response.data;
 	}
 
-	async upsertImage(materialId: number, imageFile: File): Promise<void> {
+	async uploadImage(materialId: number, imageFile: File): Promise<void> {
 		const formData = new FormData();
 		formData.append('image', imageFile);
 
-		await instance.put(`${this.baseUrl}/${materialId}/image`, formData, {
+		// Используем POST согласно новым роутам
+		await instance.post(`${this.baseUrl}/${materialId}/image`, formData, {
 			headers: {
 				'Content-Type': 'multipart/form-data',
 			},
@@ -97,6 +121,16 @@ class MaterialService {
 
 	async deleteImage(materialId: number): Promise<void> {
 		await instance.delete(`${this.baseUrl}/${materialId}/image`);
+	}
+
+	async imageExists(materialId: number): Promise<boolean> {
+		try {
+			// Пытаемся получить изображение
+			const blob = await this.getImageBlob(materialId);
+			return blob !== null;
+		} catch {
+			return false;
+		}
 	}
 }
 

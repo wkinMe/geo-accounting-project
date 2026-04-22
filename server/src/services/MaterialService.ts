@@ -1,449 +1,166 @@
-// server/src/services/MaterialService.ts
-import { Pool } from "pg";
-import { Material } from "@shared/models";
+// services/MaterialService.ts
+import { Material } from "../domain/entities/Material";
+import { MaterialRepository } from "../repositories/MaterialRepository";
+import { MaterialImageRepository } from "../repositories/MaterialImageRepository";
 import { CreateMaterialDTO, UpdateMaterialDTO } from "@shared/dto";
-import Fuse, { IFuseOptions } from "fuse.js";
-import {
-  DatabaseError,
-  NotFoundError,
-  ServiceError,
-  ValidationError,
-} from "@shared/service";
-import { executeQuery, findSingleResult, getSingleResult } from "@src/utils";
-import { MaterialImageService } from "./MaterialImageService";
+import { ValidationError, NotFoundError } from "@shared/service";
 
 export class MaterialService {
-  private _db: Pool;
-  private _materialImageService: MaterialImageService;
-
-  constructor(dbConnection: Pool) {
-    this._db = dbConnection;
-    this._materialImageService = new MaterialImageService(dbConnection);
-  }
+  constructor(
+    private materialRepo: MaterialRepository,
+    private imageRepo: MaterialImageRepository
+  ) {}
 
   async findAll(): Promise<Material[]> {
-    try {
-      const rows = await executeQuery<Material>(
-        this._db,
-        "findAll",
-        "SELECT * FROM materials ORDER BY id",
-      );
-      return rows;
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve materials",
-        "MaterialService",
-        "findAll",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+    return await this.materialRepo.findAll();
   }
 
   async findById(id: number): Promise<Material> {
-    try {
-      const material = await getSingleResult<Material>(
-        this._db,
-        "findById",
-        "SELECT * FROM materials WHERE id = $1",
-        [id],
-        "Material",
-        id,
-      );
-      return material;
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to find material with id ${id}`,
-        "MaterialService",
-        "findById",
-        error,
-      );
+    const material = await this.materialRepo.findById(id);
+    
+    if (!material) {
+      throw new NotFoundError(`Material with id ${id} not found`, "Material", "findById", id);
     }
+    
+    return material;
   }
 
-  async create(value: CreateMaterialDTO): Promise<Material> {
-    try {
-      // Валидация имени
-      if (!value.name || value.name.trim().length === 0) {
-        throw new ValidationError(
-          "Material name cannot be empty",
-          "create",
-          "name",
-          value.name,
-        );
-      }
-
-      // Валидация единицы измерения
-      if (!value.unit || value.unit.trim().length === 0) {
-        throw new ValidationError(
-          "Material unit cannot be empty",
-          "create",
-          "unit",
-          value.unit,
-        );
-      }
-
-      // Проверка на существование материала с таким именем
-      const existingMaterial = await findSingleResult<Material>(
-        this._db,
-        "checkUniqueName",
-        "SELECT * FROM materials WHERE LOWER(name) = LOWER($1)",
-        [value.name.trim()],
-      );
-
-      if (existingMaterial) {
-        throw new ValidationError(
-          `Material with name "${value.name}" already exists`,
-          "create",
-          "name",
-          value.name,
-        );
-      }
-
-      const client = await this._db.connect();
-
-      try {
-        await client.query("BEGIN");
-
-        // Создаем материал
-        const createMaterialQuery = `
-          INSERT INTO materials (name, unit) 
-          VALUES ($1, $2) 
-          RETURNING *
-        `;
-
-        const materialResult = await client.query(createMaterialQuery, [
-          value.name.trim(),
-          value.unit.trim(),
-        ]);
-
-        if (materialResult.rows.length === 0) {
-          throw new ServiceError(
-            "Failed to create material - no data returned",
-            "MaterialService",
-            "create",
-            new Error("No data returned from INSERT query"),
-          );
-        }
-
-        const createdMaterial = materialResult.rows[0];
-
-        await client.query("COMMIT");
-
-        // Если есть изображение - upsert (создаем или обновляем)
-        if (value.image && value.image.length > 0) {
-          const imageBuffer =
-            value.image instanceof Uint8Array
-              ? Buffer.from(value.image)
-              : value.image;
-
-          await this._materialImageService.upsertImage(
-            createdMaterial.id,
-            imageBuffer,
-          );
-        }
-
-        return createdMaterial;
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to create material",
-        "MaterialService",
+  async create(dto: CreateMaterialDTO): Promise<Material> {
+    // Валидация
+    this.validateCreateDTO(dto);
+    
+    // Проверка уникальности имени
+    const existing = await this.materialRepo.findByName(dto.name);
+    if (existing) {
+      throw new ValidationError(
+        `Material with name "${dto.name}" already exists`,
         "create",
-        error instanceof Error ? error : new Error(String(error)),
+        "name",
+        dto.name
       );
     }
+    
+    // Создаем сущность
+    const hasImage = !!(dto.image && dto.image.length > 0);
+    const material = Material.create(dto.name, dto.unit, hasImage);
+    
+    // Сохраняем
+    const savedMaterial = await this.materialRepo.save(material);
+    
+    // Сохраняем изображение если есть
+    if (dto.image && dto.image.length > 0) {
+      const imageBuffer = dto.image instanceof Uint8Array 
+        ? Buffer.from(dto.image) 
+        : dto.image;
+      
+      await this.imageRepo.upsertImage(savedMaterial.id!, imageBuffer);
+    }
+    
+    return savedMaterial;
   }
 
-  async update(id: number, value: UpdateMaterialDTO): Promise<Material> {
-    try {
-      // Валидация ID
-      if (!id || id <= 0) {
+  async update(id: number, dto: UpdateMaterialDTO): Promise<Material> {
+    // Проверяем существование
+    const existingMaterial = await this.findById(id);
+    
+    // Обновляем сущность
+    if (dto.name !== undefined) {
+      existingMaterial.updateName(dto.name);
+      
+      // Проверяем уникальность нового имени
+      const duplicate = await this.materialRepo.findByName(dto.name, id);
+      if (duplicate) {
         throw new ValidationError(
-          "Invalid material ID",
+          `Material with name "${dto.name}" already exists`,
           "update",
-          "id",
-          id.toString(),
+          "name",
+          dto.name
         );
       }
-
-      // Проверка существования материала
-      const existingMaterial = await findSingleResult<Material>(
-        this._db,
-        "checkExists",
-        "SELECT * FROM materials WHERE id = $1",
-        [id],
-      );
-
-      if (!existingMaterial) {
-        throw new NotFoundError(
-          `Material with ID ${id} not found`,
-          "Material",
-          id.toString(),
-        );
-      }
-
-      const client = await this._db.connect();
-
-      try {
-        await client.query("BEGIN");
-
-        // Формируем динамический запрос для обновления
-        const updates: string[] = [];
-        const values: any[] = [];
-        let paramCounter = 1;
-
-        if (value.name !== undefined) {
-          if (value.name.trim().length === 0) {
-            throw new ValidationError(
-              "Material name cannot be empty",
-              "update",
-              "name",
-              value.name,
-            );
-          }
-
-          // Проверка уникальности имени (если имя меняется)
-          if (value.name !== existingMaterial.name) {
-            const nameExists = await client.query(
-              "SELECT id FROM materials WHERE LOWER(name) = LOWER($1) AND id != $2",
-              [value.name.trim(), id],
-            );
-
-            if (nameExists.rows.length > 0) {
-              throw new ValidationError(
-                `Material with name "${value.name}" already exists`,
-                "update",
-                "name",
-                value.name,
-              );
-            }
-          }
-
-          updates.push(`name = $${paramCounter++}`);
-          values.push(value.name.trim());
-        }
-
-        if (value.unit !== undefined) {
-          if (value.unit.trim().length === 0) {
-            throw new ValidationError(
-              "Material unit cannot be empty",
-              "update",
-              "unit",
-              value.unit,
-            );
-          }
-          updates.push(`unit = $${paramCounter++}`);
-          values.push(value.unit.trim());
-        }
-
-        // Обновляем материал если есть изменения
-        if (updates.length > 0) {
-          values.push(id);
-          const updateQuery = `
-            UPDATE materials 
-            SET ${updates.join(", ")} 
-            WHERE id = $${paramCounter} 
-            RETURNING *
-          `;
-
-          const result = await client.query(updateQuery, values);
-
-          if (result.rows.length === 0) {
-            throw new ServiceError(
-              "Failed to update material",
-              "MaterialService",
-              "update",
-              new Error("No rows returned after update"),
-            );
-          }
-        }
-
-        // Обработка изображения через upsert
-        if (value.image !== undefined) {
-          if (value.image === null) {
-            // Удаляем изображение
-            await this._materialImageService.deleteImage(id);
-          } else if (value.image.length > 0) {
-            // Обновляем или создаем изображение
-            const imageBuffer =
-              value.image instanceof Uint8Array
-                ? Buffer.from(value.image)
-                : value.image;
-            await this._materialImageService.upsertImage(id, imageBuffer);
-          }
-        }
-
-        await client.query("COMMIT");
-
-        // Возвращаем обновленный материал
-        return await this.findById(id);
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError ||
-        error instanceof NotFoundError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to update material",
-        "MaterialService",
-        "update",
-        error instanceof Error ? error : new Error(String(error)),
-      );
     }
+    
+    if (dto.unit !== undefined) {
+      existingMaterial.updateUnit(dto.unit);
+    }
+    
+    // Сохраняем изменения
+    const updatedMaterial = await this.materialRepo.update(id, existingMaterial);
+    
+    // Обрабатываем изображение
+    if (dto.image !== undefined) {
+      if (dto.image === null) {
+        await this.imageRepo.deleteImage(id);
+        updatedMaterial.hasImage = false;
+      } else if (dto.image.length > 0) {
+        const imageBuffer = dto.image instanceof Uint8Array 
+          ? Buffer.from(dto.image) 
+          : dto.image;
+        await this.imageRepo.upsertImage(id, imageBuffer);
+        updatedMaterial.hasImage = true;
+      }
+    }
+    
+    return updatedMaterial;
   }
 
-  async delete(id: number): Promise<Material> {
-    try {
-      // Проверяем существование материала
-      await this.findById(id);
-
-      // Проверяем, используется ли материал в договорах
-      const usageCheck = await executeQuery<{ count: number }>(
-        this._db,
-        "checkUsage",
-        "SELECT COUNT(*) as count FROM agreement_material WHERE material_id = $1",
-        [id],
-      );
-
-      if (usageCheck[0].count > 0) {
-        throw new ValidationError(
-          `Cannot delete material with id ${id} because it is used in agreements`,
-          "delete",
-          "material_id",
-          id.toString(),
-        );
-      }
-
-      const client = await this._db.connect();
-
-      try {
-        await client.query("BEGIN");
-
-        // Удаляем изображение (если есть)
-        await this._materialImageService.deleteImage(id);
-
-        // Удаляем материал
-        const rows = await executeQuery<Material>(
-          this._db,
-          "delete",
-          `DELETE FROM materials WHERE id=$1 RETURNING *`,
-          [id],
-        );
-
-        if (rows.length === 0) {
-          throw new ServiceError(
-            `Failed to delete material with id ${id} - no data returned`,
-            "MaterialService",
-            "delete",
-            new Error("No data returned from DELETE query"),
-          );
-        }
-
-        await client.query("COMMIT");
-
-        return rows[0];
-      } catch (error) {
-        await client.query("ROLLBACK");
-        throw error;
-      } finally {
-        client.release();
-      }
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof NotFoundError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to delete material with id ${id}`,
-        "MaterialService",
-        "delete",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+  async delete(id: number): Promise<void> {
+    // Проверяем существование
+    await this.findById(id);
+    
+    // Удаляем изображение
+    await this.imageRepo.deleteImage(id);
+    
+    // Удаляем материал
+    await this.materialRepo.delete(id);
   }
 
-  async search(input: string): Promise<Material[]> {
-    try {
-      const materials = await this.findAll();
-
-      const fuseConfig: IFuseOptions<Material> = {
-        keys: [
-          { name: "name", weight: 0.7 },
-          { name: "unit", weight: 0.3 },
-        ],
-        isCaseSensitive: false,
-        ignoreDiacritics: true,
-        minMatchCharLength: 2,
-        shouldSort: true,
-        threshold: 0.4,
-        useExtendedSearch: true,
-        includeScore: true,
-        findAllMatches: true,
-      };
-
-      const fuse = new Fuse(materials, fuseConfig);
-      const searchResult = fuse.search(input);
-
-      return searchResult.map((i) => i.item);
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof ServiceError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to search materials",
-        "MaterialService",
-        "search",
-        error instanceof Error ? error : new Error(String(error)),
-      );
+  async search(query: string): Promise<Material[]> {
+    if (!query || query.trim().length === 0) {
+      return await this.findAll();
     }
+    
+    return await this.materialRepo.search(query.trim());
   }
 
-  // ========== Публичные методы для работы с изображениями ==========
-
+  // ========== Работа с изображениями ==========
+  
   async getImage(materialId: number): Promise<Buffer | null> {
-    return this._materialImageService.getImageByMaterialId(materialId);
+    await this.findById(materialId); // Проверяем существование материала
+    return await this.imageRepo.getImage(materialId);
   }
 
   async upsertImage(materialId: number, imageData: Buffer): Promise<void> {
-    await this._materialImageService.upsertImage(materialId, imageData);
+    await this.findById(materialId);
+    await this.imageRepo.upsertImage(materialId, imageData);
   }
 
   async deleteImage(materialId: number): Promise<void> {
-    await this._materialImageService.deleteImage(materialId);
+    await this.findById(materialId);
+    await this.imageRepo.deleteImage(materialId);
   }
 
   async imageExists(materialId: number): Promise<boolean> {
-    return this._materialImageService.imageExists(materialId);
+    await this.findById(materialId);
+    return await this.imageRepo.imageExists(materialId);
+  }
+
+  // ========== Private validation methods ==========
+  
+  private validateCreateDTO(dto: CreateMaterialDTO): void {
+    if (!dto.name || dto.name.trim().length === 0) {
+      throw new ValidationError("Material name cannot be empty", "create", "name", dto.name);
+    }
+    
+    if (dto.name.length > 255) {
+      throw new ValidationError("Material name cannot exceed 255 characters", "create", "name", dto.name);
+    }
+    
+    if (!dto.unit || dto.unit.trim().length === 0) {
+      throw new ValidationError("Material unit cannot be empty", "create", "unit", dto.unit);
+    }
+    
+    if (dto.unit.length > 50) {
+      throw new ValidationError("Material unit cannot exceed 50 characters", "create", "unit", dto.unit);
+    }
   }
 }

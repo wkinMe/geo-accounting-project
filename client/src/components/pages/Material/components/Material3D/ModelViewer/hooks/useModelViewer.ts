@@ -58,7 +58,7 @@ export function useModelViewer({ modelData, format }: UseModelViewerProps) {
 				blobUrlRef.current = null;
 			}
 		};
-	}, [modelData, format]);
+}, [modelData, format]);
 
 	return { model, loading, error };
 }
