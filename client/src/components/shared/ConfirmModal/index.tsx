@@ -33,9 +33,11 @@ export function ConfirmModal({
 			setIsLoading(true);
 			try {
 				await onConfirm();
+				console.log("SUCCESS");
 				setOpen(false);
 			} catch (error) {
 				console.error('Ошибка при подтверждении:', error);
+				// НЕ закрываем модалку при ошибке
 			} finally {
 				setIsLoading(false);
 			}
@@ -50,7 +52,15 @@ export function ConfirmModal({
 	};
 
 	return (
-		<Dialog.Root open={open} onOpenChange={setOpen}>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(isOpen) => {
+				// Не даем закрыть модалку через крестик или клик вне, если идет загрузка
+				if (!isLoading) {
+					setOpen(isOpen);
+				}
+			}}
+		>
 			<Dialog.Portal>
 				<Dialog.Backdrop className="fixed inset-0 bg-black/50 dark:bg-black/70 backdrop-blur-sm transition-all duration-300 data-closed:opacity-0 data-open:opacity-100 z-1000" />
 
