@@ -2,6 +2,7 @@
 import { Pool } from "pg";
 import { Organization } from "../domain/entities/Organization";
 import { DatabaseError, NotFoundError } from "@shared/service";
+import { USER_ROLES } from "@shared/constants";
 
 export class OrganizationRepository {
   constructor(private db: Pool) {}
@@ -82,7 +83,7 @@ export class OrganizationRepository {
 
     if (result.rows.length === 0) {
       throw new DatabaseError(
-        "Failed to create organization",
+        "Не удалось создать организацию",
         "save",
         "OrganizationRepository",
       );
@@ -115,7 +116,7 @@ export class OrganizationRepository {
 
     if (result.rows.length === 0) {
       throw new NotFoundError(
-        `Organization with ID ${id} not found`,
+        `Организация с ID ${id} не найдена`,
         "Organization",
         id.toString(),
       );
@@ -124,7 +125,7 @@ export class OrganizationRepository {
     return new Organization(
       id,
       organization.name,
-      organization.createdAt,
+      organization.created_at,
       result.rows[0].updated_at,
       organization.latitude,
       organization.longitude,
@@ -137,7 +138,7 @@ export class OrganizationRepository {
 
     if (result.rows.length === 0) {
       throw new NotFoundError(
-        `Organization with ID ${id} not found`,
+        `Организация с ID ${id} не найдена`,
         "Organization",
         id.toString(),
       );
@@ -177,5 +178,23 @@ export class OrganizationRepository {
           row.longitude,
         ),
     );
+  }
+
+  async getSuperAdminCount(organizationId: number): Promise<number> {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM app_users
+      WHERE organization_id = $1 AND role = $2
+    `;
+    const result = await this.db.query(query, [
+      organizationId,
+      USER_ROLES.SUPER_ADMIN,
+    ]);
+    return parseInt(result.rows[0]?.count || "0", 10);
+  }
+
+  async hasSuperAdmin(organizationId: number): Promise<boolean> {
+    const count = await this.getSuperAdminCount(organizationId);
+    return count > 0;
   }
 }

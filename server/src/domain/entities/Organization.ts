@@ -3,8 +3,8 @@ export class Organization {
   constructor(
     public readonly id: number | undefined,
     private _name: string,
-    public readonly createdAt: Date,
-    public updatedAt: Date,
+    public readonly created_at: Date,
+    public updated_at: Date,
     private _latitude?: number | null,
     private _longitude?: number | null,
   ) {}
@@ -21,35 +21,34 @@ export class Organization {
     return this._longitude;
   }
 
-  // Бизнес-методы
   updateName(newName: string): void {
     const trimmedName = newName?.trim();
     if (!trimmedName || trimmedName.length === 0) {
-      throw new Error("Organization name cannot be empty");
+      throw new Error("Название организации не может быть пустым");
     }
     if (trimmedName.length > 255) {
-      throw new Error("Organization name cannot exceed 255 characters");
+      throw new Error("Название организации не может превышать 255 символов");
     }
     this._name = trimmedName;
-    this.updatedAt = new Date();
+    this.updated_at = new Date();
   }
 
   updateCoordinates(latitude?: number | null, longitude?: number | null): void {
     if (latitude !== undefined && latitude !== null) {
       if (latitude < -90 || latitude > 90) {
-        throw new Error("Latitude must be between -90 and 90");
+        throw new Error("Широта должна быть в диапазоне от -90 до 90");
       }
       this._latitude = latitude;
     }
 
     if (longitude !== undefined && longitude !== null) {
       if (longitude < -180 || longitude > 180) {
-        throw new Error("Longitude must be between -180 and 180");
+        throw new Error("Долгота должна быть в диапазоне от -180 до 180");
       }
       this._longitude = longitude;
     }
 
-    this.updatedAt = new Date();
+    this.updated_at = new Date();
   }
 
   static create(
@@ -77,8 +76,8 @@ export class Organization {
       name: this._name,
       latitude: this._latitude,
       longitude: this._longitude,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
+      created_at: this.created_at,
+      updated_at: this.updated_at,
     };
   }
 }

@@ -1,1007 +1,460 @@
-// server/src/services/UserService.ts
-import { Pool } from "pg";
+// services/UserService.ts
 import bcrypt from "bcrypt";
-import Fuse, { IFuseOptions } from "fuse.js";
-
+import { User } from "../domain/entities/User";
+import { RefreshToken } from "../domain/entities/RefreshToken";
+import { UserRepository } from "../repositories/UserRepository";
+import { RefreshTokenRepository } from "../repositories/RefreshTokenRepository";
+import { OrganizationService } from "./OrganizationService";
+import { TokenService } from "./TokenService";
 import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@shared/dto";
+import { USER_ROLES } from "@shared/constants";
 import {
-  Organization,
-  User,
-  UserWithOrganization,
-  UserRole,
-} from "@shared/models";
-import { executeQuery, getSingleResult } from "@src/utils";
-import {
-  DatabaseError,
-  NotFoundError,
   ValidationError,
-  ServiceError,
-  UnauthorizedError,
+  NotFoundError,
   ForbiddenError,
 } from "@shared/service";
-import { TokenService } from "./TokenService";
 
 export class UserService {
-  private _db: Pool;
+  private tokenService: TokenService;
 
-  constructor(dbConnection: Pool) {
-    this._db = dbConnection;
+  constructor(
+    private userRepo: UserRepository,
+    private refreshTokenRepo: RefreshTokenRepository,
+    private organizationService: OrganizationService,
+  ) {
+    this.tokenService = new TokenService();
   }
 
-  async findAll(): Promise<UserWithOrganization[]> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(u.*) as user,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        ORDER BY u.id
-      `;
-
-      const result = await executeQuery<{
-        user: User;
-        organization: Organization;
-      }>(this._db, "findAll", query);
-
-      return result.map((row) => ({
-        ...row.user,
-        organization: row.organization,
-      }));
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve users",
-        "UserService",
-        "findAll",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+  async findAll(): Promise<User[]> {
+    return await this.userRepo.findAll();
   }
 
-  async findById(id: number): Promise<UserWithOrganization> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(u.*) as user,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.id = $1
-      `;
-
-      const result = await getSingleResult<{
-        user: User;
-        organization: Organization;
-      }>(this._db, "findById", query, [id], "User", id);
-
-      return {
-        ...result.user,
-        organization: result.organization,
-      };
-    } catch (error) {
-      if (error instanceof DatabaseError || error instanceof NotFoundError) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to find user with id ${id}`,
-        "UserService",
+  async findById(id: number): Promise<User> {
+    const user = await this.userRepo.findById(id);
+    if (!user) {
+      throw new NotFoundError(
+        `Пользователь с ID ${id} не найден`,
+        "User",
         "findById",
-        error instanceof Error ? error : new Error(String(error)),
+        id,
       );
     }
+    return user;
   }
 
-  async findSuperAdmins(): Promise<UserWithOrganization[]> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(u.*) as user,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.role = 'super_admin'
-        ORDER BY u.id
-      `;
+  async findByOrganizationId(organizationId: number): Promise<User[]> {
+    return await this.userRepo.findByOrganizationId(organizationId);
+  }
 
-      const result = await executeQuery<{
-        user: User;
-        organization: Organization;
-      }>(this._db, "findSuperAdmins", query);
-
-      return result.map((row) => ({
-        ...row.user,
-        organization: row.organization,
-      }));
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve super admins",
-        "UserService",
-        "findSuperAdmins",
-        error instanceof Error ? error : new Error(String(error)),
+  async findAdmins(organizationId?: number): Promise<User[]> {
+    if (organizationId) {
+      const users = await this.userRepo.findByOrganizationId(organizationId);
+      return users.filter(
+        (u) => u.role === USER_ROLES.SUPER_ADMIN || u.role === USER_ROLES.ADMIN,
       );
     }
+    const superAdmins = await this.userRepo.findByRole(USER_ROLES.SUPER_ADMIN);
+    const admins = await this.userRepo.findByRole(USER_ROLES.ADMIN);
+    return [...superAdmins, ...admins];
   }
 
-  async checkOrganizationHasSuperAdmin(
-    organizationId: number,
-  ): Promise<boolean> {
-    try {
-      const query = `
-        SELECT EXISTS(
-          SELECT 1 FROM app_users 
-          WHERE organization_id = $1 AND role = 'super_admin'
-        ) as has_super_admin
-      `;
-
-      const result = await executeQuery<{ has_super_admin: boolean }>(
-        this._db,
-        "checkOrganizationHasSuperAdmin",
-        query,
-        [organizationId],
-      );
-
-      return result[0]?.has_super_admin || false;
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to check if organization has super admin",
-        "UserService",
-        "checkOrganizationHasSuperAdmin",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+  async findSuperAdmins(): Promise<User[]> {
+    return await this.userRepo.findByRole(USER_ROLES.SUPER_ADMIN);
   }
 
-  async register(userData: CreateUserDTO): Promise<{
-    user: User;
-    tokens: { accessToken: string; refreshToken: string };
-  }> {
-    try {
-      if (!userData.name || userData.name.trim().length === 0) {
-        throw new ValidationError(
-          "User name is required",
-          "register",
-          "name",
-          userData.name,
-        );
-      }
+  async register(
+    dto: CreateUserDTO,
+    requesterRole?: string,
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    this.validateCreateDTO(dto);
 
-      if (!userData.password || userData.password.trim().length === 0) {
-        throw new ValidationError(
-          "Password is required",
-          "register",
-          "password",
-          userData.password,
-        );
-      }
-
-      // Проверка существующего пользователя
-      const existingUserQuery = "SELECT id FROM app_users WHERE name = $1";
-      const existingUser = await executeQuery<User>(
-        this._db,
-        "checkExistingUser",
-        existingUserQuery,
-        [userData.name.trim()],
-      );
-
-      if (existingUser.length > 0) {
-        throw new ValidationError(
-          "User with this name already exists",
-          "register",
-          "name",
-          userData.name,
-        );
-      }
-
-      // Определяем роль для нового пользователя
-      let role: UserRole = userData.role;
-
-      // if (userData.role) {
-      //   // Проверка прав на назначение ролей
-      //   if (userData.role === "super_admin") {
-      //     // Только super_admin может создавать других super_admin
-      //     if (requesterRole !== "super_admin") {
-      //       throw new ForbiddenError(
-      //         "Only super administrators can create other super administrators",
-      //         "register",
-      //       );
-      //     }
-      //     role = "super_admin";
-      //   } else if (userData.role === "admin") {
-      //     // Admin может создавать других admin (но не super_admin)
-      //     if (requesterRole !== "super_admin" && requesterRole !== "admin") {
-      //       throw new ForbiddenError(
-      //         "Only administrators can create other administrators",
-      //         "register",
-      //       );
-      //     }
-
-      //     // Проверяем, есть ли уже super_admin в этой организации
-      //     if (userData.organization_id) {
-      //       const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
-      //         userData.organization_id,
-      //       );
-      //       if (!hasSuperAdmin) {
-      //         throw new ValidationError(
-      //           "Cannot create admin: organization must have at least one super admin first",
-      //           "register",
-      //           "role",
-      //           userData.role,
-      //         );
-      //       }
-      //     }
-
-      //     role = "admin";
-      //   } else if (userData.role === "manager") {
-      //     role = "manager";
-      //   } else {
-      //     role = "user";
-      //   }
-      // }
-
-      const salt = await bcrypt.genSalt(8);
-      const hashedPassword = await bcrypt.hash(userData.password, salt);
-
-      const createQuery = `
-        INSERT INTO app_users (name, organization_id, password, role) 
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-      `;
-
-      const createResult = await executeQuery<User>(
-        this._db,
+    const existing = await this.userRepo.findByName(dto.name);
+    if (existing) {
+      throw new ValidationError(
+        "Пользователь с таким именем уже существует",
         "register",
-        createQuery,
-        [userData.name.trim(), userData.organization_id, hashedPassword, role],
-      );
-
-      if (createResult.length === 0) {
-        throw new ServiceError(
-          "Failed to register user - no data returned",
-          "UserService",
-          "register",
-          new Error("No data returned from INSERT query"),
-        );
-      }
-
-      const newUser = createResult[0];
-
-      const tokenService = new TokenService(this._db);
-
-      const userDataForToken: UserDataDTO = {
-        id: newUser.id,
-        name: newUser.name,
-        organization_id: newUser.organization_id,
-        role: newUser.role,
-      };
-
-      const tokens = await tokenService.generateTokens(userDataForToken);
-      await tokenService.saveRefreshToken(newUser.id, tokens.refreshToken);
-
-      return {
-        user: newUser,
-        tokens,
-      };
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ForbiddenError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to register user",
-        "UserService",
-        "register",
-        error instanceof Error ? error : new Error(String(error)),
+        "name",
+        dto.name,
       );
     }
+
+    let role = dto.role || USER_ROLES.USER;
+
+    if (role === USER_ROLES.ADMIN && dto.organization_id) {
+      const canAssign = await this.organizationService.canAssignAdminRole(
+        dto.organization_id,
+      );
+      if (!canAssign) {
+        throw new ValidationError(
+          "Нельзя назначить роль администратора: в организации должен быть хотя бы один главный администратор",
+          "register",
+          "role",
+          role,
+        );
+      }
+    }
+
+    const salt = await bcrypt.genSalt(8);
+    const hashedPassword = await bcrypt.hash(dto.password, salt);
+
+    const user = User.create(
+      dto.name,
+      hashedPassword,
+      role as any,
+      dto.organization_id,
+    );
+    const savedUser = await this.userRepo.save(user);
+
+    const userDataForToken: UserDataDTO = {
+      id: savedUser.id!,
+      name: savedUser.name,
+      organization_id: savedUser.organization_id ?? null,
+      role: savedUser.role,
+    };
+
+    const tokens = this.tokenService.generateTokens(userDataForToken);
+
+    const refreshToken = RefreshToken.create(
+      savedUser.id!,
+      tokens.refreshToken,
+    );
+    await this.refreshTokenRepo.save(refreshToken);
+
+    return {
+      user: savedUser,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   async login(
     name: string,
     password: string,
-  ): Promise<{
-    user: User;
-    tokens: { accessToken: string; refreshToken: string };
-  }> {
-    try {
-      if (!name || name.trim().length === 0) {
-        throw new ValidationError(
-          "Username is required",
-          "login",
-          "name",
-          name,
-        );
-      }
-
-      if (!password || password.trim().length === 0) {
-        throw new ValidationError(
-          "Password is required",
-          "login",
-          "password",
-          password,
-        );
-      }
-
-      const query = `
-        SELECT id, name, organization_id, password, role, created_at, updated_at
-        FROM app_users 
-        WHERE name = $1
-      `;
-
-      const result = await executeQuery<User & { password: string }>(
-        this._db,
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    if (!name || !password) {
+      throw new ValidationError(
+        "Имя пользователя и пароль обязательны",
         "login",
-        query,
-        [name.trim()],
-      );
-
-      if (result.length === 0) {
-        throw new ValidationError("Invalid username or password", "login");
-      }
-
-      const user = result[0];
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-
-      if (!isPasswordValid) {
-        throw new ValidationError("Invalid username or password", "login");
-      }
-
-      const { password: _, ...userWithoutPassword } = user;
-      const tokenService = new TokenService(this._db);
-
-      const userDataForToken: UserDataDTO = {
-        id: user.id,
-        name: user.name,
-        organization_id: user.organization_id,
-        role: user.role,
-      };
-
-      const tokens = await tokenService.generateTokens(userDataForToken);
-      await tokenService.saveRefreshToken(user.id, tokens.refreshToken);
-
-      return {
-        user: userWithoutPassword as User,
-        tokens,
-      };
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof UnauthorizedError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to login",
-        "UserService",
-        "login",
-        error instanceof Error ? error : new Error(String(error)),
+        "name",
+        name,
       );
     }
+
+    const user = await this.userRepo.findByName(name);
+    if (!user) {
+      throw new ValidationError(
+        "Неверное имя пользователя или пароль",
+        "login",
+      );
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new ValidationError(
+        "Неверное имя пользователя или пароль",
+        "login",
+      );
+    }
+
+    const userDataForToken: UserDataDTO = {
+      id: user.id!,
+      name: user.name,
+      organization_id: user.organization_id ?? null,
+      role: user.role,
+    };
+
+    const tokens = this.tokenService.generateTokens(userDataForToken);
+
+    const refreshToken = RefreshToken.create(user.id!, tokens.refreshToken);
+    await this.refreshTokenRepo.save(refreshToken);
+
+    return {
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   async logout(refreshToken: string): Promise<void> {
-    try {
-      if (!refreshToken) {
-        throw new ValidationError(
-          "Refresh token is required",
-          "logout",
-          "refreshToken",
-          refreshToken,
-        );
-      }
-
-      const tokenService = new TokenService(this._db);
-      await tokenService.deleteRefreshToken(refreshToken);
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to logout",
-        "UserService",
+    if (!refreshToken) {
+      throw new ValidationError(
+        "Refresh токен обязателен",
         "logout",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
-
-  async refreshToken(refreshToken: string): Promise<{
-    user: UserWithOrganization;
-    tokens: { accessToken: string; refreshToken: string };
-  }> {
-    try {
-      if (!refreshToken) {
-        throw new UnauthorizedError("Invalid or expired token", "refreshToken");
-      }
-      const tokenService = new TokenService(this._db);
-
-      const verifiedUserData = tokenService.verifyRefreshToken(refreshToken);
-      const tokenFromDb = await tokenService.findRefreshToken(refreshToken);
-
-      if (!verifiedUserData || !tokenFromDb) {
-        throw new UnauthorizedError("Invalid or expired token", "refreshToken");
-      }
-
-      const currentUserData = await this.findById(verifiedUserData.id);
-      const { organization, ...userDataWithoutOrg } = currentUserData;
-      const tokens = await tokenService.generateTokens(userDataWithoutOrg);
-      await tokenService.saveRefreshToken(
-        userDataWithoutOrg.id,
-        tokens.refreshToken,
-      );
-
-      return {
-        user: currentUserData,
-        tokens,
-      };
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to refresh token",
-        "UserService",
         "refreshToken",
-        error instanceof Error ? error : new Error(String(error)),
+        refreshToken,
       );
     }
+    await this.refreshTokenRepo.delete(refreshToken);
   }
 
-  async update({
-    id,
-    name,
-    organization_id,
-    password,
-    role,
-    requesterRole,
-  }: UpdateUserDTO & {
-    requesterRole?: UserRole;
-  }): Promise<User> {
-    try {
-      // Проверяем существование пользователя
-      const targetUser = await this.findById(id);
+  async refreshToken(
+    refreshToken: string,
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    if (!refreshToken) {
+      throw new ValidationError("Refresh токен обязателен", "refreshToken");
+    }
 
-      // Валидация прав на изменение роли
-      if (role !== undefined) {
-        // Проверка прав на изменение роли
-        if (!requesterRole) {
-          throw new ForbiddenError(
-            "Requester role is required for role modification",
-            "update",
-          );
-        }
+    const verifiedUserData = this.tokenService.verifyRefreshToken(refreshToken);
+    const tokenFromDb = await this.refreshTokenRepo.findByToken(refreshToken);
 
-        // Правила изменения ролей:
-        // 1. Только super_admin может назначать/снимать роль super_admin
-        // 2. super_admin и admin могут назначать/снимать роли admin, manager, user
-        // 3. Никто не может изменить роль super_admin, кроме другого super_admin
-        // 4. Нельзя удалить последнего super_admin в организации
-
-        if (
-          targetUser.role === "super_admin" &&
-          requesterRole !== "super_admin"
-        ) {
-          throw new ForbiddenError(
-            "Only super administrators can modify super administrator roles",
-            "update",
-          );
-        }
-
-        if (role === "super_admin" && requesterRole !== "super_admin") {
-          throw new ForbiddenError(
-            "Only super administrators can assign super administrator role",
-            "update",
-          );
-        }
-
-        // Проверка на удаление последнего super_admin в организации
-        if (targetUser.role === "super_admin" && role !== "super_admin") {
-          const superAdminsCount = await this.countSuperAdminsInOrganization(
-            targetUser.organization_id,
-          );
-          if (superAdminsCount <= 1) {
-            throw new ValidationError(
-              "Cannot remove the last super administrator in the organization",
-              "update",
-              "role",
-              role,
-            );
-          }
-        }
-
-        // При назначении admin проверяем наличие super_admin в организации
-        if (role === "admin" && targetUser.role !== "admin") {
-          const hasSuperAdmin = await this.checkOrganizationHasSuperAdmin(
-            organization_id || targetUser.organization_id,
-          );
-          if (!hasSuperAdmin) {
-            throw new ValidationError(
-              "Cannot assign admin role: organization must have at least one super admin",
-              "update",
-              "role",
-              role,
-            );
-          }
-        }
-      }
-
-      // Валидация входных данных
-      if (name !== undefined && name.trim().length === 0) {
-        throw new ValidationError(
-          "User name cannot be empty",
-          "update",
-          "name",
-          name,
-        );
-      }
-
-      if (organization_id !== undefined) {
-        // Проверяем существование организации
-        const orgCheckQuery = "SELECT id FROM organizations WHERE id = $1";
-        const orgExists = await executeQuery<{ id: number }>(
-          this._db,
-          "checkOrganization",
-          orgCheckQuery,
-          [organization_id],
-        );
-
-        if (orgExists.length === 0) {
-          throw new ValidationError(
-            `Organization with id ${organization_id} does not exist`,
-            "update",
-            "organization_id",
-            organization_id.toString(),
-          );
-        }
-      }
-
-      if (password !== undefined && password.trim().length === 0) {
-        throw new ValidationError(
-          "Password cannot be empty",
-          "update",
-          "password",
-          password,
-        );
-      }
-
-      const updates: string[] = [];
-      const values: any[] = [];
-      let paramIndex = 1;
-
-      if (name !== undefined) {
-        updates.push(`name = $${paramIndex}`);
-        values.push(name.trim());
-        paramIndex++;
-      }
-
-      if (organization_id !== undefined) {
-        updates.push(`organization_id = $${paramIndex}`);
-        values.push(organization_id);
-        paramIndex++;
-      }
-
-      if (password !== undefined) {
-        const salt = await bcrypt.genSalt(8);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        updates.push(`password = $${paramIndex}`);
-        values.push(hashedPassword);
-        paramIndex++;
-      }
-
-      if (role !== undefined) {
-        updates.push(`role = $${paramIndex}`);
-        values.push(role);
-        paramIndex++;
-      }
-
-      // Если нет полей для обновления, возвращаем текущего пользователя
-      if (updates.length === 0) {
-        return targetUser;
-      }
-
-      updates.push(`updated_at = CURRENT_TIMESTAMP`);
-      values.push(id);
-      const updateQuery = `
-        UPDATE app_users 
-        SET ${updates.join(", ")} 
-        WHERE id = $${paramIndex}
-        RETURNING *
-      `;
-
-      const updateResult = await executeQuery<User>(
-        this._db,
-        "update",
-        updateQuery,
-        values,
-      );
-
-      if (updateResult.length === 0) {
-        throw new ServiceError(
-          `Failed to update user with id ${id} - no data returned`,
-          "UserService",
-          "update",
-          new Error("No data returned from UPDATE query"),
-        );
-      }
-
-      return updateResult[0];
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof NotFoundError ||
-        error instanceof ValidationError ||
-        error instanceof ForbiddenError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to update user with id ${id}`,
-        "UserService",
-        "update",
-        error instanceof Error ? error : new Error(String(error)),
+    if (!verifiedUserData || !tokenFromDb) {
+      throw new ValidationError(
+        "Неверный или просроченный refresh токен",
+        "refreshToken",
       );
     }
+
+    const user = await this.findById(verifiedUserData.id);
+
+    const userDataForToken: UserDataDTO = {
+      id: user.id!,
+      name: user.name,
+      organization_id: user.organization_id ?? null,
+      role: user.role,
+    };
+
+    const tokens = this.tokenService.generateTokens(userDataForToken);
+
+    const newRefreshToken = RefreshToken.create(user.id!, tokens.refreshToken);
+    await this.refreshTokenRepo.save(newRefreshToken);
+
+    return {
+      user,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
-  private async countSuperAdminsInOrganization(
-    organizationId: number,
-  ): Promise<number> {
-    try {
-      const query = `
-        SELECT COUNT(*) as count
-        FROM app_users
-        WHERE organization_id = $1 AND role = 'super_admin'
-      `;
+  async update(
+    id: number,
+    dto: UpdateUserDTO,
+    requesterRole?: string,
+    requesterId?: number,
+  ): Promise<User> {
+    const existingUser = await this.findById(id);
+    this.validateUpdateDTO(dto);
 
-      const result = await executeQuery<{ count: string }>(
-        this._db,
-        "countSuperAdminsInOrganization",
-        query,
-        [organizationId],
-      );
-
-      return parseInt(result[0]?.count || "0", 10);
-    } catch (error) {
-      throw new ServiceError(
-        "Failed to count super admins in organization",
-        "UserService",
-        "countSuperAdminsInOrganization",
-        error instanceof Error ? error : new Error(String(error)),
-      );
+    if (dto.role !== undefined) {
+      this.validateRoleChange(existingUser, dto.role, requesterRole);
     }
+
+    if (
+      existingUser.role === USER_ROLES.SUPER_ADMIN &&
+      dto.role !== USER_ROLES.SUPER_ADMIN &&
+      existingUser.organization_id
+    ) {
+      const canRemove = await this.organizationService.canRemoveSuperAdmin(
+        existingUser.organization_id,
+      );
+      if (!canRemove) {
+        throw new ValidationError(
+          "Нельзя удалить последнего главного администратора в организации",
+          "update",
+          "role",
+          dto.role,
+        );
+      }
+    }
+
+    if (
+      dto.role === USER_ROLES.ADMIN &&
+      existingUser.role !== USER_ROLES.ADMIN &&
+      dto.organization_id
+    ) {
+      const canAssign = await this.organizationService.canAssignAdminRole(
+        dto.organization_id,
+      );
+      if (!canAssign) {
+        throw new ValidationError(
+          "Нельзя назначить роль администратора: в организации должен быть хотя бы один главный администратор",
+          "update",
+          "role",
+          dto.role,
+        );
+      }
+    }
+
+    if (dto.name !== undefined) {
+      existingUser.updateName(dto.name);
+    }
+
+    if (dto.organization_id !== undefined) {
+      existingUser.updateOrganization(dto.organization_id);
+    }
+
+    if (dto.password !== undefined) {
+      existingUser.updatePassword(dto.password);
+    }
+
+    if (dto.role !== undefined) {
+      existingUser.updateRole(dto.role as any);
+    }
+
+    return await this.userRepo.update(id, existingUser);
   }
 
   async delete(
     id: number,
-    requesterRole?: UserRole,
+    requesterRole?: string,
     requesterId?: number,
-  ): Promise<User> {
-    try {
-      // Проверяем существование пользователя перед удалением
-      const targetUser = await this.findById(id);
+  ): Promise<void> {
+    const targetUser = await this.findById(id);
 
-      // Проверка прав на удаление
-      if (!requesterRole) {
-        throw new ForbiddenError(
-          "Requester role is required for user deletion",
-          "delete",
-        );
-      }
-
-      // Нельзя удалить самого себя (безопасность)
-      if (requesterId === id) {
-        throw new ForbiddenError("Cannot delete your own account", "delete");
-      }
-
-      // Проверка на удаление super_admin
-      if (
-        targetUser.role === "super_admin" &&
-        requesterRole !== "super_admin"
-      ) {
-        throw new ForbiddenError(
-          "Only super administrators can delete other super administrators",
-          "delete",
-        );
-      }
-
-      // Проверка на удаление последнего super_admin в организации
-      if (targetUser.role === "super_admin") {
-        const superAdminsCount = await this.countSuperAdminsInOrganization(
-          targetUser.organization_id,
-        );
-        if (superAdminsCount <= 1) {
-          throw new ValidationError(
-            "Cannot delete the last super administrator in the organization",
-            "delete",
-            "id",
-            id.toString(),
-          );
-        }
-      }
-
-      const deleteQuery = "DELETE FROM app_users WHERE id = $1 RETURNING *";
-      const deleteResult = await executeQuery<User>(
-        this._db,
+    if (!requesterRole) {
+      throw new ForbiddenError(
+        "Роль запрашивающего пользователя обязательна для удаления",
         "delete",
-        deleteQuery,
-        [id],
-      );
-
-      if (deleteResult.length === 0) {
-        throw new ServiceError(
-          `Failed to delete user with id ${id} - no data returned`,
-          "UserService",
-          "delete",
-          new Error("No data returned from DELETE query"),
-        );
-      }
-
-      return deleteResult[0];
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof NotFoundError ||
-        error instanceof ForbiddenError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to delete user with id ${id}`,
-        "UserService",
-        "delete",
-        error instanceof Error ? error : new Error(String(error)),
       );
     }
+
+    if (requesterId === id) {
+      throw new ForbiddenError(
+        "Нельзя удалить свою собственную учётную запись",
+        "delete",
+      );
+    }
+
+    if (
+      targetUser.role === USER_ROLES.SUPER_ADMIN &&
+      requesterRole !== USER_ROLES.SUPER_ADMIN
+    ) {
+      throw new ForbiddenError(
+        "Только главные администраторы могут удалять других главных администраторов",
+        "delete",
+      );
+    }
+
+    if (
+      targetUser.role === USER_ROLES.SUPER_ADMIN &&
+      targetUser.organization_id
+    ) {
+      const canRemove = await this.organizationService.canRemoveSuperAdmin(
+        targetUser.organization_id,
+      );
+      if (!canRemove) {
+        throw new ValidationError(
+          "Нельзя удалить последнего главного администратора в организации",
+          "delete",
+          "id",
+          id.toString(),
+        );
+      }
+    }
+
+    await this.userRepo.delete(id);
+    await this.refreshTokenRepo.deleteByUserId(id);
   }
 
-  async findByOrganizationId(
-    organizationId: number,
-  ): Promise<UserWithOrganization[]> {
-    try {
-      const query = `
-        SELECT 
-          row_to_json(u.*) as user,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.organization_id = $1
-        ORDER BY u.id
-      `;
-
-      const result = await executeQuery<{
-        user: User;
-        organization: Organization;
-      }>(this._db, "findByOrganizationId", query, [organizationId]);
-
-      return result.map((row) => ({
-        ...row.user,
-        organization: row.organization,
-      }));
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        `Failed to find users for organization ${organizationId}`,
-        "UserService",
-        "findByOrganizationId",
-        error instanceof Error ? error : new Error(String(error)),
-      );
+  async search(query: string): Promise<User[]> {
+    if (!query || query.trim().length === 0) {
+      return await this.findAll();
     }
-  }
-
-  async findAdmins(organizationId?: number): Promise<UserWithOrganization[]> {
-    try {
-      let query = `
-        SELECT 
-          row_to_json(u.*) as user,
-          row_to_json(o.*) as organization
-        FROM app_users u
-        LEFT JOIN organizations o ON u.organization_id = o.id
-        WHERE u.role IN ('super_admin', 'admin')
-      `;
-
-      const values: any[] = [];
-
-      if (organizationId !== undefined) {
-        query += " AND u.organization_id = $1";
-        values.push(organizationId);
-      }
-
-      query += " ORDER BY u.id";
-
-      const result = await executeQuery<{
-        user: User;
-        organization: Organization;
-      }>(this._db, "findAdmins", query, values);
-
-      return result.map((row) => ({
-        ...row.user,
-        organization: row.organization,
-      }));
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve admins",
-        "UserService",
-        "findAdmins",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+    return await this.userRepo.search(query.trim());
   }
 
   async getAvailableManagers(organizationId?: number): Promise<User[]> {
-    try {
-      let query = `
-        SELECT u.*
-        FROM app_users u
-        WHERE u.role NOT IN ('user', 'super_admin')
-          AND u.id NOT IN (
-            SELECT manager_id 
-            FROM warehouses 
-            WHERE manager_id IS NOT NULL
-          )
-      `;
+    const users = organizationId
+      ? await this.userRepo.findByOrganizationId(organizationId)
+      : await this.findAll();
 
-      const values: any[] = [];
-
-      if (organizationId !== undefined) {
-        query += " AND u.organization_id = $" + (values.length + 1);
-        values.push(organizationId);
-      }
-
-      query += " ORDER BY u.name";
-
-      const result = await executeQuery<User>(
-        this._db,
-        "getAvailableManagers",
-        query,
-        values,
-      );
-
-      return result;
-    } catch (error) {
-      if (error instanceof DatabaseError) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to retrieve available managers",
-        "UserService",
-        "getAvailableManagers",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
+    return users.filter(
+      (u) =>
+        u.role === USER_ROLES.MANAGER ||
+        u.role === USER_ROLES.ADMIN ||
+        u.role === USER_ROLES.SUPER_ADMIN,
+    );
   }
 
   async searchAvailableManagers(
-    input: string,
+    query: string,
     organizationId?: number,
-  ): Promise<UserWithOrganization[]> {
-    try {
-      if (!input || input.trim().length === 0) {
-        throw new ValidationError(
-          "Search query is required",
-          "searchAvailableManagers",
-          "UserService",
-          "input",
-          input,
-        );
-      }
+  ): Promise<User[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
 
-      const results = (await this.search(input, organizationId)).filter(
-        (i) =>
-          i.role === "manager" ||
-          i.role === "admin" ||
-          i.role === "super_admin",
+    let users = await this.search(query);
+    users = users.filter(
+      (u) =>
+        u.role === USER_ROLES.MANAGER ||
+        u.role === USER_ROLES.ADMIN ||
+        u.role === USER_ROLES.SUPER_ADMIN,
+    );
+
+    if (organizationId) {
+      users = users.filter((u) => u.organization_id === organizationId);
+    }
+
+    return users;
+  }
+
+  private validateCreateDTO(dto: CreateUserDTO): void {
+    if (!dto.name || dto.name.trim().length === 0) {
+      throw new ValidationError(
+        "Имя пользователя обязательно",
+        "register",
+        "name",
+        dto.name,
       );
-
-      return results;
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to search users",
-        "UserService",
-        "search",
-        error instanceof Error ? error : new Error(String(error)),
+    }
+    if (!dto.password || dto.password.length < 6) {
+      throw new ValidationError(
+        "Пароль должен содержать минимум 6 символов",
+        "register",
+        "password",
+        dto.password,
       );
     }
   }
 
-  async search(
-    input: string,
-    organization_id?: number,
-  ): Promise<UserWithOrganization[]> {
-    try {
-      if (!input || input.trim().length === 0) {
-        throw new ValidationError(
-          "Search query is required",
-          "search",
-          "UserService",
-          "input",
-          input,
-        );
-      }
+  private validateUpdateDTO(dto: UpdateUserDTO): void {
+    if (dto.name !== undefined && dto.name.trim().length === 0) {
+      throw new ValidationError(
+        "Имя пользователя не может быть пустым",
+        "update",
+        "name",
+        dto.name,
+      );
+    }
+    if (dto.password !== undefined && dto.password.length < 6) {
+      throw new ValidationError(
+        "Пароль должен содержать минимум 6 символов",
+        "update",
+        "password",
+        dto.password,
+      );
+    }
+  }
 
-      let result: UserWithOrganization[];
-      if (organization_id) {
-        result = await this.findByOrganizationId(organization_id);
-      } else {
-        result = await this.findAll();
-      }
+  private validateRoleChange(
+    targetUser: User,
+    newRole: string,
+    requesterRole?: string,
+  ): void {
+    if (!requesterRole) {
+      throw new ForbiddenError(
+        "Роль запрашивающего пользователя обязательна для изменения роли",
+        "update",
+      );
+    }
 
-      const allUsers = result.map((row) => {
-        const { organization, ...userData } = row;
-        return {
-          ...userData,
-          organization: organization || undefined,
-        } as UserWithOrganization;
-      });
+    if (
+      targetUser.role === USER_ROLES.SUPER_ADMIN &&
+      requesterRole !== USER_ROLES.SUPER_ADMIN
+    ) {
+      throw new ForbiddenError(
+        "Только главные администраторы могут изменять роли главных администраторов",
+        "update",
+      );
+    }
 
-      // Настраиваем Fuse.js для поиска
-      const fuseConfig: IFuseOptions<UserWithOrganization> = {
-        keys: [
-          { name: "name", weight: 0.7 },
-          { name: "organization.name", weight: 0.3 },
-        ],
-        threshold: 0.4,
-        minMatchCharLength: 2,
-        findAllMatches: true,
-        ignoreLocation: true,
-        useExtendedSearch: true,
-        shouldSort: true,
-        includeScore: true,
-      };
-
-      const fuse = new Fuse(allUsers, fuseConfig);
-      const searchResult = fuse.search(input);
-
-      return searchResult.map((result) => result.item);
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof ValidationError ||
-        error instanceof ServiceError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Failed to search users",
-        "UserService",
-        "search",
-        error instanceof Error ? error : new Error(String(error)),
+    if (
+      newRole === USER_ROLES.SUPER_ADMIN &&
+      requesterRole !== USER_ROLES.SUPER_ADMIN
+    ) {
+      throw new ForbiddenError(
+        "Только главные администраторы могут назначать роль главного администратора",
+        "update",
       );
     }
   }

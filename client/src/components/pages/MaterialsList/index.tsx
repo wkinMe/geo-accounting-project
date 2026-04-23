@@ -1,7 +1,6 @@
 // client/src/pages/materials/MaterialsList.tsx
 import { useState } from 'react';
 import { materialService } from '@/services/materialService';
-import { userService } from '@/services/userService';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
@@ -11,6 +10,8 @@ import { Table } from '@/components/shared/Table';
 import { useNavigate } from 'react-router';
 import { MaterialModal } from './components';
 import { MaterialImagePopup } from './components/MaterialsImagePopup';
+import { useRole } from '@/hooks';
+import { isSuperAdminRole } from '@/utils';
 
 export type TableMaterial = {
 	id: number;
@@ -38,14 +39,7 @@ export function MaterialsList() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedMaterial, setSelectedMaterial] = useState<TableMaterial | null>(null);
 
-	const { data: currentUserData } = useQuery({
-		queryKey: ['currentUser'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
-
-	const currentUser = currentUserData?.data;
-	const isSuperAdmin = currentUser?.role === 'super_admin';
+	const role = useRole();
 
 	const { data: materials } = useQuery({
 		queryKey: ['materials'],
@@ -66,12 +60,10 @@ export function MaterialsList() {
 		},
 	});
 
-	// Убираем автоматическое закрытие из мутаций
 	const { mutateAsync: createMutate } = useMutation({
 		mutationFn: async (data: CreateMaterialDTO) => materialService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
-			// НЕ закрываем модалку здесь - это сделает ConfirmModal при успехе
 		},
 	});
 
@@ -109,7 +101,7 @@ export function MaterialsList() {
 		}
 	};
 
-	const canModify = () => isSuperAdmin;
+	const canModify = () => isSuperAdminRole(role);
 
 	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
 		delay: 200,

@@ -32,7 +32,7 @@ export function MapPage() {
 	} = useAgreementFormStore();
 
 	const profileQuery = useProfile();
-	const profile = profileQuery.data?.data;
+	const profile = profileQuery.data;
 
 	const { data: warehousesData, isLoading: isLoadingWarehouses } = useQuery({
 		queryKey: ['warehouses'],
@@ -49,7 +49,7 @@ export function MapPage() {
 				return organizationService.findAll();
 			} else {
 				const singleOrg = await organizationService.findById(profile?.organization_id || 0);
-				return { ...singleOrg, data: [singleOrg.data] };
+				return [singleOrg];
 			}
 		},
 	});
@@ -59,7 +59,7 @@ export function MapPage() {
 
 	// Подготовка данных для поиска
 	const searchableItems: SearchableItem[] = [
-		...(organizationsData?.data
+		...(organizationsData
 			?.filter((o) => o.latitude && o.longitude)
 			.map((org) => ({
 				id: org.id,
@@ -129,7 +129,7 @@ export function MapPage() {
 	};
 
 	const organizationsMarkers: MapMarker[] =
-		organizationsData?.data
+		organizationsData
 			?.filter((o) => o.latitude && o.longitude)
 			.map((org) => ({
 				id: org.id,

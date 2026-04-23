@@ -1,31 +1,20 @@
-import { userService } from '@/services';
-import { useQuery } from '@tanstack/react-query';
+// client/src/components/shared/ProtectedRoute.tsx
 import { Navigate, useLocation } from 'react-router';
 import Spinner from '../Spinner';
+import { useProfile } from '@/hooks';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 	const location = useLocation();
 
-	const { data: profile, isLoading } = useQuery({
-		queryKey: ['profile'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
+	const { data: profile, isLoading, error } = useProfile();
 
 	if (isLoading) {
-		return (
-			<Spinner
-				fullScreen
-				blur
-				show={isLoading}
-				fadeIn
-				delay={2000} // спиннер через 2 секунды
-				blurDelay={0} // блюр сразу
-			/>
-		);
+		return <Spinner fullScreen blur show={isLoading} fadeIn delay={2000} blurDelay={0} />;
 	}
 
-	if (!profile?.data) {
+	if (!profile || error) {
+		// Очищаем токен при ошибке
+		localStorage.removeItem('token');
 		return <Navigate to="/login" state={{ from: location }} replace />;
 	}
 

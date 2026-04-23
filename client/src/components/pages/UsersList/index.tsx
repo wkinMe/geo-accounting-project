@@ -14,14 +14,14 @@ import type { UserRole } from '@shared/models';
 import type { Action, Column } from '@/components/shared/Table/types';
 import type { TableUser } from './types';
 import { useUsersListPermissions } from './hooks';
+import { useProfile } from '@/hooks';
+import { USER_ROLES } from '@shared/constants';
 
 const columns: Column<TableUser>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Имя' },
 	{ key: 'role_display', label: 'Роль' },
 	{ key: 'organization', label: 'Организация' },
-	{ key: 'created_at', label: 'Дата создания' },
-	{ key: 'updated_at', label: 'Дата обновления' },
 ];
 
 export function UsersList() {
@@ -34,18 +34,9 @@ export function UsersList() {
 		name: string;
 		role: UserRole;
 		organization_id?: number | null;
-		created_at: string;
-		updated_at: string;
 	} | null>(null);
 
-	// Получаем текущего пользователя
-	const { data: currentUserData } = useQuery({
-		queryKey: ['currentUser'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
-
-	const currentUser = currentUserData?.data;
+	const { data: currentUser } = useProfile();
 
 	const { data: users } = useQuery({
 		queryKey: ['users'],
@@ -70,21 +61,18 @@ export function UsersList() {
 		mutationFn: async (data: CreateUserDTO) => userService.register(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['users'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedUser(null);
-			}, 300);
+			setIsModalOpen(false);
+			setSelectedUser(null);
 		},
 	});
 
 	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
-		mutationFn: ({ data }: { data: UpdateUserDTO }) => userService.update(data),
+		mutationFn: async ({ id, data }: { id: number; data: UpdateUserDTO }) =>
+			userService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['users'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-				setSelectedUser(null);
-			}, 300);
+			setIsModalOpen(false);
+			setSelectedUser(null);
 		},
 	});
 
@@ -93,8 +81,8 @@ export function UsersList() {
 
 	const elements =
 		searchQuery && searchedUsers
-			? searchedUsers.data.map(mapUserToTableItem)
-			: users?.data.map(mapUserToTableItem) || [];
+			? searchedUsers.map(mapUserToTableItem)
+			: users?.map(mapUserToTableItem) || [];
 
 	const openEditModal = (user: TableUser) => {
 		setSelectedUser({
@@ -102,12 +90,8 @@ export function UsersList() {
 			name: user.name,
 			role: user.role,
 			organization_id: user.organization_id,
-			created_at: user.created_at,
-			updated_at: user.updated_at,
 		});
-		setTimeout(() => {
-			setIsModalOpen(true);
-		}, 50);
+		setIsModalOpen(true);
 	};
 
 	const openCreateModal = () => {
@@ -117,7 +101,7 @@ export function UsersList() {
 
 	const handleSubmit = async (data: CreateUserDTO | UpdateUserDTO) => {
 		if (selectedUser) {
-			await updateMutate({ data: { ...data, id: selectedUser.id } as UpdateUserDTO });
+			await updateMutate({ id: selectedUser.id, data: data as UpdateUserDTO });
 		} else {
 			await createMutate(data as CreateUserDTO);
 		}
@@ -125,14 +109,16 @@ export function UsersList() {
 
 	const handleMakeAdmin = async (userId: number) => {
 		await updateMutate({
-			data: { id: userId, role: 'admin' },
+			id: userId,
+			data: { id: userId, role: USER_ROLES.ADMIN },
 		});
 	};
 
 	const handleMakeSuperAdmin = async (userId: number) => {
-		if (currentUser?.role !== 'super_admin') return;
+		if (currentUser?.role !== USER_ROLES.SUPER_ADMIN) return;
 		await updateMutate({
-			data: { id: userId, role: 'super_admin' },
+			id: userId,
+			data: { id: userId, role: USER_ROLES.SUPER_ADMIN },
 		});
 	};
 
@@ -166,11 +152,9 @@ export function UsersList() {
 		},
 	];
 
-	// Проверка прав на создание нового пользователя
 	const canCreate = () => {
 		if (!currentUser) return false;
-		// Super_admin и admin могут создавать пользователей
-		return currentUser.role === 'super_admin' || currentUser.role === 'admin';
+		return currentUser.role === USER_ROLES.SUPER_ADMIN || currentUser.role === USER_ROLES.ADMIN;
 	};
 
 	return (

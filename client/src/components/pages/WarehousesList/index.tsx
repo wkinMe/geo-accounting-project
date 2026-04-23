@@ -44,7 +44,7 @@ export function WarehousesList() {
 		queryFn: () =>
 			isSuperAdminRole(role)
 				? warehouseService.findAll()
-				: warehouseService.findByOrganizationId(profile.data?.data.organization_id || 0),
+				: warehouseService.findByOrganizationId(profile.data?.organization_id || 0),
 	});
 
 	const { data: searchedWarehouses } = useQuery({

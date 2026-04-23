@@ -1,124 +1,65 @@
-// server/src/services/TokenService.ts
-import { Pool } from "pg";
+// services/TokenService.ts
 import jwt from "jsonwebtoken";
-import { executeQuery, getSingleResult } from "@src/utils";
-import { NotFoundError, UnauthorizedError } from "@shared/service";
-import { Token } from "@shared/models/Token";
+import { UnauthorizedError } from "@shared/service";
 import { UserDataDTO } from "@shared/dto";
 
 export class TokenService {
-  private _db: Pool;
+  private accessTokenSecret: string;
+  private refreshTokenSecret: string;
 
-  constructor(dbConnection: Pool) {
-    this._db = dbConnection;
+  constructor() {
+    if (
+      !process.env.JWT_ACCESS_TOKEN_SECRET ||
+      !process.env.JWT_REFRESH_TOKEN_SECRET
+    ) {
+      throw new Error("JWT secrets not configured");
+    }
+    this.accessTokenSecret = process.env.JWT_ACCESS_TOKEN_SECRET;
+    this.refreshTokenSecret = process.env.JWT_REFRESH_TOKEN_SECRET;
   }
 
-  async generateTokens(userData: UserDataDTO) {
+  generateTokens(userData: UserDataDTO): {
+    accessToken: string;
+    refreshToken: string;
+  } {
     const tokenData = {
       id: userData.id,
       name: userData.name,
-      organization_id: userData.organization_id,
+      organization_id: userData.organization_id ?? null, // Всегда включаем, даже если null
       role: userData.role,
     };
 
-    const accessToken = jwt.sign(
-      tokenData,
-      process.env.JWT_ACCESS_TOKEN_SECRET!,
-      { expiresIn: "30m" },
-    );
-
-    const refreshToken = jwt.sign(
-      tokenData,
-      process.env.JWT_REFRESH_TOKEN_SECRET!,
-      { expiresIn: "2d" },
-    );
+    const accessToken = jwt.sign(tokenData, this.accessTokenSecret, {
+      expiresIn: "30m",
+    });
+    const refreshToken = jwt.sign(tokenData, this.refreshTokenSecret, {
+      expiresIn: "2d",
+    });
 
     return { accessToken, refreshToken };
   }
 
-  async saveRefreshToken(userId: number, refreshToken: string) {
-    try {
-      const token = await getSingleResult<Token>(
-        this._db,
-        "saveRefreshToken",
-        `SELECT * FROM tokens WHERE user_id = $1`,
-        [userId],
-      );
-
-      if (token) {
-        const result = await executeQuery<Token>(
-          this._db,
-          "saveRefreshToken",
-          `UPDATE tokens SET "refreshToken"=$1 WHERE user_id = $2 RETURNING *`,
-          [refreshToken, userId],
-        );
-        return result;
-      }
-
-      const result = await executeQuery<Token>(
-        this._db,
-        "saveRefreshToken",
-        `INSERT INTO tokens (user_id, "refreshToken") VALUES ($1, $2) RETURNING *`,
-        [userId, refreshToken],
-      );
-      return result;
-    } catch (e: unknown) {
-      if (e instanceof NotFoundError) {
-        const result = await executeQuery<Token>(
-          this._db,
-          "saveRefreshToken",
-          `INSERT INTO tokens (user_id, "refreshToken") VALUES ($1, $2) RETURNING *`,
-          [userId, refreshToken],
-        );
-        return result;
-      }
-      throw e;
-    }
-  }
-
-  async deleteRefreshToken(refreshToken: string): Promise<void> {
-    await executeQuery(
-      this._db,
-      "deleteRefreshToken",
-      `DELETE FROM tokens WHERE "refreshToken" = $1`,
-      [refreshToken],
-    );
-  }
-
   verifyAccessToken(token: string): UserDataDTO {
     try {
-      if (!process.env.JWT_ACCESS_TOKEN_SECRET) {
-        throw new Error("Secret not configured");
-      }
-
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_ACCESS_TOKEN_SECRET,
-      ) as UserDataDTO;
-
+      const decoded = jwt.verify(token, this.accessTokenSecret) as UserDataDTO;
       if (!decoded.role) {
         (decoded as any).role = "user";
       }
-
+      // Убеждаемся, что organization_id есть, даже если null
+      if (decoded.organization_id === undefined) {
+        (decoded as any).organization_id = null;
+      }
       return decoded;
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
         throw new UnauthorizedError(
-          "Access token expired",
+          "Срок действия токена истёк",
           "verifyAccessToken",
           "TokenService",
         );
       }
-      if (error instanceof jwt.JsonWebTokenError) {
-        throw new UnauthorizedError(
-          "Invalid access token",
-          "verifyAccessToken",
-          "TokenService",
-        );
-      }
-
       throw new UnauthorizedError(
-        "Invalid or expired access token",
+        "Неверный токен доступа",
         "verifyAccessToken",
         "TokenService",
       );
@@ -127,70 +68,38 @@ export class TokenService {
 
   verifyRefreshToken(token: string): UserDataDTO {
     try {
-      if (!process.env.JWT_REFRESH_TOKEN_SECRET) {
-        throw new Error("Secret not configured");
-      }
-
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_REFRESH_TOKEN_SECRET,
-      ) as UserDataDTO;
-
+      const decoded = jwt.verify(token, this.refreshTokenSecret) as UserDataDTO;
       if (!decoded.role) {
         (decoded as any).role = "user";
       }
-
+      if (decoded.organization_id === undefined) {
+        (decoded as any).organization_id = null;
+      }
       return decoded;
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
         throw new UnauthorizedError(
-          "Refresh token expired",
-          "verifyRefreshToken",
-          "TokenService",
-        );
-      }
-      if (error instanceof jwt.JsonWebTokenError) {
-        throw new UnauthorizedError(
-          "Invalid refresh token",
+          "Срок действия refresh токена истёк",
           "verifyRefreshToken",
           "TokenService",
         );
       }
       throw new UnauthorizedError(
-        "Invalid or expired refresh token",
+        "Неверный refresh токен",
         "verifyRefreshToken",
         "TokenService",
       );
     }
   }
 
-  async findRefreshToken(refreshToken: string): Promise<Token> {
-    try {
-      const token = await getSingleResult<Token>(
-        this._db,
-        "findRefreshToken",
-        `SELECT * FROM tokens WHERE "refreshToken" = $1`,
-        [refreshToken],
-      );
-      return token;
-    } catch (error) {
-      if (error instanceof NotFoundError) {
-        throw new UnauthorizedError(
-          "Refresh token not found",
-          "findRefreshToken",
-          "TokenService",
-        );
-      }
-      throw error;
-    }
-  }
-
   decodeToken(token: string): UserDataDTO | null {
     try {
       const decoded = jwt.decode(token) as UserDataDTO | null;
+      if (decoded && decoded.organization_id === undefined) {
+        (decoded as any).organization_id = null;
+      }
       return decoded;
-    } catch (error) {
-      console.error("Error decoding token:", error);
+    } catch {
       return null;
     }
   }

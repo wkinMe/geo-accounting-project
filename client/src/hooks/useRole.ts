@@ -11,5 +11,5 @@ export function useRole(props?: UseQueryProps): UserRole | undefined {
 		...props,
 	});
 
-	return data?.data.role;
+	return data?.role;
 }

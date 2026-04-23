@@ -71,7 +71,7 @@ export class OrganizationController {
 
       res.json({
         success: true,
-        message: "Organization deleted successfully",
+        message: "Организация успешно удалена",
       });
     } catch (error) {
       this.handleError(error, res);
@@ -85,7 +85,7 @@ export class OrganizationController {
       if (!q || typeof q !== "string") {
         return res.status(400).json({
           success: false,
-          error: "Search query parameter 'q' is required",
+          error: "Параметр поиска 'q' обязателен",
         });
       }
 
@@ -102,12 +102,10 @@ export class OrganizationController {
     }
   };
 
-  // ========== Private helpers ==========
-
   private parseId(idParam: string | string[] | undefined): number {
     if (!idParam) {
       throw new ValidationError(
-        "ID parameter is required",
+        "ID параметр обязателен",
         "parseId",
         "id",
         "undefined",
@@ -118,7 +116,12 @@ export class OrganizationController {
     const id = parseInt(idString, 10);
 
     if (isNaN(id)) {
-      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+      throw new ValidationError(
+        "Неверный формат ID",
+        "parseId",
+        "id",
+        idString,
+      );
     }
 
     return id;
@@ -142,7 +145,7 @@ export class OrganizationController {
     } else {
       res.status(500).json({
         success: false,
-        error: "Internal server error",
+        error: "Внутренняя ошибка сервера",
       });
     }
   }

@@ -13,6 +13,7 @@ interface Props {
 	confirmText?: string;
 	cancelText?: string;
 	isDestructive?: boolean;
+	error?: string | null;
 }
 
 export function ConfirmModal({
@@ -25,6 +26,7 @@ export function ConfirmModal({
 	confirmText = 'Подтвердить',
 	cancelText = 'Отмена',
 	isDestructive = false,
+	error = null,
 }: Props) {
 	const [isLoading, setIsLoading] = useState(false);
 
@@ -36,7 +38,6 @@ export function ConfirmModal({
 				setOpen(false);
 			} catch (error) {
 				console.error('Ошибка при подтверждении:', error);
-				// НЕ закрываем модалку при ошибке
 			} finally {
 				setIsLoading(false);
 			}
@@ -54,7 +55,6 @@ export function ConfirmModal({
 		<Dialog.Root
 			open={open}
 			onOpenChange={(isOpen) => {
-				// Не даем закрыть модалку через крестик или клик вне, если идет загрузка
 				if (!isLoading) {
 					setOpen(isOpen);
 				}
@@ -72,6 +72,12 @@ export function ConfirmModal({
 						</Dialog.Title>
 
 						<div className="mt-4 text-gray-600 dark:text-gray-400">{children}</div>
+
+						{error && (
+							<div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+								❌ {error}
+							</div>
+						)}
 
 						<div className="flex justify-between gap-3 mt-6">
 							<Dialog.Close

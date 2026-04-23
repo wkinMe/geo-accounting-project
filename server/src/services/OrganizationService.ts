@@ -2,6 +2,7 @@
 import { Organization } from "../domain/entities/Organization";
 import { OrganizationRepository } from "../repositories/OrganizationRepository";
 import { CreateOrganizationDTO, UpdateOrganizationDTO } from "@shared/dto";
+import { USER_ROLES } from "@shared/constants";
 import { ValidationError, NotFoundError } from "@shared/service";
 
 export class OrganizationService {
@@ -13,60 +14,48 @@ export class OrganizationService {
 
   async findById(id: number): Promise<Organization> {
     const organization = await this.organizationRepo.findById(id);
-
     if (!organization) {
       throw new NotFoundError(
-        `Organization with id ${id} not found`,
+        `Организация с ID ${id} не найдена`,
         "Organization",
         "findById",
         id,
       );
     }
-
     return organization;
   }
 
   async create(dto: CreateOrganizationDTO): Promise<Organization> {
     this.validateCreateDTO(dto);
 
-    // Проверка уникальности имени
     const existing = await this.organizationRepo.findByName(dto.name);
     if (existing) {
       throw new ValidationError(
-        `Organization with name "${dto.name}" already exists`,
+        `Организация с названием "${dto.name}" уже существует`,
         "create",
         "name",
         dto.name,
       );
     }
 
-    // Создаем сущность
     const organization = Organization.create(
       dto.name,
       dto.latitude,
       dto.longitude,
     );
-
-    // Сохраняем
     return await this.organizationRepo.save(organization);
   }
 
   async update(id: number, dto: UpdateOrganizationDTO): Promise<Organization> {
-    // Проверяем существование
     const existingOrganization = await this.findById(id);
-
-    // Валидация
     this.validateUpdateDTO(dto);
 
-    // Обновляем сущность
     if (dto.name !== undefined) {
       existingOrganization.updateName(dto.name);
-
-      // Проверяем уникальность нового имени
       const duplicate = await this.organizationRepo.findByName(dto.name, id);
       if (duplicate) {
         throw new ValidationError(
-          `Organization with name "${dto.name}" already exists`,
+          `Организация с названием "${dto.name}" уже существует`,
           "update",
           "name",
           dto.name,
@@ -78,21 +67,11 @@ export class OrganizationService {
       existingOrganization.updateCoordinates(dto.latitude, dto.longitude);
     }
 
-    // Сохраняем изменения
     return await this.organizationRepo.update(id, existingOrganization);
   }
 
   async delete(id: number): Promise<void> {
-    // Проверяем существование
     await this.findById(id);
-
-    // TODO: Проверить, нет ли связанных складов
-    // const warehousesCount = await this.warehouseRepo.countByOrganization(id);
-    // if (warehousesCount > 0) {
-    //   throw new ValidationError("Cannot delete organization with existing warehouses");
-    // }
-
-    // Удаляем
     await this.organizationRepo.delete(id);
   }
 
@@ -100,53 +79,60 @@ export class OrganizationService {
     if (!query || query.trim().length === 0) {
       return await this.findAll();
     }
-
     return await this.organizationRepo.search(query.trim());
   }
 
-  // ========== Private validation methods ==========
+  async canAssignAdminRole(organizationId: number): Promise<boolean> {
+    return await this.organizationRepo.hasSuperAdmin(organizationId);
+  }
+
+  async canRemoveSuperAdmin(organizationId: number): Promise<boolean> {
+    const count =
+      await this.organizationRepo.getSuperAdminCount(organizationId);
+    return count > 1;
+  }
+
+  async getSuperAdminCount(organizationId: number): Promise<number> {
+    return await this.organizationRepo.getSuperAdminCount(organizationId);
+  }
 
   private validateCreateDTO(dto: CreateOrganizationDTO): void {
     if (!dto.name || dto.name.trim().length === 0) {
       throw new ValidationError(
-        "Organization name is required",
+        "Название организации обязательно",
         "create",
         "name",
         dto.name,
       );
     }
-
     if (dto.name.length > 255) {
       throw new ValidationError(
-        "Organization name cannot exceed 255 characters",
+        "Название организации не может превышать 255 символов",
         "create",
         "name",
         dto.name,
       );
     }
-
     this.validateCoordinates(dto.latitude, dto.longitude);
   }
 
   private validateUpdateDTO(dto: UpdateOrganizationDTO): void {
     if (dto.name !== undefined && dto.name.trim().length === 0) {
       throw new ValidationError(
-        "Organization name cannot be empty",
+        "Название организации не может быть пустым",
         "update",
         "name",
         dto.name,
       );
     }
-
     if (dto.name !== undefined && dto.name.length > 255) {
       throw new ValidationError(
-        "Organization name cannot exceed 255 characters",
+        "Название организации не может превышать 255 символов",
         "update",
         "name",
         dto.name,
       );
     }
-
     this.validateCoordinates(dto.latitude, dto.longitude);
   }
 
@@ -160,20 +146,19 @@ export class OrganizationService {
       (latitude < -90 || latitude > 90)
     ) {
       throw new ValidationError(
-        "Latitude must be between -90 and 90",
+        "Широта должна быть в диапазоне от -90 до 90",
         "validateCoordinates",
         "latitude",
         latitude.toString(),
       );
     }
-
     if (
       longitude !== undefined &&
       longitude !== null &&
       (longitude < -180 || longitude > 180)
     ) {
       throw new ValidationError(
-        "Longitude must be between -180 and 180",
+        "Долгота должна быть в диапазоне от -180 до 180",
         "validateCoordinates",
         "longitude",
         longitude.toString(),

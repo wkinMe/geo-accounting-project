@@ -4,20 +4,20 @@ import { useNavigate, Link } from 'react-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
 import { organizationService } from '@/services/organizationService';
-import { useQuery } from '@tanstack/react-query';
 import Input from '@/components/shared/Input';
 import { Button } from '@/components/shared/Button';
 import type { AxiosError } from 'axios';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { USER_ROLES } from '@shared/constants';
+import Spinner from '@/components/shared/Spinner';
 
 const registerSchema = z.object({
 	name: z.string().min(1, 'Имя пользователя обязательно'),
 	password: z.string().min(6, 'Пароль должен содержать минимум 6 символов'),
-	organization_id: z.number({ error: 'Выберите организацию' }),
+	organization_id: z.number({ message: 'Выберите организацию' }),
 });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
@@ -29,24 +29,23 @@ interface ErrorResponse {
 export function Register() {
 	const navigate = useNavigate();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
-	const [serverError, setServerError] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	const {
 		control,
 		handleSubmit,
 		formState: { errors },
 		clearErrors,
-		setError,
+		setError: setFieldError,
 	} = useForm<RegisterFormData>({
 		resolver: zodResolver(registerSchema),
 		defaultValues: {
 			name: '',
 			password: '',
-			organization_id: undefined,
+			organization_id: undefined as any,
 		},
 	});
 
-	// Запросы для организаций
 	const { data: organizations, isLoading: isLoadingOrgs } = useQuery({
 		queryKey: ['organizations'],
 		queryFn: () => organizationService.findAll(),
@@ -73,32 +72,39 @@ export function Register() {
 			const message = error.response?.data?.message;
 
 			if (message?.includes('already exists')) {
-				setError('name', {
+				setFieldError('name', {
 					type: 'manual',
 					message: 'Пользователь с таким именем уже существует',
 				});
 			} else {
-				setServerError(message || 'Ошибка при регистрации');
+				setError(message || 'Ошибка при регистрации');
 			}
 		},
 	});
 
 	const onSubmit = (data: RegisterFormData) => {
-		setServerError(null);
+		setError(null);
 		clearErrors();
 		register(data);
 	};
 
-	// Очищаем ошибку при изменении полей
 	const onFieldChange = () => {
-		if (serverError) {
-			setServerError(null);
+		if (error) {
+			setError(null);
 		}
 	};
+
+	const orgList = orgSearchQuery && searchedOrgs ? searchedOrgs : organizations || [];
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
 			<div className="relative w-96">
+				{isPending && (
+					<div className="absolute inset-0 flex items-center justify-center backdrop-blur-sm bg-white/50 dark:bg-black/50 rounded-lg z-10">
+						<Spinner />
+					</div>
+				)}
+
 				<form
 					onSubmit={handleSubmit(onSubmit)}
 					className="bg-white dark:bg-black p-8 rounded-lg shadow-xl w-full border border-gray-200 dark:border-gray-800"
@@ -107,9 +113,9 @@ export function Register() {
 						Регистрация
 					</h2>
 
-					{serverError && (
-						<div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-							<p className="text-sm text-red-600 dark:text-red-400 text-center">{serverError}</p>
+					{error && (
+						<div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+							❌ {error}
 						</div>
 					)}
 
@@ -178,7 +184,7 @@ export function Register() {
 										field.onChange(id);
 										onFieldChange();
 									}}
-									options={orgSearchQuery ? searchedOrgs?.data || [] : organizations?.data || []}
+									options={orgList}
 									onSearch={setOrgSearchQuery}
 									getOptionLabel={(org) => org.name}
 									placeholder="Поиск организации..."
@@ -207,15 +213,6 @@ export function Register() {
 						</Link>
 					</div>
 				</form>
-
-				<div className="mt-4 text-center">
-					<Link
-						to="/login"
-						className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors"
-					>
-						Уже есть аккаунт? Войти
-					</Link>
-				</div>
 			</div>
 		</div>
 	);
