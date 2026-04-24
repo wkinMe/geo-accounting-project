@@ -1,64 +1,53 @@
-import { AgreementController } from "@src/controllers";
-import { pool } from "@src/db";
-import { authMiddleware } from "@src/middleware/auth-middleware";
+// routes/agreements.route.ts
 import { Router } from "express";
-import { Request, Response } from "express";
-import { roleMiddleware } from "../middleware";
+import { AgreementController } from "../controllers/AgreementController";
+import { authMiddleware } from "../middleware/auth-middleware";
+import { roleMiddleware } from "../middleware/role-middleware";
+import { USER_ROLES } from "@shared/constants";
 
-const agreementsRouter = Router();
-const agreementController = new AgreementController(pool);
+const router = Router();
+const agreementController = new AgreementController();
 
-// GET /api/agreements - получить все соглашения
-agreementsRouter.get("/", authMiddleware, (req: Request, res: Response) => {
-  agreementController.findAll(req, res);
-});
+// GET /api/agreements - получить все договоры (с фильтром по роли)
+router.get("/", authMiddleware, agreementController.getAll);
 
-// GET /api/agreements/search?q=query - поиск соглашений
-agreementsRouter.get(
-  "/search",
-  authMiddleware,
-  (req: Request, res: Response) => {
-    agreementController.search(req, res);
-  },
-);
+// GET /api/agreements/:id - получить договор по ID
+router.get("/:id", authMiddleware, agreementController.getById);
 
-// GET /api/agreements/:id - получить соглашение по ID
-agreementsRouter.get(
-  "/:id",
-  authMiddleware,
-  (req: Request<{ id: string }>, res: Response) => {
-    agreementController.findById(req, res);
-  },
-);
-
-// POST /api/agreements - создать новое соглашение
-agreementsRouter.post(
+// POST /api/agreements - создать новый договор
+router.post(
   "/",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req, res) => {
-    agreementController.create(req, res);
-  },
+  roleMiddleware([
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.MANAGER,
+  ]),
+  agreementController.create,
 );
 
-// PATCH /api/agreements/:id - обновить соглашение
-agreementsRouter.patch(
+// PUT /api/agreements/:id - обновить договор
+router.put(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    agreementController.update(req, res);
-  },
+  roleMiddleware([
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.MANAGER,
+  ]),
+  agreementController.update,
 );
 
-// DELETE /api/agreements/:id - удалить соглашение
-agreementsRouter.delete(
+// DELETE /api/agreements/:id - удалить договор
+router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    agreementController.delete(req, res);
-  },
+  roleMiddleware([
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.MANAGER,
+  ]),
+  agreementController.delete,
 );
 
-export default agreementsRouter;
+export { router as agreementsRouter };
