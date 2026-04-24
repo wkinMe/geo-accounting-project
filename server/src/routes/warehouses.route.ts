@@ -1,150 +1,60 @@
-// server/src/routes/warehouses.ts
-import { WarehouseController } from "@src/controllers";
-import { pool } from "@src/db";
-import { authMiddleware } from "@src/middleware/auth-middleware";
+// routes/warehouses.route.ts
 import { Router } from "express";
-import { Request, Response } from "express";
-import { roleMiddleware } from "../middleware";
+import { WarehouseController } from "../controllers/WarehouseController";
+import { authMiddleware } from "../middleware/auth-middleware";
+import { roleMiddleware } from "../middleware/role-middleware";
+import { USER_ROLES } from "@shared/constants";
 
-const warehousesRouter = Router();
-const warehouseController = new WarehouseController(pool);
+const router = Router();
+const warehouseController = new WarehouseController();
 
-// GET /api/warehouses - получить все склады
-warehousesRouter.get("/", authMiddleware, (req: Request, res: Response) => {
-  warehouseController.findAll(req, res);
-});
-
-// GET /api/warehouses/search?q=name - поиск складов
-warehousesRouter.get(
-  "/search",
-  authMiddleware,
-  (req: Request, res: Response) => {
-    warehouseController.search(req, res);
-  },
-);
-
-// GET /api/warehouses/manager/:managerId - получить склады по менеджеру
-warehousesRouter.get(
-  "/manager/:managerId",
-  authMiddleware,
-  (req: Request<{ managerId: string }>, res: Response) => {
-    warehouseController.findByManagerId(req, res);
-  },
-);
-
-// GET /api/warehouses/organization/:organizationId - получить склады по организации
-warehousesRouter.get(
-  "/organization/:organizationId",
-  authMiddleware,
-  (req: Request<{ organizationId: string }>, res: Response) => {
-    warehouseController.findByOrganizationId(req, res);
-  },
-);
-
-// GET /api/warehouses/organization/:organizationId/search - поиск складов по организации
-warehousesRouter.get(
-  "/organization/:organizationId/search",
-  authMiddleware,
-  (req: Request<{ organizationId: string }>, res: Response) => {
-    warehouseController.searchByOrganizationId(req, res);
-  },
-);
+// GET /api/warehouses - получить все склады (с фильтром по организации)
+router.get("/", authMiddleware, warehouseController.getAll);
 
 // GET /api/warehouses/:id - получить склад по ID
-warehousesRouter.get(
-  "/:id",
+router.get("/:id", authMiddleware, warehouseController.getById);
+
+// GET /api/warehouses/manager/:managerId - получить склады по менеджеру
+router.get(
+  "/manager/:managerId",
   authMiddleware,
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.findById(req, res);
-  },
+  warehouseController.findByManagerId,
 );
 
 // POST /api/warehouses - создать новый склад
-warehousesRouter.post(
+router.post(
   "/",
-  // authMiddleware,
-  // roleMiddleware(["admin", "super_admin"]),
-  (req: Request, res: Response) => {
-    warehouseController.create(req, res);
-  },
+  authMiddleware,
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+  warehouseController.create,
 );
 
-// PATCH /api/warehouses/:id - обновить склад
-warehousesRouter.patch(
+// PUT /api/warehouses/:id - обновить склад
+router.put(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.update(req, res);
-  },
+  roleMiddleware([
+    USER_ROLES.ADMIN,
+    USER_ROLES.SUPER_ADMIN,
+    USER_ROLES.MANAGER,
+  ]),
+  warehouseController.update,
 );
 
 // PATCH /api/warehouses/:id/assign-manager - назначить/снять менеджера
-warehousesRouter.patch(
+router.patch(
   "/:id/assign-manager",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.assignManager(req, res);
-  },
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+  warehouseController.assignManager,
 );
 
 // DELETE /api/warehouses/:id - удалить склад
-warehousesRouter.delete(
+router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "super_admin"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.delete(req, res);
-  },
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+  warehouseController.delete,
 );
 
-// POST /api/warehouses/:id/materials - добавить материал на склад
-warehousesRouter.post(
-  "/:id/materials",
-  authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.addMaterial(req, res);
-  },
-);
-
-// GET /api/warehouses/:id/materials - получить все материалы со склада
-warehousesRouter.get(
-  "/:id/materials",
-  authMiddleware,
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.getMaterials(req, res);
-  },
-);
-
-// GET /api/warehouses/:id/materials/search - поиск материалов на складе
-warehousesRouter.get(
-  "/:id/materials/search",
-  authMiddleware,
-  (req: Request<{ id: string }>, res: Response) => {
-    warehouseController.searchMaterialByWarehouse(req, res);
-  },
-);
-
-// PATCH /api/warehouses/:id/materials/:materialId - обновить количество материала
-warehousesRouter.patch(
-  "/:id/materials/:materialId",
-  authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string; materialId: string }>, res: Response) => {
-    warehouseController.updateMaterialAmount(req, res);
-  },
-);
-
-// DELETE /api/warehouses/:id/materials/:materialId - удалить материал со склада
-warehousesRouter.delete(
-  "/:id/materials/:materialId",
-  authMiddleware,
-  roleMiddleware(["admin", "super_admin", "manager"]),
-  (req: Request<{ id: string; materialId: string }>, res: Response) => {
-    warehouseController.removeMaterial(req, res);
-  },
-);
-
-export default warehousesRouter;
+export { router as warehousesRouter };

@@ -5,7 +5,6 @@ import { TokenService } from "@src/services/TokenService";
 import { Request, Response, NextFunction } from "express";
 import { UserRole } from "@shared/models";
 
-// Расширяем интерфейс Request с правильной типизацией пользователя
 export interface UserPayload {
   id: number;
   name: string;
@@ -27,16 +26,15 @@ export function authMiddleware(
 
     if (!authHeader) {
       throw new UnauthorizedError(
-        "Authorization header is missing",
+        "Отсутствует заголовок авторизации",
         "auth",
         "authMiddleware",
       );
     }
 
-    // Проверяем формат заголовка
     if (!authHeader.startsWith("Bearer ")) {
       throw new UnauthorizedError(
-        "Invalid authorization header format. Expected 'Bearer <token>'",
+        "Неверный формат заголовка авторизации. Ожидается 'Bearer <token>'",
         "auth",
         "authMiddleware",
       );
@@ -45,44 +43,44 @@ export function authMiddleware(
     const token = authHeader.split(" ")[1];
 
     if (!token) {
-      throw new UnauthorizedError("Token is missing", "auth", "authMiddleware");
-    }
-
-    const tokenService = new TokenService(pool);
-    const decoded = tokenService.verifyAccessToken(token);
-
-    // Проверяем, что декодированные данные содержат все необходимые поля
-    if (!decoded || typeof decoded !== "object") {
       throw new UnauthorizedError(
-        "Invalid token payload",
+        "Токен отсутствует",
         "auth",
         "authMiddleware",
       );
     }
 
-    // Проверяем наличие обязательных полей
+    const tokenService = new TokenService();
+    const decoded = tokenService.verifyAccessToken(token);
+
+    if (!decoded || typeof decoded !== "object") {
+      throw new UnauthorizedError(
+        "Неверный формат токена",
+        "auth",
+        "authMiddleware",
+      );
+    }
+
     const requiredFields = ["id", "name", "organization_id", "role"];
     for (const field of requiredFields) {
       if (!(field in decoded)) {
         throw new UnauthorizedError(
-          `Token missing required field: ${field}`,
+          `В токене отсутствует обязательное поле: ${field}`,
           "auth",
           "authMiddleware",
         );
       }
     }
 
-    // Проверяем, что роль является допустимой
     const validRoles: UserRole[] = ["super_admin", "admin", "manager", "user"];
     if (!validRoles.includes(decoded.role)) {
       throw new UnauthorizedError(
-        `Invalid role in token: ${decoded.role}`,
+        `Неверная роль в токене: ${decoded.role}`,
         "auth",
         "authMiddleware",
       );
     }
 
-    // Приводим decoded к типу UserPayload
     const userPayload: UserPayload = {
       id: decoded.id,
       name: decoded.name,
@@ -94,10 +92,7 @@ export function authMiddleware(
 
     return next();
   } catch (e: unknown) {
-    // Логируем ошибку для отладки
-    console.error("Auth middleware error:", e);
-
-    // Передаём ошибку дальше для обработки в error-handling middleware
+    console.error("Ошибка в authMiddleware:", e);
     next(e);
   }
 }

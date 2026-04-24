@@ -49,8 +49,7 @@ export function AddMaterialModal({ open, setOpen, warehouseId, onSuccess }: Prop
 		},
 	});
 
-	const materials =
-		materialSearch.length > 0 ? searchedMaterials?.data || [] : materialsData?.data || [];
+	const materials = materialSearch.length > 0 ? searchedMaterials || [] : materialsData || [];
 
 	const handleSubmit = async () => {
 		if (selectedMaterialId && amount > 0) {

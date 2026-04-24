@@ -1,29 +1,33 @@
-// server/src/routes/warehouseHistory.route.ts
+// routes/warehouseHistory.route.ts
 import { Router } from "express";
-import { WarehouseHistoryController } from "@src/controllers/WarehouseHistoryController";
-import { pool } from "@src/db";
-import { authMiddleware } from "@src/middleware/auth-middleware";
-import { Request, Response } from "express";
+import { WarehouseHistoryController } from "../controllers/WarehouseHistoryController";
+import { authMiddleware } from "../middleware/auth-middleware";
+import { roleMiddleware } from "../middleware/role-middleware";
+import { USER_ROLES } from "@shared/constants";
 
-const warehouseHistoryRouter = Router();
-const warehouseHistoryController = new WarehouseHistoryController(pool);
+const router = Router();
+const warehouseHistoryController = new WarehouseHistoryController();
 
 // GET /api/warehouse-history/warehouse/:warehouseId - получить историю по складу
-warehouseHistoryRouter.get(
+router.get(
   "/warehouse/:warehouseId",
   authMiddleware,
-  (req: Request<{ warehouseId: string }>, res: Response) => {
-    warehouseHistoryController.getByWarehouseId(req, res);
-  },
+  warehouseHistoryController.getByWarehouseId,
 );
 
 // GET /api/warehouse-history/agreement/:agreementId - получить историю по договору
-warehouseHistoryRouter.get(
+router.get(
   "/agreement/:agreementId",
   authMiddleware,
-  (req: Request<{ agreementId: string }>, res: Response) => {
-    warehouseHistoryController.getByAgreementId(req, res);
-  },
+  warehouseHistoryController.getByAgreementId,
 );
 
-export default warehouseHistoryRouter;
+// GET /api/warehouse-history/material/:materialId - получить историю по материалу
+router.get(
+  "/material/:materialId",
+  authMiddleware,
+  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+  warehouseHistoryController.getByMaterialId,
+);
+
+export { router as warehouseHistoryRouter };

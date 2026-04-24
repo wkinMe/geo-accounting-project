@@ -48,6 +48,7 @@ export function OrganizationModal({
 	setOpen,
 	organization,
 	onSubmit,
+	isLoading = false,
 	canEdit = true,
 }: Props) {
 	const isEditing = !!organization?.id;
@@ -119,12 +120,11 @@ export function OrganizationModal({
 			} else {
 				await onSubmit(submitData as CreateOrganizationDTO);
 			}
-			// Модалка закроется из ConfirmModal при успехе
 		} catch (err: any) {
 			const errorMessage =
 				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
 			setError(errorMessage);
-			throw new Error(errorMessage);
+			throw err;
 		}
 	};
 
@@ -136,14 +136,9 @@ export function OrganizationModal({
 			onConfirm={handleSubmit}
 			confirmText={isEditing ? 'Сохранить' : 'Создать'}
 			cancelText="Отмена"
+			error={error}
 		>
 			<div className="space-y-4">
-				{error && (
-					<div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-						❌ {error}
-					</div>
-				)}
-
 				<TextField
 					label="Название организации"
 					error={errors.name?.message}

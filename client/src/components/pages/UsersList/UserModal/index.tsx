@@ -11,7 +11,7 @@ import { organizationService } from '@/services';
 import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
 import type { UserRole } from '@shared/models';
 import CustomSelect from '@/components/shared/Select';
-import { isAxiosError } from 'axios';
+import { USER_ROLES } from '@shared/constants';
 
 const userSchema = z.object({
 	name: z.string().min(1, 'Имя пользователя обязательно'),
@@ -36,10 +36,10 @@ interface Props {
 	currentUserRole?: UserRole;
 }
 
-export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Props) {
+export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUserRole }: Props) {
 	const queryClient = useQueryClient();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
-	const [serverError, setServerError] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	const isEditing = !!user?.id;
 
@@ -55,7 +55,7 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 		defaultValues: {
 			name: user?.name ?? '',
 			password: '',
-			role: user?.role ?? 'user',
+			role: user?.role ?? USER_ROLES.USER,
 			organization_id: user?.organization_id ?? null,
 		},
 		mode: 'onChange',
@@ -64,127 +64,102 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 	const selectedRole = watch('role');
 	const selectedOrgId = watch('organization_id');
 
-	// Загружаем все организации для начального отображения
-	const { data: organizationsData } = useQuery({
+	const { data: organizations } = useQuery({
 		queryKey: ['organizations'],
 		queryFn: () => organizationService.findAll(),
 	});
 
-	// Поиск организаций
-	const { data: orgSearchData, isLoading: isOrgSearching } = useQuery({
+	const { data: searchedOrgs, isLoading: isOrgSearching } = useQuery({
 		queryKey: ['organizations', 'search', orgSearchQuery],
 		queryFn: () => organizationService.search(orgSearchQuery),
 		enabled: open && orgSearchQuery.length > 0,
 	});
 
-	// Определяем доступные роли для выбора в зависимости от прав текущего пользователя
 	const getAvailableRoles = () => {
 		const allRoles = [
-			{ value: 'user', label: 'Пользователь' },
-			{ value: 'manager', label: 'Менеджер' },
-			{ value: 'admin', label: 'Администратор' },
-			{ value: 'super_admin', label: 'Главный администратор' },
+			{ value: USER_ROLES.USER, label: 'Пользователь' },
+			{ value: USER_ROLES.MANAGER, label: 'Менеджер' },
+			{ value: USER_ROLES.ADMIN, label: 'Администратор' },
+			{ value: USER_ROLES.SUPER_ADMIN, label: 'Главный администратор' },
 		];
 
 		if (!currentUserRole) return allRoles;
 
 		switch (currentUserRole) {
-			case 'super_admin':
+			case USER_ROLES.SUPER_ADMIN:
 				return allRoles;
-			case 'admin':
-				return allRoles.filter((r) => r.value !== 'super_admin');
-			case 'manager':
-			case 'user':
-				return allRoles.filter((r) => r.value === 'user');
+			case USER_ROLES.ADMIN:
+				return allRoles.filter((r) => r.value !== USER_ROLES.SUPER_ADMIN);
 			default:
-				return allRoles;
+				return allRoles.filter((r) => r.value === USER_ROLES.USER);
 		}
 	};
 
-	// Проверка, можно ли редактировать роль
 	const canEditRole = () => {
 		if (!currentUserRole) return true;
-		if (currentUserRole === 'super_admin') return true;
-		if (currentUserRole === 'admin' && user?.role !== 'super_admin') return true;
+		if (currentUserRole === USER_ROLES.SUPER_ADMIN) return true;
+		if (currentUserRole === USER_ROLES.ADMIN && user?.role !== USER_ROLES.SUPER_ADMIN) return true;
 		return false;
 	};
 
-	// Сброс формы при открытии с новыми данными
 	useEffect(() => {
 		if (open) {
 			reset({
 				name: user?.name ?? '',
 				password: '',
-				role: user?.role ?? 'user',
+				role: user?.role ?? USER_ROLES.USER,
 				organization_id: user?.organization_id ?? null,
 			});
 			setOrgSearchQuery('');
-			setServerError(null);
+			setError(null);
 		}
 	}, [open, user, reset]);
 
 	const handleSubmit = async () => {
+		setError(null);
 		const isValid = await trigger();
 
-		if (isValid) {
-			try {
-				setServerError(null);
-
-				const formData = watch();
-
-				const data: any = {
-					id: user?.id,
-					name: formData.name,
-					role: formData.role,
-				};
-
-				// Добавляем organization_id только если он указан
-				if (formData.organization_id) {
-					data.organization_id = formData.organization_id;
-				}
-
-				// Добавляем пароль только если он указан
-				if (formData.password) {
-					data.password = formData.password;
-				} else if (!isEditing) {
-					throw new Error('Пароль обязателен');
-				}
-
-				if (isEditing) {
-					await onSubmit(data as UpdateUserDTO, user.id);
-				} else {
-					await onSubmit(data as CreateUserDTO);
-				}
-
-				await queryClient.invalidateQueries({ queryKey: ['users'] });
-				setOpen(false);
-			} catch (error: unknown) {
-				if (isAxiosError(error)) {
-					const serverMessage = error.response?.data?.message || error.message;
-
-					if (serverMessage?.includes('Password') && serverMessage?.includes('at least')) {
-						const match = serverMessage.match(/at least (\d+)/i);
-						const minLength = match ? match[1] : '6'; // по умолчанию 6, если не найдено
-
-						setServerError(`Пароль должен содержать минимум ${minLength} символов`);
-					} else {
-						setServerError(error.message || 'Произошла ошибка при сохранении');
-					}
-				}
-
-				throw error;
-			}
-		} else {
+		if (!isValid) {
+			setError('Пожалуйста, исправьте ошибки в форме');
 			throw new Error('Пожалуйста, исправьте ошибки в форме');
+		}
+
+		const formData = watch();
+		const data: any = {
+			name: formData.name,
+			role: formData.role,
+		};
+
+		if (formData.organization_id) {
+			data.organization_id = formData.organization_id;
+		}
+
+		if (formData.password) {
+			data.password = formData.password;
+		} else if (!isEditing) {
+			setError('Пароль обязателен');
+			throw new Error('Пароль обязателен');
+		}
+
+		try {
+			if (isEditing) {
+				await onSubmit(data as UpdateUserDTO, user!.id);
+			} else {
+				await onSubmit(data as CreateUserDTO);
+			}
+			await queryClient.invalidateQueries({ queryKey: ['users'] });
+		} catch (err: any) {
+			const errorMessage =
+				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
+			setError(errorMessage);
+			throw err;
 		}
 	};
 
 	const availableRoles = getAvailableRoles();
 	const canEdit = canEditRole();
 
-	// Получаем организации для отображения
-	const organizations =
-		orgSearchQuery.length > 0 ? orgSearchData?.data || [] : organizationsData?.data || [];
+	const orgList = orgSearchQuery && searchedOrgs ? searchedOrgs : organizations || [];
 
 	return (
 		<ConfirmModal
@@ -194,6 +169,7 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 			onConfirm={handleSubmit}
 			confirmText={isEditing ? 'Сохранить' : 'Создать'}
 			cancelText="Отмена"
+			error={error}
 		>
 			<div className="space-y-4">
 				<TextField
@@ -227,7 +203,7 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 					/>
 				)}
 
-				{selectedRole === 'super_admin' && currentUserRole !== 'super_admin' && (
+				{selectedRole === USER_ROLES.SUPER_ADMIN && currentUserRole !== USER_ROLES.SUPER_ADMIN && (
 					<p className="text-sm text-amber-600">
 						⚠️ Для назначения роли главного администратора требуются права супер-администратора
 					</p>
@@ -237,7 +213,7 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 					label="Организация"
 					value={selectedOrgId}
 					onChange={(id) => setValue('organization_id', id ?? null, { shouldValidate: true })}
-					options={organizations}
+					options={orgList}
 					onSearch={setOrgSearchQuery}
 					isLoading={isOrgSearching}
 					getOptionLabel={(org) => org.name}
@@ -253,12 +229,6 @@ export function UserModal({ open, setOpen, user, onSubmit, currentUserRole }: Pr
 					>
 						Очистить организацию
 					</button>
-				)}
-
-				{serverError && (
-					<div className="p-3 bg-red-50 border border-red-200 rounded-md">
-						<p className="text-sm text-red-600">{serverError}</p>
-					</div>
 				)}
 			</div>
 		</ConfirmModal>

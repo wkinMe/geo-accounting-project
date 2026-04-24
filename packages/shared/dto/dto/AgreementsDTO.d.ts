@@ -1,3 +1,4 @@
+//packages/shared/dto/dto/AgreementDTO.d.ts
 import type { AgreementStatus } from "@shared/constants";
 
 // DTO

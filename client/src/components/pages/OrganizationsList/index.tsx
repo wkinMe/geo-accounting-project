@@ -2,19 +2,20 @@
 import { useState } from 'react';
 import { Table } from '@/components/shared/Table';
 import { organizationService } from '@/services/organizationService';
-import { userService } from '@/services/userService';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import { OrganizationModal } from './components';
 import type { Action, Column } from '@/components/shared/Table/types';
+import { useRole } from '@/hooks';
+import { isSuperAdminRole } from '@/utils';
 
 type TableOrganization = {
 	id: number;
 	name: string;
-	createdAt: string;
-	updatedAt: string;
+	created_at: string;
+	updated_at: string;
 	latitude?: number | null;
 	longitude?: number | null;
 };
@@ -22,7 +23,7 @@ type TableOrganization = {
 const columns: Column<TableOrganization>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
-	{ key: 'createdAt', label: 'Дата создания' },
+	{ key: 'created_at', label: 'Дата создания' },
 ];
 
 const mapOrganizationToTableItem = (org: any): TableOrganization => ({
@@ -30,8 +31,8 @@ const mapOrganizationToTableItem = (org: any): TableOrganization => ({
 	name: org.name,
 	latitude: org.latitude,
 	longitude: org.longitude,
-	createdAt: org.createdAt ? new Date(org.createdAt).toLocaleDateString('ru-RU') : '',
-	updatedAt: org.updatedAt ? new Date(org.updatedAt).toLocaleDateString('ru-RU') : '',
+	created_at: org.created_at ? new Date(org.created_at).toLocaleDateString('ru-RU') : '',
+	updated_at: org.updated_at ? new Date(org.updated_at).toLocaleDateString('ru-RU') : '',
 });
 
 export function OrganizationsList() {
@@ -46,14 +47,7 @@ export function OrganizationsList() {
 		longitude?: number | null;
 	} | null>(null);
 
-	const { data: currentUserData } = useQuery({
-		queryKey: ['currentUser'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
-
-	const currentUser = currentUserData?.data;
-	const isSuperAdmin = currentUser?.role === 'super_admin';
+	const role = useRole();
 
 	const { data: organizations } = useQuery({
 		queryKey: ['organizations'],
@@ -74,12 +68,10 @@ export function OrganizationsList() {
 		},
 	});
 
-	// Убираем автоматическое закрытие модалки из мутаций
 	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
 		mutationFn: async (data: CreateOrganizationDTO) => organizationService.create(data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
-			// Модалка закроется из ConfirmModal при успехе
 		},
 	});
 
@@ -88,7 +80,6 @@ export function OrganizationsList() {
 			organizationService.update(id, data),
 		onSuccess: async () => {
 			await queryClient.invalidateQueries({ queryKey: ['organizations'] });
-			// Модалка закроется из ConfirmModal при успехе
 		},
 	});
 
@@ -120,7 +111,7 @@ export function OrganizationsList() {
 		}
 	};
 
-	const canModify = () => isSuperAdmin;
+	const canModify = () => isSuperAdminRole(role);
 
 	const actions: Action<TableOrganization>[] = [
 		{

@@ -1,65 +1,133 @@
-// server/src/controllers/WarehouseHistoryController.ts
-import { Pool } from "pg";
+// controllers/WarehouseHistoryController.ts
 import { Request, Response } from "express";
-import { WarehouseHistoryService } from "@src/services/WarehouseHistoryService";
-import { baseErrorHandling } from "@src/utils";
-import { ERROR_MESSAGES, SUCCESS_MESSAGES } from "@shared/constants";
+import { WarehouseHistoryService } from "../services/WarehouseHistoryService";
+import { WarehouseHistoryRepository } from "../repositories/WarehouseHistoryRepository";
+import { WarehouseRepository } from "../repositories/WarehouseRepository";
+import { MaterialRepository } from "../repositories/MaterialRepository";
+import { pool } from "../db";
+import { ValidationError, NotFoundError } from "@shared/service";
 
 export class WarehouseHistoryController {
-  private _warehouseHistoryService: WarehouseHistoryService;
-  private entityName = "warehouse history";
+  private warehouseHistoryService: WarehouseHistoryService;
 
-  constructor(dbConnection: Pool) {
-    this._warehouseHistoryService = new WarehouseHistoryService(dbConnection);
+  constructor() {
+    const historyRepo = new WarehouseHistoryRepository(pool);
+    const warehouseRepo = new WarehouseRepository(pool);
+    const materialRepo = new MaterialRepository(pool);
+    this.warehouseHistoryService = new WarehouseHistoryService(
+      historyRepo,
+      warehouseRepo,
+      materialRepo,
+    );
   }
 
-  /**
-   * Получение истории изменений материалов на складе
-   */
-  async getByWarehouseId(req: Request<{ warehouseId: string }>, res: Response) {
+  getByWarehouseId = async (req: Request, res: Response) => {
     try {
-      const warehouseId = Number(req.params.warehouseId);
+      const warehouseId = this.parseId(req.params.warehouseId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const offset = req.query.offset
+        ? parseInt(req.query.offset as string)
+        : 0;
 
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("warehouse"),
-        });
-      }
+      const history = await this.warehouseHistoryService.getHistoryByWarehouse(
+        warehouseId,
+        limit,
+        offset,
+      );
 
-      const history =
-        await this._warehouseHistoryService.getHistoryByWarehouse(warehouseId);
-
-      res.status(200).json({
-        data: history,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+      res.json({
+        success: true,
+        data: history.map((h) => h.toJSON()),
+        count: history.length,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
+  };
+
+  getByAgreementId = async (req: Request, res: Response) => {
+    try {
+      const agreementId = this.parseId(req.params.agreementId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const offset = req.query.offset
+        ? parseInt(req.query.offset as string)
+        : 0;
+
+      const history = await this.warehouseHistoryService.getHistoryByAgreement(
+        agreementId,
+        limit,
+        offset,
+      );
+
+      res.json({
+        success: true,
+        data: history.map((h) => h.toJSON()),
+        count: history.length,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  getByMaterialId = async (req: Request, res: Response) => {
+    try {
+      const materialId = this.parseId(req.params.materialId);
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const offset = req.query.offset
+        ? parseInt(req.query.offset as string)
+        : 0;
+
+      const history = await this.warehouseHistoryService.getHistoryByMaterial(
+        materialId,
+        limit,
+        offset,
+      );
+
+      res.json({
+        success: true,
+        data: history.map((h) => h.toJSON()),
+        count: history.length,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  private parseId(idParam: string | string[] | undefined): number {
+    if (!idParam) {
+      throw new ValidationError(
+        "ID параметр обязателен",
+        "parseId",
+        "id",
+        "undefined",
+      );
+    }
+    const idString = Array.isArray(idParam) ? idParam[0] : idParam;
+    const id = parseInt(idString, 10);
+    if (isNaN(id)) {
+      throw new ValidationError(
+        "Неверный формат ID",
+        "parseId",
+        "id",
+        idString,
+      );
+    }
+    return id;
   }
 
-  /**
-   * Получение истории изменений материалов по договору
-   */
-  async getByAgreementId(req: Request<{ agreementId: string }>, res: Response) {
-    try {
-      const agreementId = Number(req.params.agreementId);
+  private handleError(error: unknown, res: Response): void {
+    console.error("WarehouseHistoryController error:", error);
 
-      if (isNaN(agreementId) || agreementId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("agreement"),
-        });
-      }
-
-      const history =
-        await this._warehouseHistoryService.getHistoryByAgreement(agreementId);
-
-      res.status(200).json({
-        data: history,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    if (error instanceof ValidationError) {
+      res
+        .status(400)
+        .json({ success: false, error: error.message, field: error.field });
+    } else if (error instanceof NotFoundError) {
+      res.status(404).json({ success: false, error: error.message });
+    } else {
+      res
+        .status(500)
+        .json({ success: false, error: "Внутренняя ошибка сервера" });
     }
   }
 }

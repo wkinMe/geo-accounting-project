@@ -63,15 +63,11 @@ export class MaterialController {
         unit: req.body.unit,
       };
 
-      // Обработка изображения
       if (req.file) {
-        // Если есть файл - обновляем изображение
         dto.image = req.file.buffer;
       } else if (req.body.image === "null") {
-        // Если явно передали null - удаляем изображение
         dto.image = null;
       }
-      // Если image нет в запросе - не трогаем изображение
 
       const material = await this.materialService.update(id, dto);
 
@@ -91,7 +87,7 @@ export class MaterialController {
 
       res.json({
         success: true,
-        message: "Material deleted successfully",
+        message: "Материал успешно удалён",
       });
     } catch (error) {
       this.handleError(error, res);
@@ -105,7 +101,7 @@ export class MaterialController {
       if (!q || typeof q !== "string") {
         return res.status(400).json({
           success: false,
-          error: "Search query parameter 'q' is required",
+          error: "Параметр поиска 'q' обязателен",
         });
       }
 
@@ -122,7 +118,6 @@ export class MaterialController {
     }
   };
 
-  // Image endpoints
   getImage = async (req: Request, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
@@ -131,7 +126,7 @@ export class MaterialController {
       if (!image) {
         return res.status(404).json({
           success: false,
-          error: "Image not found",
+          error: "Изображение не найдено",
         });
       }
 
@@ -149,7 +144,7 @@ export class MaterialController {
       if (!req.file) {
         return res.status(400).json({
           success: false,
-          error: "No image file provided",
+          error: "Файл изображения не предоставлен",
         });
       }
 
@@ -157,7 +152,7 @@ export class MaterialController {
 
       res.json({
         success: true,
-        message: "Image uploaded successfully",
+        message: "Изображение успешно загружено",
       });
     } catch (error) {
       this.handleError(error, res);
@@ -171,18 +166,17 @@ export class MaterialController {
 
       res.json({
         success: true,
-        message: "Image deleted successfully",
+        message: "Изображение успешно удалено",
       });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  // ========== Private helpers ==========
   private parseId(idParam: string | string[] | undefined): number {
     if (!idParam) {
       throw new ValidationError(
-        "ID parameter is required",
+        "ID параметр обязателен",
         "parseId",
         "id",
         "undefined",
@@ -193,7 +187,12 @@ export class MaterialController {
     const id = parseInt(idString, 10);
 
     if (isNaN(id)) {
-      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+      throw new ValidationError(
+        "Неверный формат ID",
+        "parseId",
+        "id",
+        idString,
+      );
     }
 
     return id;
@@ -215,10 +214,9 @@ export class MaterialController {
         error: error.message,
       });
     } else {
-      console.error("Unhandled error:", error);
       res.status(500).json({
         success: false,
-        error: "Internal server error",
+        error: "Внутренняя ошибка сервера",
       });
     }
   }

@@ -1,7 +1,7 @@
 // client/src/components/pages/Auth.tsx
 import { userService } from '@/services';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useLocation, Navigate, Link } from 'react-router';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate, useLocation, Link } from 'react-router';
 import Input from '@/components/shared/Input';
 import Spinner from '@/components/shared/Spinner';
 import { Button } from '@base-ui/react/button';
@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import type { AxiosError } from 'axios';
+import { useEffect } from 'react';
 
 const loginSchema = z.object({
 	username: z.string().min(1, 'Имя пользователя обязательно'),
@@ -26,16 +27,21 @@ export function Auth() {
 	const location = useLocation();
 	const queryClient = useQueryClient();
 
-	// Получаем путь, с которого пришли, или '/' по умолчанию
 	const from = location.state?.from?.pathname || '/';
+	const token = localStorage.getItem('token');
 
-	const { data: profile, isLoading } = useQuery({
-		queryKey: ['profile'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-		staleTime: 0,
-		gcTime: 0,
-	});
+	useEffect(() => {
+		if (token) {
+			userService
+				.getProfile()
+				.then(() => {
+					navigate(from, { replace: true });
+				})
+				.catch(() => {
+					localStorage.removeItem('token');
+				});
+		}
+	}, [token, navigate, from]);
 
 	const {
 		register,
@@ -59,7 +65,8 @@ export function Auth() {
 			navigate(from, { replace: true });
 		},
 		onError: (error: AxiosError<ErrorResponse>) => {
-			if (error.response?.data?.message === 'Invalid username or password') {
+			const message = error.response?.data?.message;
+			if (message === 'Invalid name or password') {
 				setError('root', {
 					type: 'manual',
 					message: 'Неверное имя пользователя или пароль',
@@ -74,25 +81,19 @@ export function Auth() {
 	});
 
 	const onSubmit = (data: LoginFormData) => {
-		clearErrors('root'); // Очищаем общую ошибку при отправке
+		clearErrors('root');
 		login(data);
 	};
 
-	// Очищаем ошибку при изменении полей
 	const onFieldChange = () => {
 		if (errors.root) {
 			clearErrors('root');
 		}
 	};
 
-	// Показываем спиннер во время загрузки профиля
-	if (isLoading) {
-		return <Spinner fullScreen blur show={isLoading} fadeIn delay={2000} blurDelay={0} />;
-	}
-
-	// Если пользователь уже авторизован - редиректим
-	if (profile?.data) {
-		return <Navigate to={from} replace />;
+	if (token && !localStorage.getItem('auth_checked')) {
+		localStorage.setItem('auth_checked', 'true');
+		return <Spinner fullScreen blur show={true} />;
 	}
 
 	return (
@@ -113,10 +114,8 @@ export function Auth() {
 					</h2>
 
 					{errors.root && (
-						<div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-							<p className="text-sm text-red-600 dark:text-red-400 text-center">
-								{errors.root.message}
-							</p>
+						<div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+							❌ {errors.root.message}
 						</div>
 					)}
 
@@ -180,7 +179,7 @@ export function Auth() {
 						Нет аккаунта? Зарегистрироваться
 					</Link>
 				</div>
-			</div>
+			</div>	
 		</div>
 	);
 }

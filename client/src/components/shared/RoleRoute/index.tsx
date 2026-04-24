@@ -1,9 +1,8 @@
 // client/src/components/shared/RoleRoute.tsx
-import { userService } from '@/services';
-import { useQuery } from '@tanstack/react-query';
 import Spinner from '../Spinner';
 import { Navigate } from 'react-router';
 import { type UserRole } from '@shared/models';
+import { useProfile } from '@/hooks';
 
 interface Props {
 	children: React.ReactNode;
@@ -18,30 +17,19 @@ export function RoleRoute({
 	deniedRoles = [],
 	fallbackPath = '/',
 }: Props) {
-	const { data: profile, isLoading } = useQuery({
-		queryKey: ['profile'],
-		queryFn: () => userService.getProfile(),
-		retry: false,
-	});
+	const { data: userRole, isLoading } = useProfile().data?.role;
 
 	if (isLoading) {
 		return <Spinner fullScreen blur />;
 	}
 
-	const userRole = profile?.data?.role;
-
-	// Если пользователь не авторизован
-	if (!userRole) {
-		return <Navigate to="/login" replace />;
-	}
-
 	// Проверка на запрещённые роли
-	if (deniedRoles.length > 0 && deniedRoles.includes(userRole)) {
+	if (userRole && deniedRoles.length > 0 && deniedRoles.includes(userRole)) {
 		return <Navigate to={fallbackPath} replace />;
 	}
 
 	// Проверка на разрешённые роли (если список не пустой)
-	if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
+	if (userRole && allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
 		return <Navigate to={fallbackPath} replace />;
 	}
 

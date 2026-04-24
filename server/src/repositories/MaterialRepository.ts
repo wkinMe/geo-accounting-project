@@ -96,7 +96,7 @@ export class MaterialRepository {
 
     if (result.rows.length === 0) {
       throw new DatabaseError(
-        "Failed to create material",
+        "Не удалось создать материал",
         "save",
         "MaterialRepository",
       );
@@ -108,7 +108,7 @@ export class MaterialRepository {
       material.unit,
       result.rows[0].created_at,
       result.rows[0].updated_at,
-      material.hasImage,
+      material.has_image,
     );
   }
 
@@ -128,7 +128,7 @@ export class MaterialRepository {
 
     if (result.rows.length === 0) {
       throw new NotFoundError(
-        `Material with ID ${id} not found`,
+        `Материал с ID ${id} не найден`,
         "Material",
         id.toString(),
       );
@@ -138,14 +138,13 @@ export class MaterialRepository {
       id,
       material.name,
       material.unit,
-      material.createdAt,
+      material.created_at,
       result.rows[0].updated_at,
-      material.hasImage,
+      material.has_image,
     );
   }
 
   async delete(id: number): Promise<void> {
-    // Проверяем использование в договорах
     const usageCheck = await this.db.query(
       "SELECT COUNT(*) as count FROM agreement_material WHERE material_id = $1",
       [id],
@@ -153,7 +152,7 @@ export class MaterialRepository {
 
     if (usageCheck.rows[0].count > 0) {
       throw new Error(
-        `Material with id ${id} is used in agreements and cannot be deleted`,
+        `Материал с ID ${id} используется в договорах и не может быть удалён`,
       );
     }
 
@@ -162,14 +161,14 @@ export class MaterialRepository {
 
     if (result.rows.length === 0) {
       throw new NotFoundError(
-        `Material with ID ${id} not found`,
+        `Материал с ID ${id} не найден`,
         "Material",
         id.toString(),
       );
     }
   }
 
-  async search(query: string, limit: number = 50): Promise<Material[]> {
+  async search(queryStr: string, limit: number = 50): Promise<Material[]> {
     const sql = `
       SELECT 
         m.*,
@@ -186,8 +185,8 @@ export class MaterialRepository {
       LIMIT $4
     `;
 
-    const searchPattern = `%${query}%`;
-    const exactStartPattern = `${query}%`;
+    const searchPattern = `%${queryStr}%`;
+    const exactStartPattern = `${queryStr}%`;
 
     const result = await this.db.query(sql, [
       searchPattern,

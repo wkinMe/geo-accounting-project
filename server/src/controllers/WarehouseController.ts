@@ -1,573 +1,181 @@
-import { Pool } from "pg";
+// controllers/WarehouseController.ts
 import { Request, Response } from "express";
-import { WarehouseService } from "@src/services";
-import { baseErrorHandling } from "@src/utils";
+import { WarehouseRepository } from "../repositories/WarehouseRepository";
+import { OrganizationRepository } from "../repositories/OrganizationRepository";
+import { UserRepository } from "../repositories/UserRepository";
+import { pool } from "../db";
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
-import {
-  ERROR_MESSAGES,
-  SUCCESS_MESSAGES,
-  USER_ROLES,
-} from "@shared/constants";
+import { ValidationError, NotFoundError } from "@shared/service";
+import { USER_ROLES } from "@shared/constants";
+import { WarehouseService } from "../services";
 
 export class WarehouseController {
-  private _warehouseService: WarehouseService;
-  private entityName = "warehouse";
+  private warehouseService: WarehouseService;
 
-  constructor(dbConnection: Pool) {
-    this._warehouseService = new WarehouseService(dbConnection);
+  constructor() {
+    const warehouseRepo = new WarehouseRepository(pool);
+    const organizationRepo = new OrganizationRepository(pool);
+    const userRepo = new UserRepository(pool);
+    this.warehouseService = new WarehouseService(
+      warehouseRepo,
+      organizationRepo,
+      userRepo,
+    );
   }
 
-  async findAll(req: Request, res: Response) {
+  getAll = async (req: Request, res: Response) => {
     try {
-      const warehouses = await this._warehouseService.findAll();
-
-      res.status(200).json({
-        data: warehouses,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async findByUserOrgId(req: Request, res: Response) {
-    // @ts-ignore - пользователь добавляется в req через middleware
-    const user = req.user;
-
-    // Контроллер подготавливает фильтры на основе пользователя
-    const filters: Record<string, string> = {};
-
-    if (
-      user.role === USER_ROLES.USER ||
-      user.role === USER_ROLES.MANAGER ||
-      user.role === USER_ROLES.ADMIN
-    ) {
-      filters.organization_id = user.organization_id; // Берем из токена/сессии
-    }
-
-    const warehouses = await this._warehouseService.findAll(filters);
-
-    res.status(200).json({
-      data: warehouses,
-      message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
-    });
-  }
-
-  async findById(req: Request<{ id: string }>, res: Response) {
-    try {
-      const id = Number(req.params.id);
-
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const warehouse = await this._warehouseService.findById(id);
-      res.status(200).json({
-        data: warehouse,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async create(req: Request<{}, {}, CreateWarehouseDTO>, res: Response) {
-    try {
-      const createData = req.body;
-
-      // Проверка тела запроса
-      if (!createData || typeof createData !== "object") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUEST_BODY_REQUIRED,
-        });
-      }
-
-      // Проверка обязательных полей
-      if (!createData.name || createData.name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Warehouse name"),
-        });
-      }
-
-      if (!createData.organization_id) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.REQUIRED_FIELD("Organization ID"),
-        });
-      }
+      const user = (req as any).user;
+      let organization_id: number | undefined;
 
       if (
-        createData.latitude !== undefined &&
-        (createData.latitude < -90 || createData.latitude > 90)
+        user &&
+        (user.role === USER_ROLES.ADMIN ||
+          user.role === USER_ROLES.MANAGER ||
+          user.role === USER_ROLES.USER)
       ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_LATITUDE,
-        });
+        organization_id = user.organization_id;
       }
 
-      if (
-        createData.longitude !== undefined &&
-        (createData.longitude < -180 || createData.longitude > 180)
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_LONGITUDE,
-        });
-      }
+      const warehouses = await this.warehouseService.findAll(organization_id);
 
-      const warehouse = await this._warehouseService.create(createData);
-      res.status(201).json({
-        data: warehouse,
-        message: SUCCESS_MESSAGES.CREATE(this.entityName),
+      res.json({
+        success: true,
+        data: warehouses.map((w) => w.toJSON()),
+        count: warehouses.length,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async update(
-    req: Request<{ id: string }, {}, Omit<UpdateWarehouseDTO, "id">>,
-    res: Response,
-  ) {
+  getById = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
-      const updateData = req.body;
+      const id = this.parseId(req.params.id);
+      const warehouse = await this.warehouseService.findById(id);
 
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      // Проверка, что есть что обновлять
-      if (
-        !updateData ||
-        typeof updateData !== "object" ||
-        Object.keys(updateData).length === 0
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
-        });
-      }
-
-      // Валидация полей, если они пришли
-      if (updateData.name !== undefined && updateData.name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("Warehouse name"),
-        });
-      }
-
-      // Проверка organization_id, если оно пришло
-      if (updateData.organization_id !== undefined) {
-        if (
-          isNaN(updateData.organization_id) ||
-          updateData.organization_id <= 0
-        ) {
-          return res.status(400).json({
-            message: ERROR_MESSAGES.REQUIRED_FIELD("Organization ID"),
-          });
-        }
-      }
-
-      if (
-        updateData.latitude !== undefined &&
-        (updateData.latitude < -90 || updateData.latitude > 90)
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_LATITUDE,
-        });
-      }
-
-      if (
-        updateData.longitude !== undefined &&
-        (updateData.longitude < -180 || updateData.longitude > 180)
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_LONGITUDE,
-        });
-      }
-
-      const warehouse = await this._warehouseService.update(id, updateData);
-      res.status(200).json({
-        data: warehouse,
-        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
+      res.json({
+        success: true,
+        data: warehouse.toJSON(),
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async delete(req: Request<{ id: string }>, res: Response) {
+  create = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
-
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const deletedWarehouse = await this._warehouseService.delete(id);
-      res.status(200).json({
-        data: deletedWarehouse,
-        message: SUCCESS_MESSAGES.DELETE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async search(req: Request<{}, {}, {}, { q?: string }>, res: Response) {
-    try {
-      const { q } = req.query;
-      // @ts-ignore - пользователь добавляется в req через middleware
-      const user = req.user;
-
-      if (!q || q.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
-        });
-      }
-
-      // Контроллер подготавливает фильтры на основе пользователя
-      const filters: Record<string, string> = {};
-
-      if (
-        user.role === USER_ROLES.USER ||
-        user.role === USER_ROLES.MANAGER ||
-        user.role === USER_ROLES.ADMIN
-      ) {
-        filters.organization_id = user.organization_id; // Берем из токена/сессии
-      }
-
-      const warehouses = await this._warehouseService.search(q.trim(), filters);
-
-      res.status(200).json({
-        data: warehouses,
-        message: SUCCESS_MESSAGES.SEARCH(this.entityName, warehouses.length),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async findByManagerId(req: Request<{ managerId: string }>, res: Response) {
-    try {
-      const managerId = Number(req.params.managerId);
-
-      if (isNaN(managerId) || managerId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("manager"),
-        });
-      }
-
-      const warehouses =
-        await this._warehouseService.findByManagerId(managerId);
-
-      // Проверяем, есть ли склады
-      if (warehouses.length === 0) {
-        return res.status(200).json({
-          data: warehouses,
-          message: SUCCESS_MESSAGES.FIND_BY_MANAGER_ID(
-            this.entityName,
-            0,
-            "Unknown",
-          ),
-        });
-      }
-
-      res.status(200).json({
-        data: warehouses,
-        message: SUCCESS_MESSAGES.FIND_BY_MANAGER_ID(
-          this.entityName,
-          warehouses.length,
-          warehouses[0]?.manager?.name || "Unknown",
-        ),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async assignManager(
-    req: Request<{ id: string }, {}, { managerId: number | null }>,
-    res: Response,
-  ) {
-    try {
-      const warehouseId = Number(req.params.id);
-      const { managerId } = req.body;
-
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      // Проверка managerId (может быть null для снятия менеджера)
-      if (managerId !== null && (isNaN(managerId) || managerId <= 0)) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("manager"),
-        });
-      }
-
-      const warehouse = await this._warehouseService.assignManager(
-        warehouseId,
-        managerId,
-      );
-
-      const message = SUCCESS_MESSAGES.ASSIGN_MANAGER(
-        warehouse.manager?.name || "Unknown",
-        managerId !== null,
-      );
-
-      res.status(200).json({
-        data: warehouse,
-        message,
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-  // Добавление материала на склад
-  async addMaterial(
-    req: Request<{ id: string }, {}, { materialId: number; amount: number }>,
-    res: Response,
-  ) {
-    try {
-      const warehouseId = Number(req.params.id);
-      const { materialId, amount } = req.body;
-      // @ts-ignore - пользователь добавляется через middleware
-      const userId = req.user?.id;
-
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      if (isNaN(materialId) || materialId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
-        });
-      }
-
-      if (isNaN(amount) || amount <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_AMOUNT,
-        });
-      }
-
-      const result = await this._warehouseService.addMaterial(
-        warehouseId,
-        materialId,
-        amount,
-        userId,
-      );
+      const dto: CreateWarehouseDTO = req.body;
+      const warehouse = await this.warehouseService.create(dto);
 
       res.status(201).json({
-        data: result,
-        message: SUCCESS_MESSAGES.CREATE("warehouse material"),
+        success: true,
+        data: warehouse.toJSON(),
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  // Обновление количества материала на складе
-  async updateMaterialAmount(
-    req: Request<{ id: string; materialId: string }, {}, { amount: number }>,
-    res: Response,
-  ) {
+  update = async (req: Request, res: Response) => {
     try {
-      const warehouseId = Number(req.params.id);
-      const materialId = Number(req.params.materialId);
-      const { amount } = req.body;
-      // @ts-ignore - пользователь добавляется через middleware
-      const userId = req.user?.id;
+      const id = this.parseId(req.params.id);
+      const dto: UpdateWarehouseDTO = req.body;
+      const warehouse = await this.warehouseService.update(id, dto);
 
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
+      res.json({
+        success: true,
+        data: warehouse.toJSON(),
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
 
-      if (isNaN(materialId) || materialId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
-        });
-      }
+  delete = async (req: Request, res: Response) => {
+    try {
+      const id = this.parseId(req.params.id);
+      await this.warehouseService.delete(id);
 
-      if (isNaN(amount) || amount < 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_AMOUNT,
-        });
-      }
+      res.json({
+        success: true,
+        message: "Склад успешно удалён",
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
 
-      const result = await this._warehouseService.updateMaterialAmount(
+  findByManagerId = async (req: Request, res: Response) => {
+    try {
+      const managerId = this.parseId(req.params.managerId);
+      const warehouses = await this.warehouseService.findByManagerId(managerId);
+
+      res.json({
+        success: true,
+        data: warehouses.map((w) => w.toJSON()),
+        count: warehouses.length,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  assignManager = async (req: Request, res: Response) => {
+    try {
+      const warehouseId = this.parseId(req.params.id);
+      const { manager_id } = req.body;
+
+      const warehouse = await this.warehouseService.assignManager(
         warehouseId,
-        materialId,
-        amount,
-        userId,
+        manager_id || null,
       );
 
-      res.status(200).json({
-        data: result,
-        message: SUCCESS_MESSAGES.UPDATE("warehouse material amount"),
+      res.json({
+        success: true,
+        data: warehouse.toJSON(),
+        message: manager_id ? "Менеджер назначен" : "Менеджер откреплён",
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  // Удаление материала со склада
-  async removeMaterial(
-    req: Request<{ id: string; materialId: string }>,
-    res: Response,
-  ) {
-    try {
-      const warehouseId = Number(req.params.id);
-      const materialId = Number(req.params.materialId);
-      // @ts-ignore - пользователь добавляется через middleware
-      const userId = req.user?.id;
-
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      if (isNaN(materialId) || materialId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("material"),
-        });
-      }
-
-      const result = await this._warehouseService.removeMaterial(
-        warehouseId,
-        materialId,
-        userId,
+  private parseId(idParam: string | string[] | undefined): number {
+    if (!idParam) {
+      throw new ValidationError(
+        "ID параметр обязателен",
+        "parseId",
+        "id",
+        "undefined",
       );
-
-      res.status(200).json({
-        data: result,
-        message: SUCCESS_MESSAGES.DELETE("warehouse material"),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
     }
-  }
-
-  // Получение всех материалов на складе
-  async getMaterials(req: Request<{ id: string }, {}, {}, {}>, res: Response) {
-    try {
-      const warehouseId = Number(req.params.id);
-
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("warehouse material"),
-        });
-      }
-
-      const materials = await this._warehouseService.getMaterials(warehouseId);
-
-      res.status(200).json({
-        data: materials,
-        message: SUCCESS_MESSAGES.FIND_ALL("warehouse material"),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async searchMaterialByWarehouse(
-    req: Request<{ id: string }, {}, {}, { q?: string }>,
-    res: Response,
-  ) {
-    try {
-      const warehouseId = Number(req.params.id);
-      const { q } = req.query;
-
-      if (isNaN(warehouseId) || warehouseId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("warehouse material"),
-        });
-      }
-
-      const materials = await this._warehouseService.searchMaterials(
-        warehouseId,
-        q.trim(),
+    const idString = Array.isArray(idParam) ? idParam[0] : idParam;
+    const id = parseInt(idString, 10);
+    if (isNaN(id)) {
+      throw new ValidationError(
+        "Неверный формат ID",
+        "parseId",
+        "id",
+        idString,
       );
-
-      res.status(200).json({
-        data: materials,
-        message: SUCCESS_MESSAGES.SEARCH(
-          "warehouse materials",
-          materials.length,
-        ),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
     }
+    return id;
   }
 
-  // Добавить в класс WarehouseController
+  private handleError(error: unknown, res: Response): void {
+    console.error("WarehouseController error:", error);
 
-  async findByOrganizationId(
-    req: Request<{ organizationId: string }>,
-    res: Response,
-  ) {
-    try {
-      const organizationId = Number(req.params.organizationId);
-
-      if (isNaN(organizationId) || organizationId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      const warehouses =
-        await this._warehouseService.findByOrganizationId(organizationId);
-
-      res.status(200).json({
-        data: warehouses,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, organizationId),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async searchByOrganizationId(
-    req: Request<{ organizationId: string }, {}, {}, { q?: string }>,
-    res: Response,
-  ) {
-    try {
-      const organizationId = Number(req.params.organizationId);
-      const { q } = req.query;
-
-      if (isNaN(organizationId) || organizationId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      if (!q || q.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
-        });
-      }
-
-      const warehouses = await this._warehouseService.searchByOrganizationId(
-        organizationId,
-        q.trim(),
-      );
-
-      res.status(200).json({
-        data: warehouses,
-        message: SUCCESS_MESSAGES.SEARCH(this.entityName, warehouses.length),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    if (error instanceof ValidationError) {
+      res
+        .status(400)
+        .json({ success: false, error: error.message, field: error.field });
+    } else if (error instanceof NotFoundError) {
+      res.status(404).json({ success: false, error: error.message });
+    } else {
+      res
+        .status(500)
+        .json({ success: false, error: "Внутренняя ошибка сервера" });
     }
   }
 }

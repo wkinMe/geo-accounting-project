@@ -40,7 +40,6 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 	const [error, setError] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Загружаем существующее изображение при редактировании
 	const { data: existingImageBlob } = useQuery({
 		queryKey: ['materialImage', material?.id],
 		queryFn: () => materialService.getImageBlob(material!.id),
@@ -62,7 +61,6 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 		mode: 'onChange',
 	});
 
-	// Загружаем превью существующего изображения
 	useEffect(() => {
 		if (existingImageBlob && !imageFile && !removeImage) {
 			const url = URL.createObjectURL(existingImageBlob);
@@ -75,7 +73,6 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 		}
 	}, [existingImageBlob, imageFile, removeImage]);
 
-	// Сброс формы при открытии
 	useEffect(() => {
 		if (open) {
 			reset({
@@ -86,7 +83,7 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			setImagePreview(null);
 			setRemoveImage(false);
 			setExistingImageUrl(null);
-			setError(null); // Сбрасываем ошибку при открытии
+			setError(null);
 		}
 	}, [open, material, reset]);
 
@@ -154,16 +151,14 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 
 		try {
 			if (isEditing) {
-				await onSubmit(submitData as UpdateMaterialDTO, material.id);
+				await onSubmit(submitData as UpdateMaterialDTO, material!.id);
 			} else {
 				await onSubmit(submitData as CreateMaterialDTO);
 			}
 
-			// Инвалидируем кеши
 			await queryClient.invalidateQueries({ queryKey: ['materials'] });
 			await queryClient.invalidateQueries({ queryKey: ['materialImage', material?.id] });
 
-			// Очищаем локальное состояние
 			setImageFile(null);
 			setImagePreview(null);
 			setRemoveImage(false);
@@ -172,7 +167,7 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			const errorMessage =
 				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
 			setError(errorMessage);
-			throw new Error(errorMessage);
+			throw err;
 		}
 	};
 
@@ -186,14 +181,9 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			onConfirm={handleSubmit}
 			confirmText={isEditing ? 'Сохранить' : 'Создать'}
 			cancelText="Отмена"
+			error={error}
 		>
 			<div className="space-y-4">
-				{error && (
-					<div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-						❌ {error}
-					</div>
-				)}
-
 				<TextField
 					label="Название материала"
 					error={errors.name?.message}

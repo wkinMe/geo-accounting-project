@@ -30,8 +30,5 @@ export interface LoginDTO {
 
 export interface AuthResponse {
   user: UserDataDTO;
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-  };
+  accessToken: string;
 }

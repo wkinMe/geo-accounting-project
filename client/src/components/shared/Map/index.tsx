@@ -1,5 +1,5 @@
 // src/components/shared/Map/index.tsx
-import { useRef, useImperativeHandle, use } from 'react';
+import { useRef, useImperativeHandle } from 'react';
 import { MapContainer, TileLayer } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapMarker } from './components/MapMarker';
@@ -51,14 +51,14 @@ export function Map({
 		<div className="relative flex flex-col h-full">
 			{/* Поиск над картой */}
 			{enableSearch && (
-					<MapSearch
-						searchQuery={searchQuery}
-						onSearchQueryChange={setSearchQuery}
-						searchResults={searchResults}
-						isSearching={isSearching}
-						onSelectResult={handleSelectResult}
-						placeholder={searchPlaceholder}
-					/>
+				<MapSearch
+					searchQuery={searchQuery}
+					onSearchQueryChange={setSearchQuery}
+					searchResults={searchResults}
+					isSearching={isSearching}
+					onSelectResult={handleSelectResult}
+					placeholder={searchPlaceholder}
+				/>
 			)}
 
 			{/* Карта */}

@@ -8,7 +8,7 @@ import { ValidationError, NotFoundError } from "@shared/service";
 export class MaterialService {
   constructor(
     private materialRepo: MaterialRepository,
-    private imageRepo: MaterialImageRepository
+    private imageRepo: MaterialImageRepository,
   ) {}
 
   async findAll(): Promise<Material[]> {
@@ -17,100 +17,90 @@ export class MaterialService {
 
   async findById(id: number): Promise<Material> {
     const material = await this.materialRepo.findById(id);
-    
+
     if (!material) {
-      throw new NotFoundError(`Material with id ${id} not found`, "Material", "findById", id);
+      throw new NotFoundError(
+        `Материал с ID ${id} не найден`,
+        "Material",
+        "findById",
+        id,
+      );
     }
-    
+
     return material;
   }
 
   async create(dto: CreateMaterialDTO): Promise<Material> {
-    // Валидация
     this.validateCreateDTO(dto);
-    
-    // Проверка уникальности имени
+
     const existing = await this.materialRepo.findByName(dto.name);
     if (existing) {
       throw new ValidationError(
-        `Material with name "${dto.name}" already exists`,
+        `Материал с названием "${dto.name}" уже существует`,
         "create",
         "name",
-        dto.name
+        dto.name,
       );
     }
-    
-    // Создаем сущность
+
     const hasImage = !!(dto.image && dto.image.length > 0);
     const material = Material.create(dto.name, dto.unit, hasImage);
-    
-    // Сохраняем
     const savedMaterial = await this.materialRepo.save(material);
-    
-    // Сохраняем изображение если есть
+
     if (dto.image && dto.image.length > 0) {
-      const imageBuffer = dto.image instanceof Uint8Array 
-        ? Buffer.from(dto.image) 
-        : dto.image;
-      
+      const imageBuffer =
+        dto.image instanceof Uint8Array ? Buffer.from(dto.image) : dto.image;
+
       await this.imageRepo.upsertImage(savedMaterial.id!, imageBuffer);
     }
-    
+
     return savedMaterial;
   }
 
   async update(id: number, dto: UpdateMaterialDTO): Promise<Material> {
-    // Проверяем существование
     const existingMaterial = await this.findById(id);
-    
-    // Обновляем сущность
+
     if (dto.name !== undefined) {
       existingMaterial.updateName(dto.name);
-      
-      // Проверяем уникальность нового имени
+
       const duplicate = await this.materialRepo.findByName(dto.name, id);
       if (duplicate) {
         throw new ValidationError(
-          `Material with name "${dto.name}" already exists`,
+          `Материал с названием "${dto.name}" уже существует`,
           "update",
           "name",
-          dto.name
+          dto.name,
         );
       }
     }
-    
+
     if (dto.unit !== undefined) {
       existingMaterial.updateUnit(dto.unit);
     }
-    
-    // Сохраняем изменения
-    const updatedMaterial = await this.materialRepo.update(id, existingMaterial);
-    
-    // Обрабатываем изображение
+
+    const updatedMaterial = await this.materialRepo.update(
+      id,
+      existingMaterial,
+    );
+
     if (dto.image !== undefined) {
       if (dto.image === null) {
         await this.imageRepo.deleteImage(id);
-        updatedMaterial.hasImage = false;
+        updatedMaterial.has_image = false;
       } else if (dto.image.length > 0) {
-        const imageBuffer = dto.image instanceof Uint8Array 
-          ? Buffer.from(dto.image) 
-          : dto.image;
+        const imageBuffer =
+          dto.image instanceof Uint8Array ? Buffer.from(dto.image) : dto.image;
         await this.imageRepo.upsertImage(id, imageBuffer);
-        updatedMaterial.hasImage = true;
+        updatedMaterial.has_image = true;
       }
     }
-    
+
     return updatedMaterial;
   }
 
   async delete(id: number): Promise<void> {
-    // Проверяем существование
     await this.findById(id);
-    
-    // Удаляем изображение
     await this.imageRepo.deleteImage(id);
-    
-    // Удаляем материал
     await this.materialRepo.delete(id);
   }
 
@@ -118,14 +108,12 @@ export class MaterialService {
     if (!query || query.trim().length === 0) {
       return await this.findAll();
     }
-    
+
     return await this.materialRepo.search(query.trim());
   }
 
-  // ========== Работа с изображениями ==========
-  
   async getImage(materialId: number): Promise<Buffer | null> {
-    await this.findById(materialId); // Проверяем существование материала
+    await this.findById(materialId);
     return await this.imageRepo.getImage(materialId);
   }
 
@@ -144,23 +132,41 @@ export class MaterialService {
     return await this.imageRepo.imageExists(materialId);
   }
 
-  // ========== Private validation methods ==========
-  
   private validateCreateDTO(dto: CreateMaterialDTO): void {
     if (!dto.name || dto.name.trim().length === 0) {
-      throw new ValidationError("Material name cannot be empty", "create", "name", dto.name);
+      throw new ValidationError(
+        "Название материала не может быть пустым",
+        "create",
+        "name",
+        dto.name,
+      );
     }
-    
+
     if (dto.name.length > 255) {
-      throw new ValidationError("Material name cannot exceed 255 characters", "create", "name", dto.name);
+      throw new ValidationError(
+        "Название материала не может превышать 255 символов",
+        "create",
+        "name",
+        dto.name,
+      );
     }
-    
+
     if (!dto.unit || dto.unit.trim().length === 0) {
-      throw new ValidationError("Material unit cannot be empty", "create", "unit", dto.unit);
+      throw new ValidationError(
+        "Единица измерения не может быть пустой",
+        "create",
+        "unit",
+        dto.unit,
+      );
     }
-    
+
     if (dto.unit.length > 50) {
-      throw new ValidationError("Material unit cannot exceed 50 characters", "create", "unit", dto.unit);
+      throw new ValidationError(
+        "Единица измерения не может превышать 50 символов",
+        "create",
+        "unit",
+        dto.unit,
+      );
     }
   }
 }

@@ -1,571 +1,299 @@
-// server/src/controllers/UserController.ts
-import { UserService } from "@src/services";
-import { baseErrorHandling } from "@src/utils";
+// controllers/UserController.ts
 import { Request, Response } from "express";
-import { Pool } from "pg";
-import { SUCCESS_MESSAGES, ERROR_MESSAGES } from "@shared/constants";
-import { TokenService } from "@src/services/TokenService";
-import { CreateUserDTO, UpdateUserDTO, UserDataDTO } from "@shared/dto";
-import { User, UserRole } from "@shared/models";
+import { UserService } from "../services/UserService";
+import { UserRepository } from "../repositories/UserRepository";
+import { RefreshTokenRepository } from "../repositories/RefreshTokenRepository";
+import { OrganizationService } from "../services/OrganizationService";
+import { OrganizationRepository } from "../repositories/OrganizationRepository";
+import { pool } from "../db";
+import { CreateUserDTO, UpdateUserDTO } from "@shared/dto";
+import {
+  ValidationError,
+  NotFoundError,
+  ForbiddenError,
+} from "@shared/service";
 
 export class UserController {
-  private _userService: UserService;
-  private _tokenService: TokenService;
-  private entityName = "user";
+  private userService: UserService;
 
-  constructor(dbConnection: Pool) {
-    this._userService = new UserService(dbConnection);
-    this._tokenService = new TokenService(dbConnection);
+  constructor() {
+    const userRepo = new UserRepository(pool);
+    const refreshTokenRepo = new RefreshTokenRepository(pool);
+    const organizationRepo = new OrganizationRepository(pool);
+    const organizationService = new OrganizationService(organizationRepo);
+    this.userService = new UserService(
+      userRepo,
+      refreshTokenRepo,
+      organizationService,
+    );
   }
 
-  async findAll(req: Request, res: Response) {
+  getAll = async (req: Request, res: Response) => {
     try {
-      const users = await this._userService.findAll();
-      res.status(200).json({
-        data: users,
-        message: SUCCESS_MESSAGES.FIND_ALL(this.entityName),
+      const users = await this.userService.findAll();
+      res.json({
+        success: true,
+        data: users.map((u) => u.toJSON()),
+        count: users.length,
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async findById(req: Request<{ id: string }>, res: Response) {
+  getById = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
-
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      const user = await this._userService.findById(id);
-      res.status(200).json({
-        data: user,
-        message: SUCCESS_MESSAGES.FIND_BY_ID(this.entityName, id),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+      const id = this.parseId(req.params.id);
+      const user = await this.userService.findById(id);
+      res.json({ success: true, data: user.toJSON() });
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async delete(req: Request<{ id: string }>, res: Response) {
+  register = async (req: Request, res: Response) => {
     try {
-      const id = Number(req.params.id);
+      const dto: CreateUserDTO = req.body;
 
-      if (isNaN(id) || id <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
+      // @ts-expect-error в каждом запросе летит
+      const result = await this.userService.register(dto, req.user?.role);
 
-      // Получаем информацию о текущем пользователе из middleware
-      // @ts-ignore - добавляем user в Request через middleware
-      const currentUser = req.user;
-
-      if (!currentUser) {
-        return res.status(401).json({
-          message: "Authentication required",
-        });
-      }
-
-      const deletedUser = await this._userService.delete(
-        id,
-        currentUser.role,
-        currentUser.id,
-      );
-
-      res.status(200).json({
-        data: deletedUser,
-        message: SUCCESS_MESSAGES.DELETE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async update(
-    req: Request<{ id: string }, {}, Omit<UpdateUserDTO, "id">>,
-    res: Response,
-  ) {
-    try {
-      const { id } = req.params;
-      const updateData = req.body;
-
-      const userId = Number(id);
-
-      if (isNaN(userId) || userId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT(this.entityName),
-        });
-      }
-
-      if (
-        !updateData ||
-        typeof updateData !== "object" ||
-        Object.keys(updateData).length === 0
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.UPDATE_DATA_REQUIRED,
-        });
-      }
-
-      if (updateData.name !== undefined && updateData.name.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("User name"),
-        });
-      }
-
-      if (
-        updateData.organization_id !== undefined &&
-        isNaN(Number(updateData.organization_id))
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("Organization ID"),
-        });
-      }
-
-      if (
-        updateData.password !== undefined &&
-        updateData.password.trim() === ""
-      ) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.EMPTY_FIELD("Password"),
-        });
-      }
-
-      if (updateData.password !== undefined && updateData.password.length < 6) {
-        return res.status(400).json({
-          message: "Password must be at least 6 characters long",
-        });
-      }
-
-      if (updateData.role !== undefined) {
-        const validRoles: UserRole[] = [
-          "super_admin",
-          "admin",
-          "manager",
-          "user",
-        ];
-        if (!validRoles.includes(updateData.role as UserRole)) {
-          return res.status(400).json({
-            message: "Invalid role value",
-          });
-        }
-      }
-
-      // Получаем информацию о текущем пользователе из middleware
-      // @ts-ignore - добавляем user в Request через middleware
-      const currentUser = req.user;
-
-      if (!currentUser) {
-        return res.status(401).json({
-          message: "Authentication required",
-        });
-      }
-
-      const updatedUser = await this._userService.update({
-        id: userId,
-        ...updateData,
-        requesterRole: currentUser.role,
-      });
-
-      res.status(200).json({
-        data: updatedUser,
-        message: SUCCESS_MESSAGES.UPDATE(this.entityName),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async search(
-    req: Request<{}, {}, {}, { q?: string; organization_id?: string }>,
-    res: Response,
-  ) {
-    try {
-      const { q, organization_id } = req.query;
-
-      if (!q || q.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
-        });
-      }
-
-      const orgId = organization_id ? Number(organization_id) : undefined;
-
-      if (organization_id && (isNaN(orgId!) || orgId! <= 0)) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      const searchedUsers = await this._userService.search(q, orgId);
-
-      res.status(200).json({
-        data: searchedUsers,
-        message: SUCCESS_MESSAGES.SEARCH(this.entityName, searchedUsers.length),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async getAdmins(req: Request, res: Response) {
-    try {
-      const { organization_id } = req.query;
-
-      let admins;
-      if (organization_id) {
-        const orgId = Number(organization_id);
-        if (isNaN(orgId) || orgId <= 0) {
-          return res.status(400).json({
-            message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-          });
-        }
-        admins = await this._userService.findAdmins(orgId);
-      } else {
-        admins = await this._userService.findAdmins();
-      }
-
-      res.status(200).json({
-        data: admins,
-        message: SUCCESS_MESSAGES.GET_ADMINS(admins.length),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async getSuperAdmins(req: Request, res: Response) {
-    try {
-      const superAdmins = await this._userService.findSuperAdmins();
-      res.status(200).json({
-        data: superAdmins,
-        message: `Found ${superAdmins.length} super administrators`,
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async findByOrganizationId(
-    req: Request<{ id: string }, {}, {}>,
-    res: Response,
-  ) {
-    try {
-      const { id } = req.params;
-      const orgId = Number(id);
-
-      if (isNaN(orgId) || orgId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      const users = await this._userService.findByOrganizationId(orgId);
-
-      res.status(200).json({
-        data: users,
-        message:
-          users.length > 0
-            ? SUCCESS_MESSAGES.FIND_BY_ORGANIZATION(
-                this.entityName,
-                users.length,
-                users[0].organization?.name || "Unknown",
-              )
-            : `No users found for organization ${orgId}`,
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async getAvailableManagers(req: Request, res: Response) {
-    try {
-      const { organization_id } = req.query;
-
-      let availableManagers: User[];
-      if (organization_id) {
-        const orgId = Number(organization_id);
-        if (isNaN(orgId) || orgId <= 0) {
-          return res.status(400).json({
-            message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-          });
-        }
-        availableManagers = await this._userService.getAvailableManagers(orgId);
-      } else {
-        availableManagers = await this._userService.getAvailableManagers();
-      }
-
-      res.status(200).json({
-        data: availableManagers,
-        message: SUCCESS_MESSAGES.GET_AVAILABLE_MANAGERS(
-          availableManagers.length,
-        ),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
-    }
-  }
-
-  async register(req: Request<{}, {}, CreateUserDTO>, res: Response) {
-    try {
-      const { password, name, organization_id, role } = req.body;
-
-      if (!password || !name) {
-        return res.status(400).json({
-          message: "Name and password are required",
-        });
-      }
-
-      if (password.length < 6) {
-        return res.status(400).json({
-          message: "Password must be at least 6 characters long",
-        });
-      }
-
-      if (organization_id !== undefined) {
-        if (isNaN(Number(organization_id)) || Number(organization_id) <= 0) {
-          return res.status(400).json({
-            message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-          });
-        }
-      }
-
-      if (role !== undefined) {
-        const validRoles: UserRole[] = [
-          "super_admin",
-          "admin",
-          "manager",
-          "user",
-        ];
-        if (!validRoles.includes(role)) {
-          return res.status(400).json({
-            message: "Invalid role value",
-          });
-        }
-      }
-
-      // Получаем информацию о текущем пользователе из middleware (если есть)
-      // @ts-ignore
-      const currentUser = req.user;
-      const requesterRole = currentUser?.role;
-
-      const result = await this._userService.register(
-        {
-          password,
-          name,
-          organization_id: organization_id
-            ? Number(organization_id)
-            : undefined,
-          role,
-        },
-        requesterRole,
-      );
-
-      res.cookie("refreshToken", result.tokens.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+      res.cookie("refreshToken", result.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
       res.status(201).json({
+        success: true,
         data: {
-          user: result.user,
-          tokens: {
-            accessToken: result.tokens.accessToken,
-          },
+          user: result.user.toJSON(),
+          accessToken: result.accessToken,
         },
-        message: "User registered successfully",
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async login(
-    req: Request<{}, {}, { name: string; password: string }>,
-    res: Response,
-  ) {
+  login = async (req: Request, res: Response) => {
     try {
       const { name, password } = req.body;
+      const result = await this.userService.login(name, password);
 
-      if (!name || !password) {
-        return res.status(400).json({
-          message: "Name and password are required",
-        });
-      }
-
-      const result = await this._userService.login(name, password);
-
-      res.cookie("refreshToken", result.tokens.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+      res.cookie("refreshToken", result.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
-      res.status(200).json({
+      res.json({
+        success: true,
         data: {
-          user: result.user,
-          tokens: {
-            accessToken: result.tokens.accessToken,
-          },
+          user: result.user.toJSON(),
+          accessToken: result.accessToken,
         },
-        message: "Login successful",
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async refreshToken(req: Request, res: Response) {
+  refresh = async (req: Request, res: Response) => {
     try {
       const refreshToken = req.cookies?.refreshToken;
+      const result = await this.userService.refreshToken(refreshToken);
 
-      if (!refreshToken) {
-        return res.status(401).json({
-          message: "Refresh token is required",
-        });
-      }
-
-      const result = await this._userService.refreshToken(refreshToken);
-
-      res.cookie("refreshToken", result.tokens.refreshToken, {
-        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+      res.cookie("refreshToken", result.refreshToken, {
+        maxAge: 30 * 24 * 60 * 60 * 1000,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
       });
 
-      res.status(200).json({
+      res.json({
+        success: true,
         data: {
-          user: result.user,
-          tokens: {
-            accessToken: result.tokens.accessToken,
-          },
+          user: result.user.toJSON(),
+          accessToken: result.accessToken,
         },
-        message: "Token refreshed successfully",
       });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async logout(req: Request, res: Response) {
+  logout = async (req: Request, res: Response) => {
     try {
       const refreshToken = req.cookies?.refreshToken;
-
-      if (!refreshToken) {
-        return res.status(400).json({
-          message: "Refresh token is required",
-        });
-      }
-
+      await this.userService.logout(refreshToken);
       res.clearCookie("refreshToken");
-      await this._userService.logout(refreshToken);
-
-      res.status(200).json({
-        message: "Logout successful",
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+      res.json({ success: true, message: "Logout successful" });
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  async getProfile(req: Request, res: Response) {
+  getProfile = async (req: Request, res: Response) => {
     try {
-      // @ts-ignore - добавляем user в Request через middleware
+      // @ts-expect-error в каждом запросе летит
       const userId = req.user?.id;
-
       if (!userId) {
-        return res.status(401).json({
-          message: "Unauthorized",
-        });
+        return res.status(401).json({ success: false, error: "Unauthorized" });
       }
-
-      const user = await this._userService.findById(userId);
-
-      // Не отправляем пароль
-      const { password: _, ...userWithoutPassword } = user;
-
-      res.status(200).json({
-        data: userWithoutPassword,
-        message: "Profile fetched successfully",
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+      const user = await this.userService.findById(userId);
+      res.json({ success: true, data: user.toJSON() });
+    } catch (error) {
+      this.handleError(error, res);
     }
-  }
+  };
 
-  /**
-   * Поиск доступных менеджеров
-   */
-  async searchAvailableManagers(
-    req: Request<{}, {}, {}, { q?: string; organization_id?: string }>,
-    res: Response,
-  ) {
+  update = async (req: Request, res: Response) => {
+    try {
+      const id = this.parseId(req.params.id);
+      const dto: UpdateUserDTO = req.body;
+      const user = await this.userService.update(
+        id,
+        dto,
+        // @ts-expect-error
+        req.user?.role,
+        // @ts-expect-error
+        req.user?.id,
+      );
+      res.json({ success: true, data: user.toJSON() });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  delete = async (req: Request, res: Response) => {
+    try {
+      const id = this.parseId(req.params.id);
+
+      // @ts-expect-error в каждом запросе летит
+      await this.userService.delete(id, req.user?.role, req.user?.id);
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  search = async (req: Request, res: Response) => {
+    try {
+      const { q } = req.query;
+      if (!q || typeof q !== "string") {
+        return res
+          .status(400)
+          .json({ success: false, error: "Search query is required" });
+      }
+      const users = await this.userService.search(q);
+      res.json({
+        success: true,
+        data: users.map((u) => u.toJSON()),
+        count: users.length,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  findByOrganizationId = async (req: Request, res: Response) => {
+    try {
+      const organizationId = this.parseId(req.params.id);
+      const users = await this.userService.findByOrganizationId(organizationId);
+      res.json({ success: true, data: users.map((u) => u.toJSON()) });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  getAdmins = async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
+        : undefined;
+      const admins = await this.userService.findAdmins(organizationId);
+      res.json({ success: true, data: admins.map((u) => u.toJSON()) });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  getSuperAdmins = async (req: Request, res: Response) => {
+    try {
+      const superAdmins = await this.userService.findSuperAdmins();
+      res.json({ success: true, data: superAdmins.map((u) => u.toJSON()) });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  getAvailableManagers = async (req: Request, res: Response) => {
+    try {
+      const organizationId = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
+        : undefined;
+      const managers =
+        await this.userService.getAvailableManagers(organizationId);
+      res.json({ success: true, data: managers.map((u) => u.toJSON()) });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  searchAvailableManagers = async (req: Request, res: Response) => {
     try {
       const { q, organization_id } = req.query;
-
-      if (!q || q.trim() === "") {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.SEARCH_QUERY_REQUIRED,
-        });
+      if (!q || typeof q !== "string") {
+        return res
+          .status(400)
+          .json({ success: false, error: "Search query is required" });
       }
-
-      const orgId = organization_id ? Number(organization_id) : undefined;
-
-      if (organization_id && (isNaN(orgId!) || orgId! <= 0)) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      const managers = await this._userService.searchAvailableManagers(
+      const organizationId = organization_id
+        ? parseInt(organization_id as string)
+        : undefined;
+      const managers = await this.userService.searchAvailableManagers(
         q,
-        orgId,
+        organizationId,
       );
-
-      res.status(200).json({
-        data: managers,
-        message: SUCCESS_MESSAGES.SEARCH("available managers", managers.length),
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+      res.json({ success: true, data: managers.map((u) => u.toJSON()) });
+    } catch (error) {
+      this.handleError(error, res);
     }
+  };
+
+  private parseId(idParam: string | string[] | undefined): number {
+    if (!idParam) {
+      throw new ValidationError(
+        "ID parameter is required",
+        "parseId",
+        "id",
+        "undefined",
+      );
+    }
+    const idString = Array.isArray(idParam) ? idParam[0] : idParam;
+    const id = parseInt(idString, 10);
+    if (isNaN(id)) {
+      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+    }
+    return id;
   }
 
-  /**
-   * Проверка наличия super_admin в организации
-   */
-  async checkOrganizationHasSuperAdmin(
-    req: Request<{ organizationId: string }>,
-    res: Response,
-  ) {
-    try {
-      const organizationId = Number(req.params.organizationId);
+  private handleError(error: unknown, res: Response): void {
+    console.error("UserController error:", error);
 
-      if (isNaN(organizationId) || organizationId <= 0) {
-        return res.status(400).json({
-          message: ERROR_MESSAGES.INVALID_ID_FORMAT("organization"),
-        });
-      }
-
-      const hasSuperAdmin =
-        await this._userService.checkOrganizationHasSuperAdmin(organizationId);
-
-      res.status(200).json({
-        data: { hasSuperAdmin },
-        message: hasSuperAdmin
-          ? "Organization has super admin"
-          : "Organization does not have super admin",
-      });
-    } catch (e) {
-      baseErrorHandling(e, res);
+    if (error instanceof ValidationError) {
+      res
+        .status(400)
+        .json({ success: false, error: error.message, field: error.field });
+    } else if (error instanceof NotFoundError) {
+      res.status(404).json({ success: false, error: error.message });
+    } else if (error instanceof ForbiddenError) {
+      res.status(403).json({ success: false, error: error.message });
+    } else {
+      res.status(500).json({ success: false, error: "Internal server error" });
     }
   }
 }
