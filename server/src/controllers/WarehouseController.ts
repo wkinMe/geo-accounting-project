@@ -23,7 +23,6 @@ export class WarehouseController {
     );
   }
 
-  // controllers/WarehouseController.ts
   getAll = async (req: Request, res: Response) => {
     try {
       const user = (req as any).user;
@@ -54,11 +53,20 @@ export class WarehouseController {
   getById = async (req: Request, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
-      const warehouse = await this.warehouseService.findById(id);
+      const warehouse = await this.warehouseService.findByIdWithDetails(id);
+
+      if (!warehouse) {
+        throw new NotFoundError(
+          `Склад с ID ${id} не найден`,
+          "Warehouse",
+          "getById",
+          id,
+        );
+      }
 
       res.json({
         success: true,
-        data: warehouse.toJSON(),
+        data: warehouse,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -70,9 +78,13 @@ export class WarehouseController {
       const dto: CreateWarehouseDTO = req.body;
       const warehouse = await this.warehouseService.create(dto);
 
+      // Получаем созданный склад с деталями
+      const warehouseWithDetails =
+        await this.warehouseService.findByIdWithDetails(warehouse.id!);
+
       res.status(201).json({
         success: true,
-        data: warehouse.toJSON(),
+        data: warehouseWithDetails,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -83,11 +95,14 @@ export class WarehouseController {
     try {
       const id = this.parseId(req.params.id);
       const dto: UpdateWarehouseDTO = req.body;
-      const warehouse = await this.warehouseService.update(id, dto);
+      await this.warehouseService.update(id, dto);
+
+      const warehouseWithDetails =
+        await this.warehouseService.findByIdWithDetails(id);
 
       res.json({
         success: true,
-        data: warehouse.toJSON(),
+        data: warehouseWithDetails,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -128,15 +143,53 @@ export class WarehouseController {
       const warehouseId = this.parseId(req.params.id);
       const { manager_id } = req.body;
 
-      const warehouse = await this.warehouseService.assignManager(
+      await this.warehouseService.assignManager(
         warehouseId,
         manager_id || null,
       );
+      const warehouseWithDetails =
+        await this.warehouseService.findByIdWithDetails(warehouseId);
 
       res.json({
         success: true,
-        data: warehouse.toJSON(),
+        data: warehouseWithDetails,
         message: manager_id ? "Менеджер назначен" : "Менеджер откреплён",
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
+
+  search = async (req: Request, res: Response) => {
+    try {
+      const { q } = req.query;
+      const user = (req as any).user;
+
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "Параметр поиска 'q' обязателен",
+        });
+      }
+
+      let organization_id: number | undefined;
+
+      if (
+        user &&
+        (user.role === USER_ROLES.ADMIN ||
+          user.role === USER_ROLES.MANAGER ||
+          user.role === USER_ROLES.USER)
+      ) {
+        organization_id = user.organization_id;
+      }
+
+      const warehouses = await this.warehouseService.search(q, organization_id);
+
+      res.json({
+        success: true,
+        data: warehouses.map((w) => w.toJSON()),
+        count: warehouses.length,
+        query: q,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -180,41 +233,4 @@ export class WarehouseController {
         .json({ success: false, error: "Внутренняя ошибка сервера" });
     }
   }
-
-  // controllers/WarehouseController.ts (добавить метод)
-  search = async (req: Request, res: Response) => {
-    try {
-      const { q } = req.query;
-      const user = (req as any).user;
-
-      if (!q || typeof q !== "string") {
-        return res.status(400).json({
-          success: false,
-          error: "Параметр поиска 'q' обязателен",
-        });
-      }
-
-      let organization_id: number | undefined;
-
-      if (
-        user &&
-        (user.role === USER_ROLES.ADMIN ||
-          user.role === USER_ROLES.MANAGER ||
-          user.role === USER_ROLES.USER)
-      ) {
-        organization_id = user.organization_id;
-      }
-
-      const warehouses = await this.warehouseService.search(q, organization_id);
-
-      res.json({
-        success: true,
-        data: warehouses.map((w) => w.toJSON()),
-        count: warehouses.length,
-        query: q,
-      });
-    } catch (error) {
-      this.handleError(error, res);
-    }
-  };
 }

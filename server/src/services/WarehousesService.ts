@@ -37,6 +37,12 @@ export class WarehouseService {
     return warehouse;
   }
 
+  async findByIdWithDetails(
+    id: number,
+  ): Promise<WarehouseWithManagerAndOrganization | null> {
+    return await this.warehouseRepo.findByIdWithDetails(id);
+  }
+
   async create(dto: CreateWarehouseDTO): Promise<Warehouse> {
     this.validateCreateDTO(dto);
 

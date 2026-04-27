@@ -50,11 +50,11 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 		},
 	});
 
-	const warehouseData = warehouse;
+	console.log(warehouse);
 
 	const handleSubmit = async (data: UpdateWarehouseDTO) => {
-		if (warehouseData) {
-			await updateMutate({ id: warehouseData.id, data });
+		if (warehouse) {
+			await updateMutate({ id: warehouse.id, data });
 		}
 	};
 
@@ -62,7 +62,7 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 		await deleteMutate();
 	};
 
-	if (!warehouseData) {
+	if (!warehouse) {
 		return <h1>Информация о данном складе не найдена</h1>;
 	}
 
@@ -71,7 +71,7 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 			<div className="flex justify-between">
 				<div className="w-full bg-white p-5 rounded-2xl pb-10">
 					<div className="flex items-center justify-between">
-						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
+						<h1 className="text-2xl text-black font-medium mb-5">{warehouse.name}</h1>
 						<div className="flex gap-5">
 							{canEdit && (
 								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
@@ -100,15 +100,13 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 						<tbody>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец: </td>
-								<td className="py-3">{warehouseData.organization?.name}</td>
+								<td className="py-3">{warehouse.organization?.name}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Менеджер склада: </td>
 								<td className="py-3">
-									{warehouseData.manager ? (
-										<Link to={`/users/${warehouseData.manager?.id}`}>
-											{warehouseData.manager?.name}
-										</Link>
+									{warehouse.manager ? (
+										<Link to={`/users/${warehouse.manager?.id}`}>{warehouse.manager?.name}</Link>
 									) : (
 										'Не назначен'
 									)}
@@ -116,11 +114,11 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Дата создания: </td>
-								<td className="py-3">{formatDateToDDMMYYYY(warehouseData.created_at)}</td>
+								<td className="py-3">{formatDateToDDMMYYYY(warehouse.created_at)}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Последнее обновление: </td>
-								<td className="py-3">{getDaysAgoText(warehouseData.updated_at)}</td>
+								<td className="py-3">{getDaysAgoText(warehouse.updated_at)}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -138,7 +136,7 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 			<WarehouseModal
 				open={isModalOpen}
 				setOpen={setIsModalOpen}
-				warehouse={warehouseData}
+				warehouse={warehouse}
 				onSubmit={handleSubmit}
 				isLoading={isUpdating}
 			/>

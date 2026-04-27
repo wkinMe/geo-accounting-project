@@ -93,6 +93,40 @@ export class WarehouseRepository {
     );
   }
 
+  // repositories/WarehouseRepository.ts (добавить метод)
+  async findByIdWithDetails(
+    id: number,
+  ): Promise<WarehouseWithManagerAndOrganization | null> {
+    const query = `
+    SELECT 
+      w.*,
+      row_to_json(o.*) as organization,
+      row_to_json(u.*) as manager
+    FROM warehouses w
+    INNER JOIN organizations o ON w.organization_id = o.id
+    LEFT JOIN app_users u ON w.manager_id = u.id
+    WHERE w.id = $1
+  `;
+    const result = await this.db.query(query, [id]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      organization_id: row.organization_id,
+      manager_id: row.manager_id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      location: [row.latitude, row.longitude],
+      organization: row.organization,
+      manager: row.manager,
+    };
+  }
+
   async findByName(
     name: string,
     organization_id: number,
