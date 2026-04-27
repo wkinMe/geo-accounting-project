@@ -1,22 +1,16 @@
 // client/src/pages/Agreements/components/AgreementMap/index.tsx
 import { useState, useEffect, useMemo, useRef } from 'react';
-import {
-	Map,
-	MARKER_COLORS,
-	type MapMarker,
-	type SearchableItem,
-	type MapHandle,
-} from '@/components/shared/Map';
+import { Map, MARKER_COLORS, type MapMarker, type SearchableItem } from '@/components/shared/Map';
 import { warehouseService } from '@/services/warehouseService';
 import { useQuery } from '@tanstack/react-query';
-import type { WarehouseWithMaterialsAndOrganization } from '@shared/models';
+import type { WarehouseWithManagerAndOrganization } from '@shared/models';
 import type { Map as LeafletMap } from 'leaflet';
 
 interface AgreementMapProps {
 	supplierWarehouseId: number | null;
 	customerWarehouseId: number | null;
-	onSupplierSelect: (warehouse: WarehouseWithMaterialsAndOrganization) => void;
-	onCustomerSelect: (warehouse: WarehouseWithMaterialsAndOrganization) => void;
+	onSupplierSelect: (warehouse: WarehouseWithManagerAndOrganization) => void;
+	onCustomerSelect: (warehouse: WarehouseWithManagerAndOrganization) => void;
 	readOnly?: boolean;
 }
 
@@ -33,8 +27,8 @@ export function AgreementMap({
 }: AgreementMapProps) {
 	const mapRef = useRef<LeafletMap>(null);
 	const [selectedWarehouses, setSelectedWarehouses] = useState<{
-		supplier: WarehouseWithMaterialsAndOrganization | null;
-		customer: WarehouseWithMaterialsAndOrganization | null;
+		supplier: WarehouseWithManagerAndOrganization | null;
+		customer: WarehouseWithManagerAndOrganization | null;
 	}>({ supplier: null, customer: null });
 
 	// Получаем все склады
@@ -71,21 +65,21 @@ export function AgreementMap({
 
 	// Синхронизируем выбранные склады из пропсов (для загрузки существующих)
 	useEffect(() => {
-		if (supplierWarehouse?.data && !selectedWarehouses.supplier) {
-			setSelectedWarehouses((prev) => ({ ...prev, supplier: supplierWarehouse.data }));
+		if (supplierWarehouse && !selectedWarehouses.supplier) {
+			setSelectedWarehouses((prev) => ({ ...prev, supplier: supplierWarehouse }));
 		}
 	}, [supplierWarehouse]);
 
 	useEffect(() => {
-		if (customerWarehouse?.data && !selectedWarehouses.customer) {
-			setSelectedWarehouses((prev) => ({ ...prev, customer: customerWarehouse.data }));
+		if (customerWarehouse && !selectedWarehouses.customer) {
+			setSelectedWarehouses((prev) => ({ ...prev, customer: customerWarehouse }));
 		}
 	}, [customerWarehouse]);
 
 	// Синхронизация выбранных складов из store
 	useEffect(() => {
-		if (supplierWarehouseId && warehousesData?.data) {
-			const found = warehousesData.data.find((w) => w.id === supplierWarehouseId);
+		if (supplierWarehouseId && warehousesData) {
+			const found = warehousesData.find((w) => w.id === supplierWarehouseId);
 			if (found && found !== selectedWarehouses.supplier) {
 				setSelectedWarehouses((prev) => ({ ...prev, supplier: found }));
 			}
@@ -93,8 +87,8 @@ export function AgreementMap({
 	}, [supplierWarehouseId, warehousesData]);
 
 	useEffect(() => {
-		if (customerWarehouseId && warehousesData?.data) {
-			const found = warehousesData.data.find((w) => w.id === customerWarehouseId);
+		if (customerWarehouseId && warehousesData) {
+			const found = warehousesData.find((w) => w.id === customerWarehouseId);
 			if (found && found !== selectedWarehouses.customer) {
 				setSelectedWarehouses((prev) => ({ ...prev, customer: found }));
 			}
@@ -102,10 +96,9 @@ export function AgreementMap({
 	}, [customerWarehouseId, warehousesData]);
 
 	// Обработчик клика по маркеру
-	const handleMarkerClick = (warehouse: WarehouseWithMaterialsAndOrganization) => {
+	const handleMarkerClick = (warehouse: WarehouseWithManagerAndOrganization) => {
 		if (readOnly) return;
 
-		// Если склад уже выбран как поставщик или покупатель, не даём выбрать заново
 		if (
 			selectedWarehouses.supplier?.id === warehouse.id ||
 			selectedWarehouses.customer?.id === warehouse.id
@@ -113,16 +106,10 @@ export function AgreementMap({
 			return;
 		}
 
-		// Логика выбора:
-		// 1. Если нет поставщика - выбираем поставщика
-		// 2. Если есть поставщик, но нет покупателя - выбираем покупателя
-		// 3. Если нет поставщика, но есть покупатель - выбираем поставщика
 		if (!selectedWarehouses.supplier) {
-			// Выбираем поставщика
 			setSelectedWarehouses((prev) => ({ ...prev, supplier: warehouse }));
 			onSupplierSelect(warehouse);
 		} else if (!selectedWarehouses.customer) {
-			// Выбираем покупателя
 			setSelectedWarehouses((prev) => ({ ...prev, customer: warehouse }));
 			onCustomerSelect(warehouse);
 		}
@@ -130,15 +117,13 @@ export function AgreementMap({
 
 	// Фильтруем склады для отображения
 	const displayWarehouses = useMemo(() => {
-		const allWarehouses = warehousesData?.data;
+		const allWarehouses = warehousesData;
 		if (!allWarehouses) return [];
 
-		// Если выбраны оба склада, показываем только их
 		if (selectedWarehouses.supplier && selectedWarehouses.customer) {
 			return [selectedWarehouses.supplier, selectedWarehouses.customer];
 		}
 
-		// Если выбран только поставщик
 		if (selectedWarehouses.supplier) {
 			return [
 				selectedWarehouses.supplier,
@@ -146,7 +131,6 @@ export function AgreementMap({
 			];
 		}
 
-		// Если выбран только покупатель
 		if (selectedWarehouses.customer) {
 			return [
 				selectedWarehouses.customer,
@@ -154,7 +138,6 @@ export function AgreementMap({
 			];
 		}
 
-		// Если ничего не выбрано, показываем все склады
 		return allWarehouses;
 	}, [warehousesData, selectedWarehouses]);
 
@@ -195,7 +178,7 @@ export function AgreementMap({
 
 	// Преобразуем склады в формат SearchableItem
 	const searchableItems: SearchableItem[] = useMemo(() => {
-		const allWarehouses = warehousesData?.data;
+		const allWarehouses = warehousesData;
 		if (!allWarehouses) return [];
 
 		return allWarehouses
@@ -210,13 +193,9 @@ export function AgreementMap({
 			}));
 	}, [warehousesData]);
 
-	// Проверяем, выбраны ли оба склада
 	const bothSelected = !!(selectedWarehouses.supplier && selectedWarehouses.customer);
-
-	// Поиск включаем только если не выбраны оба склада и не readOnly
 	const enableSearch = !bothSelected && !readOnly;
 
-	// Определяем, кого сейчас выбираем
 	const getSelectionHint = () => {
 		if (bothSelected) return null;
 		if (!selectedWarehouses.supplier) return '👆 Выберите склад поставщика';
@@ -228,7 +207,7 @@ export function AgreementMap({
 
 	if (isLoading) {
 		return (
-			<div className="h-[500px] flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
+			<div className="h-125 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
 				<span className="text-gray-500">Загрузка карты...</span>
 			</div>
 		);
@@ -241,8 +220,7 @@ export function AgreementMap({
 				{selectionHint && !readOnly && <div className="text-sm text-gray-500">{selectionHint}</div>}
 			</div>
 
-			{/* Используем встроенный Map с поиском */}
-			<div className="h-[450px] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+			<div className="h-112.5 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
 				<Map
 					ref={mapRef}
 					markers={markers}
@@ -256,7 +234,6 @@ export function AgreementMap({
 				/>
 			</div>
 
-			{/* Легенда */}
 			<div className="flex gap-4 text-sm">
 				<div className="flex items-center gap-2">
 					<div className="w-4 h-4 rounded-full" style={{ backgroundColor: SUPPLIER_COLOR }} />
@@ -272,7 +249,6 @@ export function AgreementMap({
 				</div>
 			</div>
 
-			{/* Информация о выбранных складах */}
 			<div className="grid grid-cols-2 gap-4 mt-2">
 				<div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
 					<div className="text-sm font-medium text-gray-500">Поставщик</div>
@@ -306,7 +282,6 @@ export function AgreementMap({
 				</div>
 			</div>
 
-			{/* Подсказка, когда оба склада выбраны */}
 			{bothSelected && !readOnly && (
 				<div className="text-center text-sm text-green-600 dark:text-green-400 py-2">
 					✓ Оба склада выбраны. Для изменения выберите другой склад на карте.

@@ -7,7 +7,7 @@ import { AddMaterialModal } from './AddMaterialModal';
 import { mapWarehouseMaterialToTableItem, type TableMaterial } from './utils';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
-import { inventoryService } from '@/services/intentoryService';
+import { inventoryService } from '@/services/inventoryService';
 import { EditAmountModal } from './EditMaterialAmountModal';
 
 const columns: Column<TableMaterial>[] = [

@@ -48,11 +48,15 @@ export class AgreementMaterialRepository {
       await client.query("BEGIN");
 
       for (const material of materials) {
+        // Удаляем старую запись и вставляем новую (без ON CONFLICT)
+        await client.query(
+          `DELETE FROM agreement_material WHERE agreement_id = $1 AND material_id = $2`,
+          [material.agreement_id, material.material_id],
+        );
+
         await client.query(
           `INSERT INTO agreement_material (agreement_id, material_id, amount, item_price)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (agreement_id, material_id) 
-           DO UPDATE SET amount = $3, item_price = $4`,
+           VALUES ($1, $2, $3, $4)`,
           [
             material.agreement_id,
             material.material_id,

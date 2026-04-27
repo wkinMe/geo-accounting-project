@@ -1,6 +1,6 @@
 // client/src/pages/warehouses/utils/mapWarehouseMaterialToTableItem.ts
 
-import type { InventoryItemWithMaterial } from "@/services/intentoryService";
+import type { InventoryItemWithMaterial } from '@/services/inventoryService';
 
 export interface TableMaterial {
 	id: number;

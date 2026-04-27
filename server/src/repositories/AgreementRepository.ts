@@ -159,4 +159,207 @@ export class AgreementRepository {
       );
     }
   }
+
+  // repositories/AgreementRepository.ts (добавить методы)
+  async findAllWithDetails(filters?: {
+    user_id?: number;
+    organization_id?: number;
+    role?: string;
+  }): Promise<any[]> {
+    let query = `
+    SELECT 
+      a.*,
+      json_build_object(
+        'id', s.id,
+        'name', s.name,
+        'role', s.role,
+        'organization_id', s.organization_id,
+        'created_at', s.created_at,
+        'updated_at', s.updated_at,
+        'organization', json_build_object(
+          'id', so.id,
+          'name', so.name,
+          'latitude', so.latitude,
+          'longitude', so.longitude,
+          'created_at', so.created_at,
+          'updated_at', so.updated_at
+        )
+      ) as supplier,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'role', c.role,
+        'organization_id', c.organization_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at,
+        'organization', json_build_object(
+          'id', co.id,
+          'name', co.name,
+          'latitude', co.latitude,
+          'longitude', co.longitude,
+          'created_at', co.created_at,
+          'updated_at', co.updated_at
+        )
+      ) as customer,
+      json_build_object(
+        'id', sw.id,
+        'name', sw.name,
+        'organization_id', sw.organization_id,
+        'manager_id', sw.manager_id,
+        'latitude', sw.latitude,
+        'longitude', sw.longitude,
+        'created_at', sw.created_at,
+        'updated_at', sw.updated_at
+      ) as supplier_warehouse,
+      json_build_object(
+        'id', cw.id,
+        'name', cw.name,
+        'organization_id', cw.organization_id,
+        'manager_id', cw.manager_id,
+        'latitude', cw.latitude,
+        'longitude', cw.longitude,
+        'created_at', cw.created_at,
+        'updated_at', cw.updated_at
+      ) as customer_warehouse,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'material', json_build_object(
+              'id', m.id,
+              'name', m.name,
+              'unit', m.unit,
+              'created_at', m.created_at,
+              'updated_at', m.updated_at
+            ),
+            'amount', am.amount,
+            'item_price', am.item_price
+          )
+        ) FILTER (WHERE m.id IS NOT NULL),
+        '[]'::json
+      ) as materials
+    FROM agreements a
+    INNER JOIN app_users s ON a.supplier_id = s.id
+    LEFT JOIN organizations so ON s.organization_id = so.id
+    INNER JOIN app_users c ON a.customer_id = c.id
+    LEFT JOIN organizations co ON c.organization_id = co.id
+    INNER JOIN warehouses sw ON a.supplier_warehouse_id = sw.id
+    INNER JOIN warehouses cw ON a.customer_warehouse_id = cw.id
+    LEFT JOIN agreement_material am ON a.id = am.agreement_id
+    LEFT JOIN materials m ON am.material_id = m.id
+  `;
+    const values: any[] = [];
+    const conditions: string[] = [];
+
+    if (filters?.role === "admin" && filters?.organization_id) {
+      conditions.push(
+        `(s.organization_id = $${values.length + 1} OR c.organization_id = $${values.length + 1})`,
+      );
+      values.push(filters.organization_id);
+    } else if (filters?.role === "manager" && filters?.user_id) {
+      conditions.push(
+        `(a.supplier_id = $${values.length + 1} OR a.customer_id = $${values.length + 1})`,
+      );
+      values.push(filters.user_id);
+    } else if (filters?.role === "user") {
+      conditions.push(`1=0`);
+    }
+
+    if (conditions.length > 0) {
+      query += " WHERE " + conditions.join(" AND ");
+    }
+
+    query +=
+      " GROUP BY a.id, s.id, so.id, c.id, co.id, sw.id, cw.id ORDER BY a.id";
+
+    const result = await this.db.query(query, values);
+    return result.rows;
+  }
+
+  async findByIdWithDetails(id: number): Promise<any | null> {
+    const query = `
+    SELECT 
+      a.*,
+      json_build_object(
+        'id', s.id,
+        'name', s.name,
+        'role', s.role,
+        'organization_id', s.organization_id,
+        'created_at', s.created_at,
+        'updated_at', s.updated_at,
+        'organization', json_build_object(
+          'id', so.id,
+          'name', so.name,
+          'latitude', so.latitude,
+          'longitude', so.longitude,
+          'created_at', so.created_at,
+          'updated_at', so.updated_at
+        )
+      ) as supplier,
+      json_build_object(
+        'id', c.id,
+        'name', c.name,
+        'role', c.role,
+        'organization_id', c.organization_id,
+        'created_at', c.created_at,
+        'updated_at', c.updated_at,
+        'organization', json_build_object(
+          'id', co.id,
+          'name', co.name,
+          'latitude', co.latitude,
+          'longitude', co.longitude,
+          'created_at', co.created_at,
+          'updated_at', co.updated_at
+        )
+      ) as customer,
+      json_build_object(
+        'id', sw.id,
+        'name', sw.name,
+        'organization_id', sw.organization_id,
+        'manager_id', sw.manager_id,
+        'latitude', sw.latitude,
+        'longitude', sw.longitude,
+        'created_at', sw.created_at,
+        'updated_at', sw.updated_at
+      ) as supplier_warehouse,
+      json_build_object(
+        'id', cw.id,
+        'name', cw.name,
+        'organization_id', cw.organization_id,
+        'manager_id', cw.manager_id,
+        'latitude', cw.latitude,
+        'longitude', cw.longitude,
+        'created_at', cw.created_at,
+        'updated_at', cw.updated_at
+      ) as customer_warehouse,
+      COALESCE(
+        json_agg(
+          json_build_object(
+            'material', json_build_object(
+              'id', m.id,
+              'name', m.name,
+              'unit', m.unit,
+              'created_at', m.created_at,
+              'updated_at', m.updated_at
+            ),
+            'amount', am.amount,
+            'item_price', am.item_price
+          )
+        ) FILTER (WHERE m.id IS NOT NULL),
+        '[]'::json
+      ) as materials
+    FROM agreements a
+    INNER JOIN app_users s ON a.supplier_id = s.id
+    LEFT JOIN organizations so ON s.organization_id = so.id
+    INNER JOIN app_users c ON a.customer_id = c.id
+    LEFT JOIN organizations co ON c.organization_id = co.id
+    INNER JOIN warehouses sw ON a.supplier_warehouse_id = sw.id
+    INNER JOIN warehouses cw ON a.customer_warehouse_id = cw.id
+    LEFT JOIN agreement_material am ON a.id = am.agreement_id
+    LEFT JOIN materials m ON am.material_id = m.id
+    WHERE a.id = $1
+    GROUP BY a.id, s.id, so.id, c.id, co.id, sw.id, cw.id
+  `;
+    const result = await this.db.query(query, [id]);
+    return result.rows[0] || null;
+  }
 }

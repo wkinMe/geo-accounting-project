@@ -1,3 +1,4 @@
+// client/src/hooks/useOrganizations.ts
 import { useQuery } from '@tanstack/react-query';
 import { organizationService } from '@/services/organizationService';
 
@@ -14,7 +15,7 @@ export function useOrganizations(searchQuery: string) {
 	});
 
 	return {
-		data: searchQuery ? searchedOrgs?.data : organizations?.data,
+		data: searchQuery ? searchedOrgs : organizations,
 		isLoading: searchQuery ? isSearching : isLoadingAll,
 	};
 }

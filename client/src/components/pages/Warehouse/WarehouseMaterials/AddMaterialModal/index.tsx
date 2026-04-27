@@ -5,7 +5,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { materialService } from '@/services/materialService';
 import { NumberField } from '@/components/shared/Fields';
-import { inventoryService } from '@/services/intentoryService';
+import { inventoryService } from '@/services/inventoryService';
 
 interface Props {
 	open: boolean;

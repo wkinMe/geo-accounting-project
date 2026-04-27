@@ -40,7 +40,7 @@ export function AgreementsList() {
 	});
 
 	const { data: searchedAgreements } = useQuery({
-		queryKey: ['agreements', searchQuery],
+		queryKey: ['agreements', 'search', searchQuery],
 		queryFn: () => agreementService.search(searchQuery),
 		enabled: searchQuery.length > 0,
 		retry: false,
@@ -61,27 +61,20 @@ export function AgreementsList() {
 		navigate(`/agreements/${id}/edit`);
 	};
 
-	// Получаем функции проверки прав (вызываем хук один раз)
 	const { canEdit, canDelete } = useAgreementBasePermissions();
 
-	// Получаем базовые элементы
-	const baseElements = useMemo(() => {
+	const elements = useMemo(() => {
 		const items =
 			searchQuery && searchedAgreements
-				? searchedAgreements.data.map(mapAgreementToTableItem)
-				: agreements?.data.map(mapAgreementToTableItem) || [];
+				? searchedAgreements.map(mapAgreementToTableItem)
+				: agreements?.map(mapAgreementToTableItem) || [];
 
-		return items;
-	}, [searchQuery, searchedAgreements, agreements]);
-
-	// Добавляем права к каждому элементу, используя функции из хука
-	const elementsWithPermissions = useMemo(() => {
-		return baseElements.map((item) => ({
+		return items.map((item) => ({
 			...item,
 			_canEdit: canEdit(),
 			_canDelete: canDelete(),
 		}));
-	}, [baseElements, canEdit, canDelete]);
+	}, [searchQuery, searchedAgreements, agreements, canEdit, canDelete]);
 
 	const actions: Action<TableAgreement>[] = [
 		{
@@ -114,11 +107,10 @@ export function AgreementsList() {
 				debounceMs={300}
 				itemName="Договор"
 				columns={columns}
-				elements={elementsWithPermissions}
+				elements={elements}
 				actions={actions}
 				onCreate={handleCreate}
 			/>
 		</>
 	);
 }
-

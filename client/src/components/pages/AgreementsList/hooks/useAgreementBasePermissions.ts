@@ -5,7 +5,7 @@ import { checkAgreementBasePermissions } from '../helpers';
 // Хук для списка договоров
 export const useAgreementBasePermissions = () => {
 	const { data: currentUserData } = useProfile();
-	const currentUser = currentUserData?.data;
+	const currentUser = currentUserData;
 
 	return checkAgreementBasePermissions(currentUser);
 };

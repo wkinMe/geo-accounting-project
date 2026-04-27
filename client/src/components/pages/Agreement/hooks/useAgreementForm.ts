@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { agreementService } from '@/services/agreementService';
-import type { AgreementCreateParams, AgreementUpdateParams } from '@shared/types';
+import type { CreateAgreementDTO, UpdateAgreementDTO } from '@shared/dto';
 import { isAxiosError } from '@/types';
 import { useAgreementFormStore } from '../store';
 import {
@@ -14,8 +14,8 @@ import {
 	type AgreementFormValues,
 	type MaterialRow,
 } from '../types';
-import { warehouseService } from '@/services';
 import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
+import { inventoryService } from '@/services/inventoryService';
 
 type AgreementFormStore = AgreementFormState & {
 	setSupplierOrg: (id: number | null) => void;
@@ -60,10 +60,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		staleTime: 0,
 	});
 
-	const { data: warehouseMaterials } = useQuery({
-		queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
-		queryFn: () => warehouseService.getMaterials(agreement?.data?.supplier_warehouse_id!),
-		enabled: !!agreement?.data?.supplier_warehouse_id,
+	const { data: warehouseStock } = useQuery({
+		queryKey: ['warehouseStock', agreement?.supplier_warehouse_id],
+		queryFn: () => inventoryService.getWarehouseStock(agreement?.supplier_warehouse_id!),
+		enabled: !!agreement?.supplier_warehouse_id,
 	});
 
 	const form = useForm<AgreementFormValues>({
@@ -78,8 +78,8 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			status: AGREEMENT_STATUS.DRAFT,
 			materials: [],
 		},
-		mode: 'onSubmit', // валидация только при отправке
-		reValidateMode: 'onChange', // ревалидация при изменении после первой ошибки
+		mode: 'onSubmit',
+		reValidateMode: 'onChange',
 	});
 
 	useEffect(() => {
@@ -90,8 +90,8 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	// Заполнение формы данными при редактировании
 	useEffect(() => {
-		if (agreement?.data && isEditing) {
-			const data = agreement.data;
+		if (agreement && isEditing) {
+			const data = agreement;
 
 			const supplierOrgId = data.supplier?.organization_id || null;
 			const customerOrgId = data.customer?.organization_id || null;
@@ -110,14 +110,13 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			store.setSupplierWarehouse(data.supplier_warehouse_id);
 			store.setCustomerWarehouse(data.customer_warehouse_id);
 
-			if (data.materials && warehouseMaterials?.data) {
-				const materialsMap = new Map(warehouseMaterials.data.map((m) => [m.material_id, m.amount]));
+			if (data.materials && warehouseStock) {
+				const materialsMap = new Map(warehouseStock.map((m) => [m.material_id, m.amount]));
 
 				data.materials.forEach((material) => {
-					console.log(data.materials);
 					store.addMaterial({
 						material_id: material.material.id,
-						name: material.material?.name || 'Материал',
+						name: material.material.name,
 						amount: material.amount,
 						maxAmount: materialsMap.get(material.material.id) || material.amount,
 						item_price: material.item_price,
@@ -138,70 +137,55 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				});
 			}
 		}
-	}, [agreement, isEditing, form, warehouseMaterials]);
+	}, [agreement, isEditing, form, warehouseStock]);
 
-	// Мутация для создания/обновления
 	const { mutateAsync, isPending: isSubmitting } = useMutation({
 		mutationFn: async (data: AgreementFormValues) => {
+			const materials = data.materials.map((m) => ({
+				material_id: m.material_id,
+				amount: m.amount,
+				item_price: m.item_price,
+			}));
+
+
 			if (isEditing) {
-				// Обновление
-				const params: AgreementUpdateParams = {
-					id: agreementId!,
-					updateData: {
-						supplier_id: data.supplierManager!,
-						customer_id: data.customerManager!,
-						supplier_warehouse_id: data.supplierWarehouse!,
-						customer_warehouse_id: data.customerWarehouse!,
-						status: data.status,
-					},
-					materials: data.materials.map((m) => ({
-						material_id: m.material_id,
-						amount: m.amount,
-						item_price: m.item_price,
-					})),
+				const updateData: UpdateAgreementDTO = {
+					supplier_id: data.supplierManager!,
+					customer_id: data.customerManager!,
+					supplier_warehouse_id: data.supplierWarehouse!,
+					customer_warehouse_id: data.customerWarehouse!,
+					status: data.status,
 				};
-				return await agreementService.update(params);
+				return await agreementService.update(agreementId!, updateData, materials);
 			} else {
-				// Создание
-				const params: AgreementCreateParams = {
-					createData: {
-						supplier_id: data.supplierManager!,
-						customer_id: data.customerManager!,
-						supplier_warehouse_id: data.supplierWarehouse!,
-						customer_warehouse_id: data.customerWarehouse!,
-						status: data.status,
-					},
-					materials: data.materials.map((m) => ({
-						material_id: m.material_id,
-						amount: m.amount,
-						item_price: m.item_price,
-					})),
+				const createData: CreateAgreementDTO = {
+					supplier_id: data.supplierManager!,
+					customer_id: data.customerManager!,
+					supplier_warehouse_id: data.supplierWarehouse!,
+					customer_warehouse_id: data.customerWarehouse!,
+					status: data.status,
 				};
-				return await agreementService.create(params);
+				return await agreementService.create(createData, materials);
 			}
 		},
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: ['agreements'] });
 			if (isEditing) {
 				queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] });
-
 				queryClient.invalidateQueries({
-					queryKey: ['warehouseMaterials', agreement?.data?.supplier_warehouse_id],
+					queryKey: ['warehouseStock', agreement?.supplier_warehouse_id],
 				});
 			}
-
 			store.resetForm();
 			form.reset();
 			setError(null);
-
-			// Перенаправление через setTimeout, чтобы успел сработать useEffect
 			setTimeout(() => {
 				navigate('/agreements');
 			}, 100);
 		},
 		onError: (err) => {
 			if (isAxiosError(err)) {
-				const serverMessage = err.response?.data?.message;
+				const serverMessage = err.response?.data.message;
 				setError(serverMessage || 'Ошибка при сохранении договора');
 			} else {
 				setError('Произошла неизвестная ошибка');
@@ -211,13 +195,11 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	const handleSubmit = form.handleSubmit(async (data) => {
 		setError(null);
-
 		await mutateAsync(data);
 	});
 
 	// Синхронизация данных из store в форму при создании нового договора
 	useEffect(() => {
-		// Только если это создание нового договора (нет agreementId)
 		if (!agreementId) {
 			const supplierOrg = store.supplierOrg;
 			const supplierWarehouse = store.supplierWarehouse;
@@ -226,23 +208,20 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			const customerWarehouse = store.customerWarehouse;
 			const customerManager = store.customerManager;
 
-			// Заполняем данные поставщика
 			if (supplierOrg && supplierWarehouse) {
 				form.setValue('supplierOrg', supplierOrg);
 				form.setValue('supplierWarehouse', supplierWarehouse);
 				if (supplierManager) form.setValue('supplierManager', supplierManager);
 			}
 
-			// Заполняем данные покупателя
 			if (customerOrg && customerWarehouse) {
 				form.setValue('customerOrg', customerOrg);
 				form.setValue('customerWarehouse', customerWarehouse);
 				if (customerManager) form.setValue('customerManager', customerManager);
 			}
 		}
-	}, [store]);
+	}, [store, form, agreementId]);
 
-	// Синхронизация материалов из store в form
 	useEffect(() => {
 		form.setValue('materials', store.materials, { shouldValidate: true });
 	}, [store.materials, form]);
