@@ -1,5 +1,5 @@
 // для 500 ошибок из baseErrorHandling
 export interface ErrorResponse {
-  message: string;
+  error?: string;
+  message?: string;
 }
-

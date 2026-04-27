@@ -1,5 +1,5 @@
 // client/src/components/shared/Table/index.tsx
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ConfirmModal } from '../ConfirmModal';
 import { SearchInput } from '../SearchInput';
 import { Button } from '../Button';

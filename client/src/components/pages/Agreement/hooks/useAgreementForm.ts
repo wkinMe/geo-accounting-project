@@ -82,6 +82,40 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		reValidateMode: 'onChange',
 	});
 
+	// Функция для проверки одинаковых складов
+	const validateDifferentWarehouses = (
+		supplierWarehouseId: number | null | undefined,
+		customerWarehouseId: number | null | undefined
+	) => {
+		if (supplierWarehouseId && customerWarehouseId && supplierWarehouseId === customerWarehouseId) {
+			setError('Склад поставщика и склад покупателя не могут быть одинаковыми');
+			return false;
+		}
+		return true;
+	};
+
+	// Подписываемся на изменения полей складов
+	const supplierWarehouse = form.watch('supplierWarehouse');
+	const customerWarehouse = form.watch('customerWarehouse');
+
+	// Проверяем при изменении поставщика
+	useEffect(() => {
+		if (supplierWarehouse && customerWarehouse && supplierWarehouse === customerWarehouse) {
+			setError('Склад поставщика и склад покупателя не могут быть одинаковыми');
+		} else if (error === 'Склад поставщика и склад покупателя не могут быть одинаковыми') {
+			setError(null);
+		}
+	}, [supplierWarehouse, customerWarehouse]);
+
+	// Проверяем при изменении покупателя
+	useEffect(() => {
+		if (customerWarehouse && supplierWarehouse && customerWarehouse === supplierWarehouse) {
+			setError('Склад поставщика и склад покупателя не могут быть одинаковыми');
+		} else if (error === 'Склад поставщика и склад покупателя не могут быть одинаковыми') {
+			setError(null);
+		}
+	}, [customerWarehouse, supplierWarehouse]);
+
 	useEffect(() => {
 		if (isEditing && agreementId) {
 			store.resetForm();
@@ -141,12 +175,16 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 
 	const { mutateAsync, isPending: isSubmitting } = useMutation({
 		mutationFn: async (data: AgreementFormValues) => {
+			// Проверка на одинаковые склады перед отправкой
+			if (!validateDifferentWarehouses(data.supplierWarehouse, data.customerWarehouse)) {
+				throw new Error('Склад поставщика и склад покупателя не могут быть одинаковыми');
+			}
+
 			const materials = data.materials.map((m) => ({
 				material_id: m.material_id,
 				amount: m.amount,
-				item_price: m.item_price,
+				item_price: m.item_price || 0,
 			}));
-
 
 			if (isEditing) {
 				const updateData: UpdateAgreementDTO = {
@@ -185,8 +223,10 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		},
 		onError: (err) => {
 			if (isAxiosError(err)) {
-				const serverMessage = err.response?.data.message;
+				const serverMessage = err.response?.data?.error || err.response?.data?.message;
 				setError(serverMessage || 'Ошибка при сохранении договора');
+			} else if (err instanceof Error) {
+				setError(err.message);
 			} else {
 				setError('Произошла неизвестная ошибка');
 			}

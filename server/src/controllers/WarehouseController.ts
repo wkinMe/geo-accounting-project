@@ -25,17 +25,7 @@ export class WarehouseController {
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const user = (req as any).user;
-      let organization_id: number | undefined;
-
-      if (
-        user &&
-        (user.role === USER_ROLES.ADMIN ||
-          user.role === USER_ROLES.MANAGER ||
-          user.role === USER_ROLES.USER)
-      ) {
-        organization_id = user.organization_id;
-      }
+      let organization_id = Number(req.query.organization_id);
 
       const warehouses =
         await this.warehouseService.findAllWithDetails(organization_id);

@@ -1,11 +1,31 @@
-// client/src/components/pages/AgreementsList/hooks/useAgreementBasePermissions.ts
+// client/src/pages/agreements/hooks/useAgreementBasePermissions.ts
 import { useProfile } from '@/hooks';
-import { checkAgreementBasePermissions } from '../helpers';
+import { USER_ROLES } from '@shared/constants';
 
-// Хук для списка договоров
 export const useAgreementBasePermissions = () => {
-	const { data: currentUserData } = useProfile();
-	const currentUser = currentUserData;
+  const { data: currentUser } = useProfile();
 
-	return checkAgreementBasePermissions(currentUser);
+  const canEdit = (): boolean => {
+    if (!currentUser) return false;
+    // Все, кроме обычных пользователей, могут редактировать
+    return currentUser.role !== USER_ROLES.USER;
+  };
+
+  const canDelete = (): boolean => {
+    if (!currentUser) return false;
+    // Только супер-администраторы могут удалять договоры (остальным запрещаем, проверка по статусу будет в компоненте)
+    return currentUser.role === USER_ROLES.SUPER_ADMIN;
+  };
+
+  const canCreate = (): boolean => {
+    if (!currentUser) return false;
+    // Все, кроме обычных пользователей, могут создавать договоры
+    return currentUser.role !== USER_ROLES.USER;
+  };
+
+  return {
+    canEdit,
+    canDelete,
+    canCreate,
+  };
 };

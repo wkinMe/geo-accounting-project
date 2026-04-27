@@ -12,7 +12,10 @@ import type { User, UserWithOrganization } from '@shared/models';
 class UserService {
 	private readonly baseUrl = '/users';
 
+	// client/src/services/userService.ts
 	async login(data: LoginDTO): Promise<AuthResponse> {
+		localStorage.removeItem('token');
+
 		const response = await instance.post<{ success: boolean; data: AuthResponse }>(
 			`${this.baseUrl}/login`,
 			data

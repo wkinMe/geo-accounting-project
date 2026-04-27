@@ -1,5 +1,5 @@
 // src/components/shared/Map/components/MapMarker.tsx
-import { Marker, Popup } from 'react-leaflet';
+import { Marker, Popup, Tooltip } from 'react-leaflet';
 import type { MapMarker as MapMarkerType } from '../../types';
 import { createCustomIcon } from '../../helpers/createCustomIcon';
 import { MapPopup } from '../MapPopup';
@@ -35,11 +35,22 @@ export function MapMarker({ marker, onMarkerClick }: MapMarkerProps) {
 			icon={createCustomIcon(marker.iconColor, marker.type)}
 			eventHandlers={{ click: handleClick }}
 		>
+			<Tooltip
+				sticky
+				direction="top"
+				offset={[0, -20]}
+				className="bg-white! shadow-lg! rounded-lg! border! border-gray-200! p-2! text-sm!"
+			>
+				<div className="flex items-center gap-2">
+					<span className="font-semibold text-gray-900">{marker.title}</span>
+				</div>
+				{marker.subtitle && <div className="text-xs text-gray-500 mt-0.5">{marker.subtitle}</div>}
+			</Tooltip>
 			<Popup>
 				<MapPopup
 					marker={marker}
-					onDetailsClick={handleDetailsClick}
-					onCreateAgreement={handleCreateAgreement}
+					onDetailsClick={marker.onDetailsClick && handleDetailsClick}
+					onCreateAgreement={marker.onCreateAgreement && handleCreateAgreement}
 				/>
 			</Popup>
 		</Marker>

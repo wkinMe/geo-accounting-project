@@ -194,35 +194,45 @@ export class UserService {
       throw new ValidationError("Refresh токен обязателен", "refreshToken");
     }
 
-    const verifiedUserData = this.tokenService.verifyRefreshToken(refreshToken);
-    const tokenFromDb = await this.refreshTokenRepo.findByToken(refreshToken);
+    try {
+      const verifiedUserData =
+        this.tokenService.verifyRefreshToken(refreshToken);
+      const tokenFromDb = await this.refreshTokenRepo.findByToken(refreshToken);
 
-    if (!verifiedUserData || !tokenFromDb) {
-      throw new ValidationError(
-        "Неверный или просроченный refresh токен",
-        "refreshToken",
+      if (!verifiedUserData || !tokenFromDb) {
+        throw new ValidationError(
+          "Неверный или просроченный refresh токен",
+          "refreshToken",
+        );
+      }
+
+      const user = await this.findById(verifiedUserData.id);
+
+      const userDataForToken: UserDataDTO = {
+        id: user.id!,
+        name: user.name,
+        organization_id: user.organization_id ?? null,
+        role: user.role,
+      };
+
+      const tokens = this.tokenService.generateTokens(userDataForToken);
+
+      const newRefreshToken = RefreshToken.create(
+        user.id!,
+        tokens.refreshToken,
       );
+      await this.refreshTokenRepo.save(newRefreshToken);
+
+      return {
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    } catch (error) {
+      // Если refresh token невалиден - удаляем его из БД
+      await this.refreshTokenRepo.delete(refreshToken);
+      throw error;
     }
-
-    const user = await this.findById(verifiedUserData.id);
-
-    const userDataForToken: UserDataDTO = {
-      id: user.id!,
-      name: user.name,
-      organization_id: user.organization_id ?? null,
-      role: user.role,
-    };
-
-    const tokens = this.tokenService.generateTokens(userDataForToken);
-
-    const newRefreshToken = RefreshToken.create(user.id!, tokens.refreshToken);
-    await this.refreshTokenRepo.save(newRefreshToken);
-
-    return {
-      user,
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    };
   }
 
   async update(

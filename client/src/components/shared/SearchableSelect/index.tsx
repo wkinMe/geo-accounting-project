@@ -233,7 +233,7 @@ export function SearchableSelect<T extends Option>({
 				</div>
 
 				{isOpen && (
-					<div className="absolute z-10 w-full mt-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+					<div className="absolute z-1000 w-full mt-1 bg-white dark:bg-black border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg max-h-60 overflow-y-auto">
 						{isLoading ? (
 							<div className="px-3 py-2 text-gray-500 dark:text-gray-400">Поиск...</div>
 						) : options.length === 0 ? (

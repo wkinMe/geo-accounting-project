@@ -189,8 +189,7 @@ export class AgreementService {
 
   async create(params: AgreementCreateParams): Promise<Agreement> {
     try {
-      console.log(params);
-      // Валидация
+
       await this.validateUserExists(params.supplier_id, "supplier_id");
       await this.validateUserExists(params.customer_id, "customer_id");
       await this.validateWarehouseExists(
@@ -248,6 +247,8 @@ export class AgreementService {
               material.amount.toString(),
             );
           }
+
+          console.log(material.item_price);
 
           materials.push(
             AgreementMaterial.create({

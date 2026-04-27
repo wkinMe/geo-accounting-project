@@ -31,7 +31,7 @@ export class AgreementMaterial {
       params.agreement_id,
       params.material_id,
       params.amount,
-      params.item_price || null,
+      params.item_price || 0,
     );
   }
 

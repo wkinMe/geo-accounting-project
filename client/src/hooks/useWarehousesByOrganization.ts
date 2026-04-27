@@ -6,14 +6,14 @@ export function useWarehousesByOrganization(organizationId: number | null, searc
 	// Получаем все склады организации (без поиска)
 	const { data: warehouses, isLoading: isLoadingAll } = useQuery({
 		queryKey: ['warehouses', 'organization', organizationId],
-		queryFn: () => warehouseService.findAll(organizationId!),
+		queryFn: () => warehouseService.findAll(organizationId || undefined),
 		enabled: !!organizationId,
 	});
 
 	// Поиск складов по названию в рамках организации
 	const { data: searchedWarehouses, isLoading: isSearching } = useQuery({
 		queryKey: ['warehouses', 'search', searchQuery, organizationId],
-		queryFn: () => warehouseService.search(searchQuery, organizationId!),
+		queryFn: () => warehouseService.search(searchQuery, organizationId || undefined),
 		enabled: searchQuery.length > 0 && !!organizationId,
 	});
 

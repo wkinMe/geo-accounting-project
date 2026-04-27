@@ -112,12 +112,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 								: 'Создание нового договора'}
 					</h1>
 
-					{error && (
-						<div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-							<p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-						</div>
-					)}
-
 					<PartySection
 						type="supplier"
 						isEditing={!!agreementId}
@@ -172,6 +166,12 @@ export function AgreementForm({ mode = 'create' }: Props) {
 						canEdit={!isViewMode}
 						currentStatus={currentStatus}
 					/>
+
+					{error && (
+						<div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+							<p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+						</div>
+					)}
 
 					{!isViewMode && (
 						<FormActions
