@@ -37,7 +37,15 @@ export class InventoryController {
 
       res.json({
         success: true,
-        data: stock.map((s) => s.toJSON()),
+        data: stock.map((item) => ({
+          id: item.id,
+          warehouse_id: item.warehouse_id,
+          material_id: item.material_id,
+          amount: item.amount,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          material: item.material,
+        })),
         count: stock.length,
       });
     } catch (error) {
@@ -134,7 +142,15 @@ export class InventoryController {
 
       res.status(201).json({
         success: true,
-        data: result.toJSON(),
+        data: {
+          id: result.id,
+          warehouse_id: result.warehouse_id,
+          material_id: result.material_id,
+          amount: result.amount,
+          created_at: result.created_at,
+          updated_at: result.updated_at,
+          material: result.material,
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -166,7 +182,15 @@ export class InventoryController {
 
       res.json({
         success: true,
-        data: result.toJSON(),
+        data: {
+          id: result.id,
+          warehouse_id: result.warehouse_id,
+          material_id: result.material_id,
+          amount: result.amount,
+          created_at: result.created_at,
+          updated_at: result.updated_at,
+          material: result.material,
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -196,9 +220,25 @@ export class InventoryController {
         user_id: userId,
       });
 
+      if (!result) {
+        return res.json({
+          success: true,
+          data: null,
+          message: "Материал удалён со склада",
+        });
+      }
+
       res.json({
         success: true,
-        data: result?.toJSON() || null,
+        data: {
+          id: result.id,
+          warehouse_id: result.warehouse_id,
+          material_id: result.material_id,
+          amount: result.amount,
+          created_at: result.created_at,
+          updated_at: result.updated_at,
+          material: result.material,
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -212,7 +252,7 @@ export class InventoryController {
 
       if (!requirements || !Array.isArray(requirements)) {
         throw new ValidationError(
-          "Requirements must be an array",
+          "Параметр requirements должен быть массивом",
           "checkAvailability",
           "requirements",
           requirements,

@@ -37,7 +37,7 @@ export class WarehouseHistoryController {
 
       res.json({
         success: true,
-        data: history.map((h) => h.toJSON()),
+        data: history,
         count: history.length,
       });
     } catch (error) {
@@ -61,7 +61,7 @@ export class WarehouseHistoryController {
 
       res.json({
         success: true,
-        data: history.map((h) => h.toJSON()),
+        data: history,
         count: history.length,
       });
     } catch (error) {
@@ -85,7 +85,7 @@ export class WarehouseHistoryController {
 
       res.json({
         success: true,
-        data: history.map((h) => h.toJSON()),
+        data: history,
         count: history.length,
       });
     } catch (error) {

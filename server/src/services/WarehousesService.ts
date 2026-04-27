@@ -5,6 +5,7 @@ import { OrganizationRepository } from "../repositories/OrganizationRepository";
 import { UserRepository } from "../repositories/UserRepository";
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
 import { ValidationError, NotFoundError } from "@shared/service";
+import { WarehouseWithManagerAndOrganization } from "@shared/models";
 
 export class WarehouseService {
   constructor(
@@ -15,6 +16,12 @@ export class WarehouseService {
 
   async findAll(organization_id?: number): Promise<Warehouse[]> {
     return await this.warehouseRepo.findAll(organization_id);
+  }
+
+  async findAllWithDetails(
+    organization_id?: number,
+  ): Promise<WarehouseWithManagerAndOrganization[]> {
+    return await this.warehouseRepo.findAllWithDetails(organization_id);
   }
 
   async findById(id: number): Promise<Warehouse> {
@@ -311,5 +318,12 @@ export class WarehouseService {
         dto.longitude.toString(),
       );
     }
+  }
+
+  async search(query: string, organization_id?: number): Promise<Warehouse[]> {
+    if (!query || query.trim().length === 0) {
+      return await this.findAll(organization_id);
+    }
+    return await this.warehouseRepo.search(query.trim(), organization_id);
   }
 }

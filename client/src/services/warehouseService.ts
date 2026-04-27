@@ -1,210 +1,86 @@
 // client/src/services/warehouseService.ts
-
 import { instance } from '@/api/instance';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import type {
-	Warehouse,
-	WarehouseWithMaterialsAndOrganization,
-	WarehouseMaterial,
-	Material,
-} from '@shared/models';
-import type { SuccessResponse } from '@shared/types';
+import type { WarehouseWithManagerAndOrganization } from '@shared/models';
 
 class WarehouseService {
 	private readonly baseUrl = '/warehouses';
 
-	/**
-	 * Получение всех складов с материалами и организацией
-	 */
-	async findAll(): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
-			`${this.baseUrl}/`
-		);
-		return response.data;
+	async findAll(organization_id?: number): Promise<WarehouseWithManagerAndOrganization[]> {
+		const params = organization_id ? { organization_id } : {};
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization[];
+		}>(`${this.baseUrl}/`, { params });
+		return response.data.data;
 	}
 
-	/**
-	 * Получение склада по ID
-	 */
-	async findById(id: number): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
+	async findById(id: number): Promise<WarehouseWithManagerAndOrganization> {
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization;
+		}>(`${this.baseUrl}/${id}`);
+		return response.data.data;
+	}
+
+	async create(data: CreateWarehouseDTO): Promise<WarehouseWithManagerAndOrganization> {
+		const response = await instance.post<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization;
+		}>(`${this.baseUrl}/`, data);
+		return response.data.data;
+	}
+
+	async update(id: number, data: UpdateWarehouseDTO): Promise<WarehouseWithManagerAndOrganization> {
+		const response = await instance.put<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization;
+		}>(`${this.baseUrl}/${id}`, data);
+		return response.data.data;
+	}
+
+	async delete(id: number): Promise<void> {
+		const response = await instance.delete<{ success: boolean; message: string }>(
 			`${this.baseUrl}/${id}`
 		);
-		return response.data;
+		if (!response.data.success) {
+			throw new Error(response.data.message || 'Не удалось удалить склад');
+		}
 	}
 
-	/**
-	 * Создание нового склада
-	 */
-	async create(
-		data: CreateWarehouseDTO
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.post<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
-			`${this.baseUrl}/`,
-			data
-		);
-		return response.data;
+	async findByManagerId(managerId: number): Promise<WarehouseWithManagerAndOrganization[]> {
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization[];
+		}>(`${this.baseUrl}/manager/${managerId}`);
+		return response.data.data;
 	}
 
-	/**
-	 * Обновление склада
-	 */
-	async update(
-		id: number,
-		data: UpdateWarehouseDTO
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.patch<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
-			`${this.baseUrl}/${id}`,
-			data
-		);
-		return response.data;
-	}
-
-	/**
-	 * Удаление склада
-	 */
-	async delete(id: number): Promise<SuccessResponse<Warehouse>> {
-		const response = await instance.delete<SuccessResponse<Warehouse>>(`${this.baseUrl}/${id}`);
-		return response.data;
-	}
-
-	/**
-	 * Поиск складов по запросу
-	 */
-	async search(query: string): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
-			`${this.baseUrl}/search`,
-			{
-				params: { q: query },
-			}
-		);
-		return response.data;
-	}
-
-	/**
-	 * Получение складов по менеджеру
-	 */
-	async findByManagerId(
-		managerId: number
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
-			`${this.baseUrl}/manager/${managerId}`
-		);
-		return response.data;
-	}
-
-	/**
-	 * Назначение менеджера на склад
-	 */
 	async assignManager(
 		warehouseId: number,
-		managerId: number | null
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization>> {
-		const response = await instance.patch<SuccessResponse<WarehouseWithMaterialsAndOrganization>>(
-			`${this.baseUrl}/${warehouseId}/assign-manager`,
-			{ managerId }
-		);
-		return response.data;
+		manager_id: number | null
+	): Promise<WarehouseWithManagerAndOrganization> {
+		const response = await instance.patch<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization;
+		}>(`${this.baseUrl}/${warehouseId}/assign-manager`, { manager_id });
+		return response.data.data;
 	}
 
-	/**
-	 * Добавление материала на склад
-	 */
-	async addMaterial(
-		warehouseId: number,
-		materialId: number,
-		amount: number
-	): Promise<SuccessResponse<WarehouseMaterial>> {
-		const response = await instance.post<SuccessResponse<WarehouseMaterial>>(
-			`${this.baseUrl}/${warehouseId}/materials`,
-			{ materialId, amount }
-		);
-		return response.data;
-	}
-
-	/**
-	 * Обновление количества материала на складе
-	 */
-	async updateMaterialAmount(
-		warehouseId: number,
-		materialId: number,
-		amount: number
-	): Promise<SuccessResponse<WarehouseMaterial>> {
-		const response = await instance.patch<SuccessResponse<WarehouseMaterial>>(
-			`${this.baseUrl}/${warehouseId}/materials/${materialId}`,
-			{ amount }
-		);
-		return response.data;
-	}
-
-	/**
-	 * Удаление материала со склада
-	 */
-	async removeMaterial(
-		warehouseId: number,
-		materialId: number
-	): Promise<SuccessResponse<WarehouseMaterial>> {
-		const response = await instance.delete<SuccessResponse<WarehouseMaterial>>(
-			`${this.baseUrl}/${warehouseId}/materials/${materialId}`
-		);
-		return response.data;
-	}
-
-	/**
-	 * Получение всех материалов на складе
-	 */
-	async getMaterials(
-		warehouseId: number
-	): Promise<SuccessResponse<(WarehouseMaterial & { material: Material })[]>> {
-		const response = await instance.get<
-			SuccessResponse<(WarehouseMaterial & { material: Material })[]>
-		>(`${this.baseUrl}/${warehouseId}/materials`);
-		return response.data;
-	}
-
-	/**
-	 * Поиск материалов на складе
-	 */
-	async searchMaterials(
-		warehouseId: number,
-		query: string
-	): Promise<SuccessResponse<(WarehouseMaterial & { material: Material })[]>> {
-		const response = await instance.get<
-			SuccessResponse<(WarehouseMaterial & { material: Material })[]>
-		>(`${this.baseUrl}/${warehouseId}/materials/search`, {
-			params: { q: query },
-		});
-		return response.data;
-	}
-
-	/**
-	 * Получение складов по организации
-	 */
-	async findByOrganizationId(
-		organizationId: number
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
-			`${this.baseUrl}/organization/${organizationId}`
-		);
-		return response.data;
-	}
-
-	/**
-	 * Поиск складов по организации
-	 */
-	async searchByOrganizationId(
-		organizationId: number,
-		query: string
-	): Promise<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseWithMaterialsAndOrganization[]>>(
-			`${this.baseUrl}/organization/${organizationId}/search`,
-			{
-				params: { q: query },
-			}
-		);
-		return response.data;
+	async search(
+		query: string,
+		organization_id?: number
+	): Promise<WarehouseWithManagerAndOrganization[]> {
+		const params: Record<string, any> = { q: query };
+		if (organization_id) {
+			params.organization_id = organization_id;
+		}
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseWithManagerAndOrganization[];
+		}>(`${this.baseUrl}/search`, { params });
+		return response.data.data;
 	}
 }
 
-// Создаем и экспортируем единственный экземпляр
 export const warehouseService = new WarehouseService();

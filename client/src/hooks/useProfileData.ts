@@ -9,5 +9,5 @@ export function useProfileData() {
 		retry: 1,
 	});
 
-	return data?.data;
+	return data;
 }

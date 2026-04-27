@@ -1,5 +1,4 @@
 // components/modals/WarehouseModal.tsx
-
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,11 +10,11 @@ import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { atLeastAdmin, isAdminRole } from '@/utils';
-import { useProfileData } from '@/hooks/useProfileData';
 import { getManagerFieldAvailable } from './utils';
 import type { WarehouseModalData } from './types';
 import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
 import { LocationPicker } from '../../../shared/LocationPicker';
+import { useProfile } from '@/hooks';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
@@ -41,14 +40,15 @@ interface Props {
 	isLoading?: boolean;
 }
 
-export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
+export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }: Props) {
 	const queryClient = useQueryClient();
 	const [orgSearchQuery, setOrgSearchQuery] = useState('');
 	const [managerSearchQuery, setManagerSearchQuery] = useState('');
 	const [latitude, setLatitude] = useState<number | undefined>(warehouse?.latitude ?? undefined);
 	const [longitude, setLongitude] = useState<number | undefined>(warehouse?.longitude ?? undefined);
+	const [error, setError] = useState<string | null>(null);
 
-	const profileData = useProfileData();
+	const profileData = useProfile().data;
 
 	const isEditing = !!warehouse?.id;
 
@@ -74,30 +74,26 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const { data: currentManagerData, isLoading: isCurrentManagerDataLoading } = useQuery({
 		queryKey: ['manager', warehouse?.manager_id],
 		queryFn: () => userService.findById(warehouse?.manager_id || 0),
-		enabled: !!warehouse?.manager_id && open, // Загружаем только если есть ID и модалка открыта
+		enabled: !!warehouse?.manager_id && open,
 	});
 
-	// Загружаем все организации для начального отображения
 	const { data: organizationsData } = useQuery({
 		queryKey: ['organizations'],
 		queryFn: () => organizationService.findAll(),
 	});
 
-	// Поиск организаций
 	const { data: orgSearchData, isLoading: isOrgSearching } = useQuery({
 		queryKey: ['organizations', 'search', orgSearchQuery],
 		queryFn: () => organizationService.search(orgSearchQuery),
 		enabled: open && orgSearchQuery.length > 0,
 	});
 
-	// Поиск менеджеров
 	const { data: managerSearchData, isLoading: isManagerSearching } = useQuery({
 		queryKey: ['managers', 'search', managerSearchQuery],
 		queryFn: () => userService.search(managerSearchQuery),
 		enabled: open && managerSearchQuery.length > 0,
 	});
 
-	// Доступные менеджеры (без поиска)
 	const { data: availableManagersData } = useQuery({
 		queryKey: ['available-managers', profileData?.role, profileData?.organization_id],
 		queryFn: () => {
@@ -108,10 +104,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 		enabled: isAdminRole(profileData?.role),
 	});
 
-	// Сброс формы при открытии с новыми данными
 	useEffect(() => {
 		if (open) {
-			// При открытии - заполняем данными склада
 			reset({
 				name: warehouse?.name ?? '',
 				organization_id: warehouse?.organization_id ?? 0,
@@ -121,11 +115,10 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			});
 			setLatitude(warehouse?.latitude);
 			setLongitude(warehouse?.longitude);
-			// Сброс поисковых запросов
 			setOrgSearchQuery('');
 			setManagerSearchQuery('');
+			setError(null);
 		} else {
-			// При закрытии - сбрасываем на пустые значения с задержкой
 			const timeoutId = setTimeout(() => {
 				reset({
 					name: '',
@@ -141,26 +134,30 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	}, [open, warehouse, reset]);
 
 	const handleSubmit = async () => {
-		// Запуск валидации всех полей формы
+		setError(null);
 		const isValid = await trigger();
 
-		if (isValid) {
-			// Получение значений текущих полей формы
-			const formData = watch();
+		if (!isValid) {
+			setError('Пожалуйста, исправьте ошибки в форме');
+			throw new Error('Пожалуйста, исправьте ошибки в форме');
+		}
 
+		const formData = watch();
+
+		try {
 			if (isEditing) {
-				await onSubmit(formData as UpdateWarehouseDTO, warehouse.id);
+				await onSubmit(formData as UpdateWarehouseDTO, warehouse!.id);
 			} else {
 				await onSubmit(formData as CreateWarehouseDTO);
 			}
 
-			// Инвалидация кеша после обновления
 			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-			setOpen(false);
-		} else {
-			// Проброс ошибки, чтобы модалка не закрылась
-			// TODO отображение ошибки
-			throw new Error('Пожалуйста, исправьте ошибки в форме');
+			// Модалка закроется из ConfirmModal при успехе
+		} catch (err: any) {
+			const errorMessage =
+				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';
+			setError(errorMessage);
+			throw err;
 		}
 	};
 
@@ -174,22 +171,16 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 	const selectedManagerId = watch('manager_id');
 	const selectedOrgId = watch('organization_id');
 
-	// Получение организаций для отображения с учётом поиска или его отсутствием
-	const organizations =
-		orgSearchQuery.length > 0 ? orgSearchData?.data || [] : organizationsData?.data || [];
+	const organizations = orgSearchQuery.length > 0 ? orgSearchData || [] : organizationsData || [];
 
 	const managers = (() => {
-		// Базовый список из поиска или доступных менеджеров
 		const baseManagers =
-			managerSearchQuery.length > 0
-				? managerSearchData?.data || []
-				: availableManagersData?.data || [];
+			managerSearchQuery.length > 0 ? managerSearchData || [] : availableManagersData || [];
 
-		// Если есть текущий менеджер и его нет в базовом списке - добавляем его
-		if (warehouse?.manager_id && currentManagerData?.data) {
+		if (warehouse?.manager_id && currentManagerData) {
 			const managerInList = baseManagers.some((m) => m.id === warehouse.manager_id);
 			if (!managerInList) {
-				return [currentManagerData.data, ...baseManagers];
+				return [currentManagerData, ...baseManagers];
 			}
 		}
 
@@ -204,6 +195,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 			onConfirm={handleSubmit}
 			confirmText={isEditing ? 'Сохранить' : 'Создать'}
 			cancelText="Отмена"
+			error={error}
 		>
 			<div className="space-y-4">
 				<TextField
@@ -245,7 +237,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit }: Props) {
 							<button
 								type="button"
 								onClick={() => setValue('manager_id', null, { shouldValidate: true })}
-								className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+								className="w-full rounded-md h-8 bg-red-500 cursor-pointer text-white hover:bg-red-400 transition-colors"
 							>
 								Снять менеджера
 							</button>

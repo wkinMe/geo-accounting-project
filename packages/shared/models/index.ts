@@ -5,3 +5,4 @@ export * from "./User";
 export * from "./Warehouse";
 export * from "./WarehouseHistory";
 export * from "./MaterialsMedia";
+export * from "./InventoryItem";

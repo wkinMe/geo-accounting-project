@@ -57,4 +57,7 @@ router.delete(
   warehouseController.delete,
 );
 
+// GET /api/warehouses/search - поиск складов
+router.get("/search", authMiddleware, warehouseController.search);
+
 export { router as warehousesRouter };

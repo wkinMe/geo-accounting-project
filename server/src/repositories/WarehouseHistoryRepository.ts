@@ -3,8 +3,143 @@ import { Pool } from "pg";
 import { WarehouseHistoryItem } from "../domain/entities/WarehouseHistoryItem";
 import { DatabaseError } from "@shared/service";
 
+export interface WarehouseHistoryItemWithDetails {
+  id: number;
+  warehouse_id: number;
+  material_id: number;
+  operation_type: string;
+  old_amount: number;
+  new_amount: number;
+  delta: number;
+  user_id: number | null;
+  agreement_id: number | null;
+  description: string | null;
+  created_at: Date;
+  material: {
+    id: number;
+    name: string;
+    unit: string;
+    created_at: Date;
+    updated_at: Date;
+  } | null;
+  user: {
+    id: number;
+    name: string;
+    role: string;
+    organization_id: number;
+    created_at: Date;
+    updated_at: Date;
+  } | null;
+  warehouse: {
+    id: number;
+    name: string;
+    organization_id: number;
+    manager_id: number;
+    latitude: number;
+    longitude: number;
+    created_at: Date;
+    updated_at: Date;
+  } | null;
+  agreement: {
+    id: number;
+    supplier_id: number;
+    customer_id: number;
+    supplier_warehouse_id: number;
+    customer_warehouse_id: number;
+    status: string;
+    created_at: Date;
+    updated_at: Date;
+  } | null;
+}
+
 export class WarehouseHistoryRepository {
   constructor(private db: Pool) {}
+
+  async findByWarehouseWithDetails(
+    warehouse_id: number,
+    limit: number = 100,
+    offset: number = 0,
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    const query = `
+      SELECT 
+        h.id,
+        h.warehouse_id,
+        h.material_id,
+        h.operation_type,
+        h.old_amount,
+        h.new_amount,
+        h.delta,
+        h.user_id,
+        h.agreement_id,
+        h.description,
+        h.created_at,
+        json_build_object(
+          'id', m.id,
+          'name', m.name,
+          'unit', m.unit,
+          'created_at', m.created_at,
+          'updated_at', m.updated_at
+        ) as material,
+        json_build_object(
+          'id', u.id,
+          'name', u.name,
+          'role', u.role,
+          'organization_id', u.organization_id,
+          'created_at', u.created_at,
+          'updated_at', u.updated_at
+        ) as "user",
+        json_build_object(
+          'id', w.id,
+          'name', w.name,
+          'organization_id', w.organization_id,
+          'manager_id', w.manager_id,
+          'latitude', w.latitude,
+          'longitude', w.longitude,
+          'created_at', w.created_at,
+          'updated_at', w.updated_at
+        ) as warehouse,
+        CASE 
+          WHEN a.id IS NOT NULL THEN json_build_object(
+            'id', a.id,
+            'supplier_id', a.supplier_id,
+            'customer_id', a.customer_id,
+            'supplier_warehouse_id', a.supplier_warehouse_id,
+            'customer_warehouse_id', a.customer_warehouse_id,
+            'status', a.status,
+            'created_at', a.created_at,
+            'updated_at', a.updated_at
+          )
+          ELSE NULL
+        END as agreement
+      FROM warehouse_material_history h
+      LEFT JOIN materials m ON h.material_id = m.id
+      LEFT JOIN app_users u ON h.user_id = u.id
+      LEFT JOIN warehouses w ON h.warehouse_id = w.id
+      LEFT JOIN agreements a ON h.agreement_id = a.id
+      WHERE h.warehouse_id = $1
+      ORDER BY h.created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const result = await this.db.query(query, [warehouse_id, limit, offset]);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      warehouse_id: row.warehouse_id,
+      material_id: row.material_id,
+      operation_type: row.operation_type,
+      old_amount: row.old_amount,
+      new_amount: row.new_amount,
+      delta: row.delta,
+      user_id: row.user_id,
+      agreement_id: row.agreement_id,
+      description: row.description,
+      created_at: row.created_at,
+      material: row.material,
+      user: row.user,
+      warehouse: row.warehouse,
+      agreement: row.agreement,
+    }));
+  }
 
   async save(history: WarehouseHistoryItem): Promise<WarehouseHistoryItem> {
     const query = `
@@ -51,111 +186,176 @@ export class WarehouseHistoryRepository {
     );
   }
 
-  async findByWarehouse(
-    warehouse_id: number,
-    limit: number = 100,
-    offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
-    const query = `
-      SELECT 
-        id, warehouse_id, material_id, operation_type,
-        old_amount, new_amount, delta,
-        user_id, agreement_id, description, created_at
-      FROM warehouse_material_history
-      WHERE warehouse_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3
-    `;
-
-    const result = await this.db.query(query, [warehouse_id, limit, offset]);
-
-    return result.rows.map(
-      (row) =>
-        new WarehouseHistoryItem(
-          row.id,
-          row.warehouse_id,
-          row.material_id,
-          row.operation_type,
-          row.old_amount,
-          row.new_amount,
-          row.delta,
-          row.user_id,
-          row.agreement_id,
-          row.description,
-          row.created_at,
-        ),
-    );
-  }
-
-  async findByAgreement(
+  // repositories/WarehouseHistoryRepository.ts - добавить методы
+  async findByAgreementWithDetails(
     agreement_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
     const query = `
-      SELECT 
-        id, warehouse_id, material_id, operation_type,
-        old_amount, new_amount, delta,
-        user_id, agreement_id, description, created_at
-      FROM warehouse_material_history
-      WHERE agreement_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3
-    `;
-
+    SELECT 
+      h.id,
+      h.warehouse_id,
+      h.material_id,
+      h.operation_type,
+      h.old_amount,
+      h.new_amount,
+      h.delta,
+      h.user_id,
+      h.agreement_id,
+      h.description,
+      h.created_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material,
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'role', u.role,
+        'organization_id', u.organization_id,
+        'created_at', u.created_at,
+        'updated_at', u.updated_at
+      ) as "user",
+      json_build_object(
+        'id', w.id,
+        'name', w.name,
+        'organization_id', w.organization_id,
+        'manager_id', w.manager_id,
+        'latitude', w.latitude,
+        'longitude', w.longitude,
+        'created_at', w.created_at,
+        'updated_at', w.updated_at
+      ) as warehouse,
+      CASE 
+        WHEN a.id IS NOT NULL THEN json_build_object(
+          'id', a.id,
+          'supplier_id', a.supplier_id,
+          'customer_id', a.customer_id,
+          'supplier_warehouse_id', a.supplier_warehouse_id,
+          'customer_warehouse_id', a.customer_warehouse_id,
+          'status', a.status,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at
+        )
+        ELSE NULL
+      END as agreement
+    FROM warehouse_material_history h
+    LEFT JOIN materials m ON h.material_id = m.id
+    LEFT JOIN app_users u ON h.user_id = u.id
+    LEFT JOIN warehouses w ON h.warehouse_id = w.id
+    LEFT JOIN agreements a ON h.agreement_id = a.id
+    WHERE h.agreement_id = $1
+    ORDER BY h.created_at DESC
+    LIMIT $2 OFFSET $3
+  `;
     const result = await this.db.query(query, [agreement_id, limit, offset]);
 
-    return result.rows.map(
-      (row) =>
-        new WarehouseHistoryItem(
-          row.id,
-          row.warehouse_id,
-          row.material_id,
-          row.operation_type,
-          row.old_amount,
-          row.new_amount,
-          row.delta,
-          row.user_id,
-          row.agreement_id,
-          row.description,
-          row.created_at,
-        ),
-    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      warehouse_id: row.warehouse_id,
+      material_id: row.material_id,
+      operation_type: row.operation_type,
+      old_amount: row.old_amount,
+      new_amount: row.new_amount,
+      delta: row.delta,
+      user_id: row.user_id,
+      agreement_id: row.agreement_id,
+      description: row.description,
+      created_at: row.created_at,
+      material: row.material,
+      user: row.user,
+      warehouse: row.warehouse,
+      agreement: row.agreement,
+    }));
   }
 
-  async findByMaterial(
+  async findByMaterialWithDetails(
     material_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
     const query = `
-      SELECT 
-        id, warehouse_id, material_id, operation_type,
-        old_amount, new_amount, delta,
-        user_id, agreement_id, description, created_at
-      FROM warehouse_material_history
-      WHERE material_id = $1
-      ORDER BY created_at DESC
-      LIMIT $2 OFFSET $3
-    `;
-
+    SELECT 
+      h.id,
+      h.warehouse_id,
+      h.material_id,
+      h.operation_type,
+      h.old_amount,
+      h.new_amount,
+      h.delta,
+      h.user_id,
+      h.agreement_id,
+      h.description,
+      h.created_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material,
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'role', u.role,
+        'organization_id', u.organization_id,
+        'created_at', u.created_at,
+        'updated_at', u.updated_at
+      ) as "user",
+      json_build_object(
+        'id', w.id,
+        'name', w.name,
+        'organization_id', w.organization_id,
+        'manager_id', w.manager_id,
+        'latitude', w.latitude,
+        'longitude', w.longitude,
+        'created_at', w.created_at,
+        'updated_at', w.updated_at
+      ) as warehouse,
+      CASE 
+        WHEN a.id IS NOT NULL THEN json_build_object(
+          'id', a.id,
+          'supplier_id', a.supplier_id,
+          'customer_id', a.customer_id,
+          'supplier_warehouse_id', a.supplier_warehouse_id,
+          'customer_warehouse_id', a.customer_warehouse_id,
+          'status', a.status,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at
+        )
+        ELSE NULL
+      END as agreement
+    FROM warehouse_material_history h
+    LEFT JOIN materials m ON h.material_id = m.id
+    LEFT JOIN app_users u ON h.user_id = u.id
+    LEFT JOIN warehouses w ON h.warehouse_id = w.id
+    LEFT JOIN agreements a ON h.agreement_id = a.id
+    WHERE h.material_id = $1
+    ORDER BY h.created_at DESC
+    LIMIT $2 OFFSET $3
+  `;
     const result = await this.db.query(query, [material_id, limit, offset]);
 
-    return result.rows.map(
-      (row) =>
-        new WarehouseHistoryItem(
-          row.id,
-          row.warehouse_id,
-          row.material_id,
-          row.operation_type,
-          row.old_amount,
-          row.new_amount,
-          row.delta,
-          row.user_id,
-          row.agreement_id,
-          row.description,
-          row.created_at,
-        ),
-    );
+    return result.rows.map((row) => ({
+      id: row.id,
+      warehouse_id: row.warehouse_id,
+      material_id: row.material_id,
+      operation_type: row.operation_type,
+      old_amount: row.old_amount,
+      new_amount: row.new_amount,
+      delta: row.delta,
+      user_id: row.user_id,
+      agreement_id: row.agreement_id,
+      description: row.description,
+      created_at: row.created_at,
+      material: row.material,
+      user: row.user,
+      warehouse: row.warehouse,
+      agreement: row.agreement,
+    }));
   }
 }

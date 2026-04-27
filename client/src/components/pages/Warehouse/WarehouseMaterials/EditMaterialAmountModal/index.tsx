@@ -1,5 +1,4 @@
 // client/src/pages/warehouses/EditAmountModal.tsx
-
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { NumberField } from '@/components/shared/Fields';
@@ -22,10 +21,22 @@ export function EditAmountModal({
 	onSubmit,
 }: Props) {
 	const [amount, setAmount] = useState(currentAmount);
+	const [error, setError] = useState<string | null>(null);
 
 	const handleSubmit = async () => {
-		await onSubmit(materialId, amount);
-		setOpen(false);
+		if (amount < 0) {
+			setError('Количество не может быть отрицательным');
+			throw new Error('Количество не может быть отрицательным');
+		}
+
+		try {
+			await onSubmit(materialId, amount);
+			setOpen(false);
+			setError(null);
+		} catch (err: any) {
+			setError(err?.response?.data?.error || err?.message || 'Не удалось обновить количество');
+			throw err;
+		}
 	};
 
 	return (
@@ -36,6 +47,7 @@ export function EditAmountModal({
 			onConfirm={handleSubmit}
 			confirmText="Сохранить"
 			cancelText="Отмена"
+			error={error}
 		>
 			<div className="space-y-4 py-4">
 				<p className="text-gray-900 dark:text-white">
@@ -44,7 +56,10 @@ export function EditAmountModal({
 				<NumberField
 					label="Количество"
 					value={amount}
-					onChange={(val) => setAmount(val)}
+					onChange={(val) => {
+						setAmount(val);
+						setError(null);
+					}}
 					autoFocus
 					required
 				/>

@@ -138,6 +138,8 @@ export function LocationPicker({
 	const [position, setPosition] = useState<[number, number] | null>(null);
 	const defaultCenter: [number, number] = [52.4345, 30.95]; // Гомель
 
+	console.log(readOnly);
+
 	useEffect(() => {
 		if (latitude && longitude) {
 			setPosition([latitude, longitude]);

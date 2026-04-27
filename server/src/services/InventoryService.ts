@@ -1,6 +1,9 @@
 // services/InventoryService.ts
-import { InventoryItem } from "../domain/entities/InventoryItem";
-import { InventoryRepository } from "../repositories/InventoryRepository";
+import { InventoryItem as InventoryItemEntity } from "../domain/entities/InventoryItem";
+import {
+  InventoryRepository,
+  InventoryItemWithMaterial,
+} from "../repositories/InventoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
 import { WarehouseHistoryService } from "./WarehouseHistoryService";
@@ -32,17 +35,20 @@ export class InventoryService {
     return item?.amount || 0;
   }
 
-  async getWarehouseStock(warehouse_id: number): Promise<InventoryItem[]> {
-    const warehouse = await this.warehouseRepo.findById(warehouse_id);
+  async getWarehouseStock(
+    warehouseId: number,
+  ): Promise<InventoryItemWithMaterial[]> {
+    const warehouse = await this.warehouseRepo.findById(warehouseId);
     if (!warehouse) {
       throw new NotFoundError(
-        `Склад с ID ${warehouse_id} не найден`,
+        `Склад с ID ${warehouseId} не найден`,
         "Warehouse",
         "getWarehouseStock",
-        warehouse_id,
+        warehouseId,
       );
     }
-    return await this.inventoryRepo.findByWarehouse(warehouse_id);
+
+    return await this.inventoryRepo.findByWarehouseWithMaterial(warehouseId);
   }
 
   async getMaterialDistribution(material_id: number): Promise<{
@@ -103,7 +109,7 @@ export class InventoryService {
 
   async addMaterial(
     params: InventoryTransactionParams,
-  ): Promise<InventoryItem> {
+  ): Promise<InventoryItemWithMaterial> {
     const {
       warehouse_id,
       material_id,
@@ -153,7 +159,11 @@ export class InventoryService {
       inventoryItem.addAmount(amount);
       inventoryItem = await this.inventoryRepo.update(inventoryItem);
     } else {
-      inventoryItem = InventoryItem.create(warehouse_id, material_id, amount);
+      inventoryItem = InventoryItemEntity.create(
+        warehouse_id,
+        material_id,
+        amount,
+      );
       inventoryItem = await this.inventoryRepo.save(inventoryItem);
     }
 
@@ -169,12 +179,16 @@ export class InventoryService {
       description: description || `Добавлено ${amount} единиц материала`,
     });
 
-    return inventoryItem;
+    // Получаем обновлённые данные с материалом
+    const result =
+      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
+    const updatedItem = result.find((item) => item.material_id === material_id);
+    return updatedItem!;
   }
 
   async removeMaterial(
     params: InventoryTransactionParams,
-  ): Promise<InventoryItem> {
+  ): Promise<InventoryItemWithMaterial> {
     const {
       warehouse_id,
       material_id,
@@ -228,26 +242,30 @@ export class InventoryService {
 
     const old_amount = inventoryItem.amount;
     inventoryItem.subtractAmount(amount);
-    const updatedItem = await this.inventoryRepo.update(inventoryItem);
+    await this.inventoryRepo.update(inventoryItem);
 
     await this.historyService.createEntry({
       warehouse_id,
       material_id,
       operation_type: WAREHOUSE_HISTORY_TYPES.MANUAL_REMOVE,
       old_amount,
-      new_amount: updatedItem.amount,
+      new_amount: inventoryItem.amount,
       delta: -amount,
       user_id,
       agreement_id,
       description: description || `Списано ${amount} единиц материала`,
     });
 
-    return updatedItem;
+    // Получаем обновлённые данные с материалом
+    const result =
+      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
+    const updatedItem = result.find((item) => item.material_id === material_id);
+    return updatedItem!;
   }
 
   async setAmount(
     params: InventoryTransactionParams,
-  ): Promise<InventoryItem | null> {
+  ): Promise<InventoryItemWithMaterial | null> {
     const {
       warehouse_id,
       material_id,
@@ -311,11 +329,15 @@ export class InventoryService {
         return null;
       } else {
         inventoryItem.setAmount(amount);
-        inventoryItem = await this.inventoryRepo.update(inventoryItem);
+        await this.inventoryRepo.update(inventoryItem);
       }
     } else if (amount > 0) {
-      inventoryItem = InventoryItem.create(warehouse_id, material_id, amount);
-      inventoryItem = await this.inventoryRepo.save(inventoryItem);
+      inventoryItem = InventoryItemEntity.create(
+        warehouse_id,
+        material_id,
+        amount,
+      );
+      await this.inventoryRepo.save(inventoryItem);
     } else {
       return null;
     }
@@ -325,7 +347,7 @@ export class InventoryService {
       material_id,
       operation_type: WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE,
       old_amount,
-      new_amount: inventoryItem.amount,
+      new_amount: amount,
       delta: amount - old_amount,
       user_id,
       agreement_id,
@@ -333,7 +355,11 @@ export class InventoryService {
         description || `Количество изменено с ${old_amount} на ${amount}`,
     });
 
-    return inventoryItem;
+    // Получаем обновлённые данные с материалом
+    const result =
+      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
+    const updatedItem = result.find((item) => item.material_id === material_id);
+    return updatedItem || null;
   }
 
   async checkAvailability(

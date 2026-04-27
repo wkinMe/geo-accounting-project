@@ -1,6 +1,9 @@
 // services/WarehouseHistoryService.ts
 import { WarehouseHistoryItem } from "../domain/entities/WarehouseHistoryItem";
-import { WarehouseHistoryRepository } from "../repositories/WarehouseHistoryRepository";
+import {
+  WarehouseHistoryRepository,
+  WarehouseHistoryItemWithDetails,
+} from "../repositories/WarehouseHistoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
 import { WarehouseHistoryType } from "@shared/constants/warehouseHistoryTypes";
@@ -56,7 +59,7 @@ export class WarehouseHistoryService {
     warehouse_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
     const warehouse = await this.warehouseRepo.findById(warehouse_id);
     if (!warehouse) {
       throw new NotFoundError(
@@ -67,22 +70,30 @@ export class WarehouseHistoryService {
       );
     }
 
-    return await this.historyRepo.findByWarehouse(warehouse_id, limit, offset);
+    return await this.historyRepo.findByWarehouseWithDetails(
+      warehouse_id,
+      limit,
+      offset,
+    );
   }
 
   async getHistoryByAgreement(
     agreement_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
-    return await this.historyRepo.findByAgreement(agreement_id, limit, offset);
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    return await this.historyRepo.findByAgreementWithDetails(
+      agreement_id,
+      limit,
+      offset,
+    );
   }
 
   async getHistoryByMaterial(
     material_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItem[]> {
+  ): Promise<WarehouseHistoryItemWithDetails[]> {
     const material = await this.materialRepo.findById(material_id);
     if (!material) {
       throw new NotFoundError(
@@ -93,6 +104,10 @@ export class WarehouseHistoryService {
       );
     }
 
-    return await this.historyRepo.findByMaterial(material_id, limit, offset);
+    return await this.historyRepo.findByMaterialWithDetails(
+      material_id,
+      limit,
+      offset,
+    );
   }
 }

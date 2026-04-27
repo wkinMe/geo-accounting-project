@@ -23,6 +23,7 @@ export class WarehouseController {
     );
   }
 
+  // controllers/WarehouseController.ts
   getAll = async (req: Request, res: Response) => {
     try {
       const user = (req as any).user;
@@ -37,11 +38,12 @@ export class WarehouseController {
         organization_id = user.organization_id;
       }
 
-      const warehouses = await this.warehouseService.findAll(organization_id);
+      const warehouses =
+        await this.warehouseService.findAllWithDetails(organization_id);
 
       res.json({
         success: true,
-        data: warehouses.map((w) => w.toJSON()),
+        data: warehouses,
         count: warehouses.length,
       });
     } catch (error) {
@@ -178,4 +180,41 @@ export class WarehouseController {
         .json({ success: false, error: "Внутренняя ошибка сервера" });
     }
   }
+
+  // controllers/WarehouseController.ts (добавить метод)
+  search = async (req: Request, res: Response) => {
+    try {
+      const { q } = req.query;
+      const user = (req as any).user;
+
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "Параметр поиска 'q' обязателен",
+        });
+      }
+
+      let organization_id: number | undefined;
+
+      if (
+        user &&
+        (user.role === USER_ROLES.ADMIN ||
+          user.role === USER_ROLES.MANAGER ||
+          user.role === USER_ROLES.USER)
+      ) {
+        organization_id = user.organization_id;
+      }
+
+      const warehouses = await this.warehouseService.search(q, organization_id);
+
+      res.json({
+        success: true,
+        data: warehouses.map((w) => w.toJSON()),
+        count: warehouses.length,
+        query: q,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
 }

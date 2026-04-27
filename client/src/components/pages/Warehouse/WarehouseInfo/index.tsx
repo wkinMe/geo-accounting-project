@@ -1,28 +1,24 @@
 // client/src/pages/warehouses/WarehouseInfo.tsx
-import { userService, warehouseService } from '@/services';
+import { warehouseService } from '@/services';
 import type { UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
 import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
-import type { UserRole } from '@shared/models';
+import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 
 interface Props {
 	id: number;
-	canEdit?: boolean; // Добавляем пропс для изменения
-	canDelete?: boolean; // Добавляем пропс для удаления
+	canEdit?: boolean;
+	canDelete?: boolean;
 }
 
-export function WarehouseInfo({
-	id,
-	canEdit = false,
-	canDelete = false,
-}: Props) {
+export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const queryClient = useQueryClient();
 	const { data: warehouse } = useQuery({
@@ -31,9 +27,13 @@ export function WarehouseInfo({
 	});
 
 	const { mutateAsync: deleteMutate } = useMutation({
-		mutationFn: async (id: number) => warehouseService.delete(id),
+		mutationFn: async () => warehouseService.delete(id),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			window.location.href = '/warehouses';
+		},
+		onError: (err: any) => {
+			setError(err?.response?.data?.error || err?.message || 'Не удалось удалить склад');
 		},
 	});
 
@@ -41,25 +41,25 @@ export function WarehouseInfo({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-			}, 300);
+			await queryClient.invalidateQueries({ queryKey: ['warehouse', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			setIsModalOpen(false);
+		},
+		onError: (err: any) => {
+			setError(err?.response?.data?.error || err?.message || 'Не удалось обновить склад');
 		},
 	});
 
-	const warehouseData = warehouse?.data;
+	const warehouseData = warehouse;
 
 	const handleSubmit = async (data: UpdateWarehouseDTO) => {
 		if (warehouseData) {
-			await updateMutate({ id: warehouseData?.id, data: data as UpdateWarehouseDTO });
+			await updateMutate({ id: warehouseData.id, data });
 		}
 	};
 
 	const handleConfirm = async () => {
-		if (warehouseData) {
-			await deleteMutate(id);
-		}
+		await deleteMutate();
 	};
 
 	if (!warehouseData) {
@@ -90,17 +90,23 @@ export function WarehouseInfo({
 						</div>
 					</div>
 
+					{error && (
+						<div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+							❌ {error}
+						</div>
+					)}
+
 					<table className="w-full border-collapse">
 						<tbody>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец: </td>
-								<td className="py-3">{warehouseData.organization.name}</td>
+								<td className="py-3">{warehouseData.organization?.name}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Менеджер склада: </td>
 								<td className="py-3">
 									{warehouseData.manager ? (
-										<Link to={`/managers/${warehouseData.manager?.id}`}>
+										<Link to={`/users/${warehouseData.manager?.id}`}>
 											{warehouseData.manager?.name}
 										</Link>
 									) : (

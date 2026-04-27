@@ -1,7 +1,22 @@
 // repositories/InventoryRepository.ts
 import { Pool } from "pg";
 import { DatabaseError, NotFoundError } from "@shared/service";
-import { InventoryItem } from "../domain/entities/InventoryItem";
+import { InventoryItem as InventoryItemEntity } from "../domain/entities/InventoryItem";
+import type {
+  Material,
+  InventoryItem as SharedInventoryItem,
+} from "@shared/models";
+
+// Тип для ответа с материалом
+export interface InventoryItemWithMaterial {
+  id: number;
+  warehouse_id: number;
+  material_id: number;
+  amount: number;
+  created_at: Date;
+  updated_at: Date;
+  material: Material;
+}
 
 export class InventoryRepository {
   constructor(private db: Pool) {}
@@ -9,7 +24,7 @@ export class InventoryRepository {
   async findByWarehouseAndMaterial(
     warehouse_id: number,
     material_id: number,
-  ): Promise<InventoryItem | null> {
+  ): Promise<InventoryItemEntity | null> {
     const query = `
       SELECT id, warehouse_id, material_id, amount, created_at, updated_at
       FROM warehouse_material 
@@ -20,7 +35,7 @@ export class InventoryRepository {
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    return new InventoryItem(
+    return new InventoryItemEntity(
       row.id,
       row.warehouse_id,
       row.material_id,
@@ -30,7 +45,7 @@ export class InventoryRepository {
     );
   }
 
-  async findByWarehouse(warehouse_id: number): Promise<InventoryItem[]> {
+  async findByWarehouse(warehouse_id: number): Promise<InventoryItemEntity[]> {
     const query = `
       SELECT id, warehouse_id, material_id, amount, created_at, updated_at
       FROM warehouse_material 
@@ -41,7 +56,7 @@ export class InventoryRepository {
 
     return result.rows.map(
       (row) =>
-        new InventoryItem(
+        new InventoryItemEntity(
           row.id,
           row.warehouse_id,
           row.material_id,
@@ -52,7 +67,7 @@ export class InventoryRepository {
     );
   }
 
-  async findByMaterial(material_id: number): Promise<InventoryItem[]> {
+  async findByMaterial(material_id: number): Promise<InventoryItemEntity[]> {
     const query = `
       SELECT id, warehouse_id, material_id, amount, created_at, updated_at
       FROM warehouse_material 
@@ -63,7 +78,7 @@ export class InventoryRepository {
 
     return result.rows.map(
       (row) =>
-        new InventoryItem(
+        new InventoryItemEntity(
           row.id,
           row.warehouse_id,
           row.material_id,
@@ -74,7 +89,43 @@ export class InventoryRepository {
     );
   }
 
-  async save(inventoryItem: InventoryItem): Promise<InventoryItem> {
+  async findByWarehouseWithMaterial(
+    warehouse_id: number,
+  ): Promise<InventoryItemWithMaterial[]> {
+    const query = `
+      SELECT 
+        wm.id,
+        wm.warehouse_id,
+        wm.material_id,
+        wm.amount,
+        wm.created_at,
+        wm.updated_at,
+        json_build_object(
+          'id', m.id,
+          'name', m.name,
+          'unit', m.unit,
+          'created_at', m.created_at,
+          'updated_at', m.updated_at
+        ) as material
+      FROM warehouse_material wm
+      INNER JOIN materials m ON wm.material_id = m.id
+      WHERE wm.warehouse_id = $1
+      ORDER BY m.name
+    `;
+    const result = await this.db.query(query, [warehouse_id]);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      warehouse_id: row.warehouse_id,
+      material_id: row.material_id,
+      amount: row.amount,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      material: row.material,
+    }));
+  }
+
+  async save(inventoryItem: InventoryItemEntity): Promise<InventoryItemEntity> {
     const query = `
       INSERT INTO warehouse_material (warehouse_id, material_id, amount) 
       VALUES ($1, $2, $3) 
@@ -95,7 +146,7 @@ export class InventoryRepository {
       );
     }
 
-    return new InventoryItem(
+    return new InventoryItemEntity(
       result.rows[0].id,
       inventoryItem.warehouse_id,
       inventoryItem.material_id,
@@ -105,7 +156,9 @@ export class InventoryRepository {
     );
   }
 
-  async update(inventoryItem: InventoryItem): Promise<InventoryItem> {
+  async update(
+    inventoryItem: InventoryItemEntity,
+  ): Promise<InventoryItemEntity> {
     const query = `
       UPDATE warehouse_material 
       SET amount = $1, updated_at = CURRENT_TIMESTAMP
@@ -127,7 +180,7 @@ export class InventoryRepository {
       );
     }
 
-    return new InventoryItem(
+    return new InventoryItemEntity(
       inventoryItem.id,
       inventoryItem.warehouse_id,
       inventoryItem.material_id,

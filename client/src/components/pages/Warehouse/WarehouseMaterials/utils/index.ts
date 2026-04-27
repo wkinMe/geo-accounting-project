@@ -1,4 +1,6 @@
-import type { Material, WarehouseMaterial } from '@shared/models';
+// client/src/pages/warehouses/utils/mapWarehouseMaterialToTableItem.ts
+
+import type { InventoryItemWithMaterial } from "@/services/intentoryService";
 
 export interface TableMaterial {
 	id: number;
@@ -7,13 +9,11 @@ export interface TableMaterial {
 	unit: string;
 	created_at: string;
 	updated_at: string;
-	material: Material;
+	material: InventoryItemWithMaterial['material'];
 	material_id: number;
 }
 
-export function mapWarehouseMaterialToTableItem(
-	item: WarehouseMaterial & { material: Material }
-): TableMaterial {
+export function mapWarehouseMaterialToTableItem(item: InventoryItemWithMaterial): TableMaterial {
 	return {
 		id: item.material_id,
 		name: item.material.name,
