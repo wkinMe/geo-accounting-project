@@ -11,7 +11,6 @@ import {
 	useWarehousesByOrganization,
 } from '@/hooks';
 import { type AgreementStatus } from '@shared/constants';
-import { useEffect, useMemo } from 'react';
 
 interface PartySectionProps {
 	type: PartyType;
@@ -26,7 +25,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 		control,
 		formState: { errors },
 		setValue,
-		watch,
 	} = useFormContext<AgreementFormValues>();
 
 	// Получаем состояния из стора
@@ -48,9 +46,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 			setWarehouseSearchQuery,
 	} = useAgreementFormStore();
 
-	// Получаем выбранный склад другой стороны
-	const otherWarehouseId = watch(isSupplier ? 'customerWarehouse' : 'supplierWarehouse');
-
 	// Запросы
 	const { data: organizations, isLoading: isLoadingOrgs } = useOrganizations(orgSearchQuery);
 	const { data: users, isLoading: isLoadingUsers } = useUsersByOrganization(
@@ -62,13 +57,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 		warehouseSearchQuery
 	);
 
-	// Фильтруем склады, исключая уже выбранный склад другой стороны
-	const filteredWarehouses = useMemo(() => {
-		if (!warehouses) return [];
-		if (!otherWarehouseId) return warehouses;
-		return warehouses.filter((warehouse) => warehouse.id !== otherWarehouseId);
-	}, [warehouses, otherWarehouseId]);
-
 	const filteredUsers = useFilteredUsers(users);
 
 	// При изменении организации сбрасываем менеджера и склад
@@ -79,23 +67,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 		setWarehouse(null);
 		setValue(isSupplier ? 'supplierManager' : 'customerManager', -1);
 		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', -1);
-	};
-
-	// Обработчик выбора склада
-	const handleWarehouseChange = (id: number | null) => {
-		if (!canEdit) return;
-
-		setWarehouse(id);
-		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', -1);
-
-		// Если склад выбран, находим его и автоматически выбираем менеджера
-		if (id !== null && warehouses) {
-			const selectedWarehouse = warehouses.find((w) => w.id === id);
-			if (selectedWarehouse?.manager_id) {
-				setManager(selectedWarehouse.manager_id);
-				setValue(isSupplier ? 'supplierManager' : 'customerManager', selectedWarehouse.manager_id);
-			}
-		}
 	};
 
 	const getUserLabel = (user: User) => {
@@ -111,20 +82,6 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 	const orgField = isSupplier ? 'supplierOrg' : 'customerOrg';
 	const managerField = isSupplier ? 'supplierManager' : 'customerManager';
 	const warehouseField = isSupplier ? 'supplierWarehouse' : 'customerWarehouse';
-
-	// Следим за изменениями списка складов и текущим warehouseId
-	const currentWarehouseId = watch(warehouseField);
-
-	useEffect(() => {
-		// Если есть выбранный склад и список складов загружен
-		if (currentWarehouseId && warehouses) {
-			const selectedWarehouse = warehouses.find((w) => w.id === currentWarehouseId);
-			if (selectedWarehouse?.manager_id && selectedWarehouse.manager_id !== managerId) {
-				setManager(selectedWarehouse.manager_id);
-				setValue(managerField, selectedWarehouse.manager_id);
-			}
-		}
-	}, [warehouses, currentWarehouseId, managerId, setManager, setValue, managerField]);
 
 	return (
 		<div className="space-y-4">
@@ -164,12 +121,16 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 				<Controller
 					name={warehouseField}
 					control={control}
-					render={() => (
+					render={({ field }) => (
 						<SearchableSelect<Warehouse>
 							label="Склад"
 							value={warehouseId}
-							onChange={handleWarehouseChange}
-							options={filteredWarehouses}
+							onChange={(id) => {
+								if (!canEdit) return;
+								setWarehouse(id);
+								field.onChange(id);
+							}}
+							options={warehouses || []}
 							onSearch={setWarehouseSearchQuery}
 							getOptionLabel={(warehouse) => warehouse.name}
 							placeholder="Поиск склада..."

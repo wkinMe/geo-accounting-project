@@ -99,6 +99,7 @@ class UserService {
 	}
 
 	async search(query: string, organization_id?: number): Promise<User[]> {
+
 		const response = await instance.get<{ success: boolean; data: User[] }>(
 			`${this.baseUrl}/search`,
 			{

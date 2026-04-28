@@ -98,6 +98,10 @@ export class WarehouseService {
     const existingWarehouse = await this.findById(id);
     this.validateUpdateDTO(dto);
 
+    // Флаг, указывающий на смену организации
+    let organizationChanged = false;
+
+    // Обновляем организацию, если она изменилась
     if (
       dto.organization_id !== undefined &&
       dto.organization_id !== existingWarehouse.organization_id
@@ -113,9 +117,16 @@ export class WarehouseService {
           dto.organization_id,
         );
       }
+      existingWarehouse.updateOrganization(dto.organization_id);
+      organizationChanged = true;
     }
 
-    if (dto.manager_id !== undefined) {
+    // Если организация изменилась, сбрасываем менеджера
+    if (organizationChanged) {
+      existingWarehouse.updateManager(null);
+    }
+    // Иначе обновляем менеджера если он передан
+    else if (dto.manager_id !== undefined) {
       if (dto.manager_id !== null) {
         const manager = await this.userRepo.findById(dto.manager_id);
         if (!manager) {
@@ -130,11 +141,15 @@ export class WarehouseService {
       existingWarehouse.updateManager(dto.manager_id);
     }
 
+    // Обновляем название
     if (dto.name !== undefined) {
       existingWarehouse.updateName(dto.name);
+      // Проверяем уникальность имени в новой организации (если организация изменилась)
+      const orgIdForCheck =
+        dto.organization_id ?? existingWarehouse.organization_id;
       const duplicate = await this.warehouseRepo.findByName(
         dto.name,
-        existingWarehouse.organization_id,
+        orgIdForCheck,
         id,
       );
       if (duplicate) {
@@ -147,6 +162,7 @@ export class WarehouseService {
       }
     }
 
+    // Обновляем координаты
     if (dto.latitude !== undefined || dto.longitude !== undefined) {
       const latitude = dto.latitude ?? existingWarehouse.latitude;
       const longitude = dto.longitude ?? existingWarehouse.longitude;

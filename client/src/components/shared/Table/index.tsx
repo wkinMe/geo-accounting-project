@@ -41,6 +41,8 @@ export function Table<T extends { id: number }>({
 	const [openModal, setOpenModal] = useState(false);
 	const [currentAction, setCurrentAction] = useState<null | Action<T>>(null);
 	const [currentItem, setCurrentItem] = useState<null | T>(null);
+	const [error, setError] = useState<string | null>(null);
+	const [isLoading, setIsLoading] = useState(false);
 
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
 	const useColumns = getColumns<T>(columns, headers);
@@ -53,9 +55,29 @@ export function Table<T extends { id: number }>({
 		if (!action.needConfirmation) {
 			action.action(item);
 		} else {
+			setError(null);
 			setOpenModal(true);
 			setCurrentItem(item);
 			setCurrentAction(action);
+		}
+	};
+
+	const handleConfirm = async () => {
+		if (currentAction && currentItem) {
+			setError(null);
+			setIsLoading(true);
+			try {
+				await currentAction.action(currentItem);
+				setOpenModal(false);
+				setCurrentAction(null);
+				setCurrentItem(null);
+			} catch (err: any) {
+				const errorMessage = err?.response?.data?.error || err?.message || 'Произошла ошибка';
+				setError(errorMessage);
+				throw new Error(errorMessage);
+			} finally {
+				setIsLoading(false);
+			}
 		}
 	};
 
@@ -63,18 +85,11 @@ export function Table<T extends { id: number }>({
 		<>
 			{needConfirmation && (
 				<ConfirmModal
-					onConfirm={async () => {
-						if (currentAction && currentItem) {
-							await currentAction.action(currentItem);
-							setTimeout(() => {
-								setCurrentAction(null);
-								setCurrentItem(null);
-							}, 100);
-						}
-					}}
+					onConfirm={handleConfirm}
 					actionName={currentAction?.name}
 					open={openModal}
 					setOpen={setOpenModal}
+					error={error}
 				>
 					<div className="h-30">
 						{currentAction?.confirmationBody && currentItem ? (

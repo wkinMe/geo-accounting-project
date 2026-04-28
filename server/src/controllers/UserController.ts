@@ -179,15 +179,22 @@ export class UserController {
     }
   };
 
+  // controllers/UserController.ts - обновляем метод search
   search = async (req: Request, res: Response) => {
     try {
-      const { q } = req.query;
+      const { q, organization_id } = req.query;
+
       if (!q || typeof q !== "string") {
         return res
           .status(400)
           .json({ success: false, error: "Search query is required" });
       }
-      const users = await this.userService.search(q);
+
+      const orgId = organization_id
+        ? parseInt(organization_id as string)
+        : undefined;
+
+      const users = await this.userService.search(q, orgId);
       res.json({
         success: true,
         data: users.map((u) => u.toJSON()),

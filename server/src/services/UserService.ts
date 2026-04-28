@@ -355,11 +355,14 @@ export class UserService {
     await this.refreshTokenRepo.deleteByUserId(id);
   }
 
-  async search(query: string): Promise<User[]> {
+  async search(query: string, organization_id?: number): Promise<User[]> {
     if (!query || query.trim().length === 0) {
+      if (organization_id) {
+        return await this.findByOrganizationId(organization_id);
+      }
       return await this.findAll();
     }
-    return await this.userRepo.search(query.trim());
+    return await this.userRepo.search(query.trim(), organization_id);
   }
 
   async getAvailableManagers(organizationId?: number): Promise<User[]> {

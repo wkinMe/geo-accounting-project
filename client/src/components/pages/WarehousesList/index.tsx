@@ -1,8 +1,7 @@
 // client/src/pages/warehouses/WarehousesList.tsx
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { warehouseService } from '@/services/warehouseService';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import type { WarehouseWithManagerAndOrganization } from '@shared/models';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegEye } from 'react-icons/fa';
 import { FaRegTrashAlt } from 'react-icons/fa';
@@ -82,10 +81,18 @@ export function WarehousesList() {
 		},
 	});
 
-	const elements =
-		searchQuery && searchedWarehouses
-			? searchedWarehouses.map(mapWarehouseToTableItem)
-			: warehouses?.map(mapWarehouseToTableItem) || [];
+	const elements = useMemo(() => {
+		const items =
+			searchQuery && searchedWarehouses
+				? searchedWarehouses.map(mapWarehouseToTableItem)
+				: warehouses?.map(mapWarehouseToTableItem) || [];
+
+		return items.map((item) => ({
+			...item,
+			_canEdit: canEdit(item),
+			_canDelete: canDelete(item),
+		}));
+	}, [searchQuery, searchedWarehouses, warehouses, canEdit, canDelete]);
 
 	const openEditModal = (warehouse: TableWarehouse) => {
 		setSelectedWarehouse(warehouse);
@@ -115,7 +122,7 @@ export function WarehousesList() {
 			name: 'Редактировать',
 			action: (item: TableWarehouse) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: () => !canEdit,
+			hidden: (item: TableWarehouse) => !(item as any)._canEdit,
 		},
 		{
 			name: 'Удалить',
@@ -124,7 +131,7 @@ export function WarehousesList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: () => !canDelete,
+			hidden: (item: TableWarehouse) => !(item as any)._canDelete,
 		},
 	];
 

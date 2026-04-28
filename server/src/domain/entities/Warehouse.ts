@@ -43,6 +43,14 @@ export class Warehouse {
     this.updated_at = new Date();
   }
 
+  updateOrganization(organization_id: number): void {
+    if (organization_id <= 0) {
+      throw new Error("ID организации должен быть положительным числом");
+    }
+    this._organization_id = organization_id;
+    this.updated_at = new Date();
+  }
+
   updateManager(managerId: number | null): void {
     this._manager_id = managerId;
     this.updated_at = new Date();

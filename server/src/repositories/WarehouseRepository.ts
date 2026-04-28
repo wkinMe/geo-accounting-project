@@ -214,14 +214,16 @@ export class WarehouseRepository {
 
   async update(id: number, warehouse: Warehouse): Promise<Warehouse> {
     const query = `
-      UPDATE warehouses 
-      SET name = $1, manager_id = $2, latitude = $3, longitude = $4, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING updated_at
-    `;
+    UPDATE warehouses 
+    SET name = $1, organization_id = $2, manager_id = $3, 
+        latitude = $4, longitude = $5, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6
+    RETURNING updated_at
+  `;
 
     const result = await this.db.query(query, [
       warehouse.name,
+      warehouse.organization_id,
       warehouse.manager_id,
       warehouse.latitude,
       warehouse.longitude,
