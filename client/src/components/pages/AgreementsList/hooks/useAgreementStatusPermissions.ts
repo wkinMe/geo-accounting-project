@@ -5,7 +5,7 @@ import { checkAgreementStatusPermissions } from '../helpers/checkAgreementStatus
 
 export const useAgreementStatusPermissions = (agreement: AgreementFormState) => {
 	const { data: currentUserData } = useProfile();
-	const currentUser = currentUserData?.data;
+	const currentUser = currentUserData;
 
 	return checkAgreementStatusPermissions(currentUser, agreement);
 };

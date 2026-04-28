@@ -281,12 +281,6 @@ export function AgreementMap({
 					</div>
 				</div>
 			</div>
-
-			{bothSelected && !readOnly && (
-				<div className="text-center text-sm text-green-600 dark:text-green-400 py-2">
-					✓ Оба склада выбраны. Для изменения выберите другой склад на карте.
-				</div>
-			)}
 		</div>
 	);
 }

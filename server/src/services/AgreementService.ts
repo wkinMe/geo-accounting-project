@@ -189,7 +189,6 @@ export class AgreementService {
 
   async create(params: AgreementCreateParams): Promise<Agreement> {
     try {
-
       await this.validateUserExists(params.supplier_id, "supplier_id");
       await this.validateUserExists(params.customer_id, "customer_id");
       await this.validateWarehouseExists(
@@ -200,16 +199,6 @@ export class AgreementService {
         params.customer_warehouse_id,
         "customer_warehouse_id",
       );
-
-      // Проверка, что поставщик и покупатель - не один и тот же пользователь
-      if (params.supplier_id === params.customer_id) {
-        throw new ValidationError(
-          "Поставщик и покупатель не могут быть одним и тем же пользователем",
-          "create",
-          "customer_id",
-          params.customer_id.toString(),
-        );
-      }
 
       // Проверка, что склады разные
       if (params.supplier_warehouse_id === params.customer_warehouse_id) {
