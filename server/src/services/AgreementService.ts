@@ -16,7 +16,12 @@ import {
 } from "@shared/constants";
 import { WAREHOUSE_HISTORY_TYPES } from "@shared/constants/warehouseHistoryTypes";
 import { UserDataDTO } from "@shared/dto";
-import { ValidationError, NotFoundError, ServiceError, DatabaseError } from "@shared/service";
+import {
+  ValidationError,
+  NotFoundError,
+  ServiceError,
+  DatabaseError,
+} from "@shared/service";
 
 export interface AgreementCreateParams {
   supplier_id: number;
@@ -184,7 +189,6 @@ export class AgreementService {
 
   async create(params: AgreementCreateParams): Promise<Agreement> {
     try {
-      // Валидация
       await this.validateUserExists(params.supplier_id, "supplier_id");
       await this.validateUserExists(params.customer_id, "customer_id");
       await this.validateWarehouseExists(
@@ -195,16 +199,6 @@ export class AgreementService {
         params.customer_warehouse_id,
         "customer_warehouse_id",
       );
-
-      // Проверка, что поставщик и покупатель - не один и тот же пользователь
-      if (params.supplier_id === params.customer_id) {
-        throw new ValidationError(
-          "Поставщик и покупатель не могут быть одним и тем же пользователем",
-          "create",
-          "customer_id",
-          params.customer_id.toString(),
-        );
-      }
 
       // Проверка, что склады разные
       if (params.supplier_warehouse_id === params.customer_warehouse_id) {
@@ -242,6 +236,8 @@ export class AgreementService {
               material.amount.toString(),
             );
           }
+
+          console.log(material.item_price);
 
           materials.push(
             AgreementMaterial.create({
@@ -522,6 +518,66 @@ export class AgreementService {
         agreement_id: agreementId,
         description: `Списание со склада покупателя по договору №${agreementId}`,
       });
+    }
+  }
+
+  // services/AgreementService.ts (добавить/заменить методы)
+
+  async findAllWithDetails(user: UserDataDTO): Promise<any[]> {
+    try {
+      const filters: {
+        user_id?: number;
+        organization_id?: number;
+        role?: string;
+      } = {};
+
+      if (user.role === "admin") {
+        filters.role = "admin";
+        filters.organization_id = user.organization_id;
+      } else if (user.role === "manager") {
+        filters.role = "manager";
+        filters.user_id = user.id;
+      } else if (user.role === "user") {
+        filters.role = "user";
+      }
+
+      const agreements = await this.agreementRepo.findAllWithDetails(filters);
+      return agreements;
+    } catch (error) {
+      if (error instanceof DatabaseError) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Не удалось получить список договоров",
+        "AgreementService",
+        "findAllWithDetails",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async findByIdWithDetails(id: number): Promise<any | null> {
+    try {
+      const agreement = await this.agreementRepo.findByIdWithDetails(id);
+      if (!agreement) {
+        throw new NotFoundError(
+          `Договор с ID ${id} не найден`,
+          "Agreement",
+          "findByIdWithDetails",
+          id,
+        );
+      }
+      return agreement;
+    } catch (error) {
+      if (error instanceof DatabaseError || error instanceof NotFoundError) {
+        throw error;
+      }
+      throw new ServiceError(
+        `Не удалось найти договор с ID ${id}`,
+        "AgreementService",
+        "findByIdWithDetails",
+        error instanceof Error ? error : new Error(String(error)),
+      );
     }
   }
 }

@@ -25,7 +25,7 @@ export class TokenService {
     const tokenData = {
       id: userData.id,
       name: userData.name,
-      organization_id: userData.organization_id ?? null, // Всегда включаем, даже если null
+      organization_id: userData.organization_id ?? null,
       role: userData.role,
     };
 

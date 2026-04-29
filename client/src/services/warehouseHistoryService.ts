@@ -1,33 +1,56 @@
 // client/src/services/warehouseHistoryService.ts
 import { instance } from '@/api/instance';
-import type { SuccessResponse } from '@shared/types';
-import type { WarehouseHistoryWithDetails } from '@shared/models';
+import type { WarehouseHistoryItemWithDetails } from '@shared/models';
 
 class WarehouseHistoryService {
 	private readonly baseUrl = '/warehouse-history';
 
-	/**
-	 * Получение истории изменений материалов на складе
-	 */
 	async getByWarehouseId(
-		warehouseId: number
-	): Promise<SuccessResponse<WarehouseHistoryWithDetails[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseHistoryWithDetails[]>>(
-			`${this.baseUrl}/warehouse/${warehouseId}`
-		);
-		return response.data;
+		warehouseId: number,
+		limit?: number,
+		offset?: number
+	): Promise<WarehouseHistoryItemWithDetails[]> {
+		const params: Record<string, any> = {};
+		if (limit) params.limit = limit;
+		if (offset) params.offset = offset;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseHistoryItemWithDetails[];
+		}>(`${this.baseUrl}/warehouse/${warehouseId}`, { params });
+		return response.data.data;
 	}
 
-	/**
-	 * Получение истории изменений материалов по договору
-	 */
 	async getByAgreementId(
-		agreementId: number
-	): Promise<SuccessResponse<WarehouseHistoryWithDetails[]>> {
-		const response = await instance.get<SuccessResponse<WarehouseHistoryWithDetails[]>>(
-			`${this.baseUrl}/agreement/${agreementId}`
-		);
-		return response.data;
+		agreementId: number,
+		limit?: number,
+		offset?: number
+	): Promise<WarehouseHistoryItemWithDetails[]> {
+		const params: Record<string, any> = {};
+		if (limit) params.limit = limit;
+		if (offset) params.offset = offset;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseHistoryItemWithDetails[];
+		}>(`${this.baseUrl}/agreement/${agreementId}`, { params });
+		return response.data.data;
+	}
+
+	async getByMaterialId(
+		materialId: number,
+		limit?: number,
+		offset?: number
+	): Promise<WarehouseHistoryItemWithDetails[]> {
+		const params: Record<string, any> = {};
+		if (limit) params.limit = limit;
+		if (offset) params.offset = offset;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: WarehouseHistoryItemWithDetails[];
+		}>(`${this.baseUrl}/material/${materialId}`, { params });
+		return response.data.data;
 	}
 }
 

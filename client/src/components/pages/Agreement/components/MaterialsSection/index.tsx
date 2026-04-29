@@ -6,15 +6,13 @@ import { MaterialRow } from '../MaterialRow';
 import { useAgreementFormStore } from '../../store';
 import { useFormContext } from 'react-hook-form';
 import type { AgreementFormValues } from '../../types';
-import { type AgreementStatus } from '@shared/constants';
 
 interface MaterialsSectionProps {
-	isEditing?: boolean;
 	canEdit?: boolean;
-	currentStatus?: AgreementStatus;
+	isViewMode?: boolean;
 }
 
-export function MaterialsSection({ isEditing = false, canEdit = true }: MaterialsSectionProps) {
+export function MaterialsSection({ canEdit = false, isViewMode = true }: MaterialsSectionProps) {
 	const [isSearchFocused, setIsSearchFocused] = useState(false);
 
 	const {
@@ -72,13 +70,10 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 
 	return (
 		<div className="mt-4">
-			<h2 className="text-lg font-semibold">
-				Материалы
-				{!canEdit && isEditing && (
-					<span className="ml-2 text-sm font-normal text-amber-600 dark:text-amber-400">
-						(только просмотр)
-					</span>
-				)}
+			<h2
+				className={`text-lg mb-2 font-semibold ${!isViewMode && !canEdit && `text-amber-600 dark:text-amber-400`}`}
+			>
+				Материалы{' '}
 			</h2>
 
 			<div className="relative">
@@ -130,9 +125,9 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 			</div>
 
 			{materials.length > 0 ? (
-				<div className="overflow-x-auto pb-4 bg-white">
-					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-						<thead className="bg-gray-50 dark:bg-gray-900">
+				<div className="overflow-x-auto pb-4 mt-4 bg-white rounded-xl">
+					<table className="min-w-full  divide-y divide-gray-200 dark:divide-gray-800">
+						<thead className="bg-white dark:bg-gray-900">
 							<tr>
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
 									Материал
@@ -177,7 +172,7 @@ export function MaterialsSection({ isEditing = false, canEdit = true }: Material
 				)
 			)}
 
-			<div className="bg-white border-t px-5 py-8 h-5 flex justify-between items-center">
+			<div className="bg-white border-t px-5 py-8 h-5 flex justify-between items-center rounded-b-xl">
 				<span>Итоговая сумма договора</span>
 				<span>{sum} руб.</span>
 			</div>

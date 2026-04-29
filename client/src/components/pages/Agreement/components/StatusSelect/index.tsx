@@ -7,18 +7,17 @@ import { AGREEMENT_STATUS_LABELS, type AgreementStatus } from '@shared/constants
 import { useEffect } from 'react';
 
 interface StatusSelectProps {
-	agreement: any; // Ваш тип AgreementFormState
-	isEditing?: boolean;
+	agreement: any;
 	currentStatus?: AgreementStatus;
-	onStatusChange?: (newStatus: AgreementStatus) => void;
 	canEdit?: boolean; // Добавляем пропс для управления редактированием
+	onStatusChange?: (newStatus: AgreementStatus) => void;
 }
 
 export function StatusSelect({
 	agreement,
 	currentStatus,
-	onStatusChange,
 	canEdit = true,
+	onStatusChange,
 }: StatusSelectProps) {
 	const {
 		register,

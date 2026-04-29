@@ -2,6 +2,9 @@
 import { Pool } from "pg";
 import { Warehouse } from "../domain/entities/Warehouse";
 import { DatabaseError, NotFoundError } from "@shared/service";
+import { Organization } from "../domain/entities/Organization";
+import { User } from "../domain/entities/User";
+import { WarehouseWithManagerAndOrganization } from "@shared/models";
 
 export class WarehouseRepository {
   constructor(private db: Pool) {}
@@ -34,6 +37,43 @@ export class WarehouseRepository {
     );
   }
 
+  async findAllWithDetails(
+    organization_id?: number,
+  ): Promise<WarehouseWithManagerAndOrganization[]> {
+    let query = `
+      SELECT 
+        w.*,
+        row_to_json(o.*) as organization,
+        row_to_json(u.*) as manager
+      FROM warehouses w
+      INNER JOIN organizations o ON w.organization_id = o.id
+      LEFT JOIN app_users u ON w.manager_id = u.id
+    `;
+    const params: any[] = [];
+
+    if (organization_id) {
+      query += " WHERE w.organization_id = $1";
+      params.push(organization_id);
+    }
+
+    query += " ORDER BY w.id";
+    const result = await this.db.query(query, params);
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      organization_id: row.organization_id,
+      manager_id: row.manager_id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      location: [row.latitude, row.longitude],
+      organization: row.organization,
+      manager: row.manager,
+    }));
+  }
+
   async findById(id: number): Promise<Warehouse | null> {
     const query = "SELECT * FROM warehouses WHERE id = $1";
     const result = await this.db.query(query, [id]);
@@ -51,6 +91,40 @@ export class WarehouseRepository {
       row.created_at,
       row.updated_at,
     );
+  }
+
+  // repositories/WarehouseRepository.ts (добавить метод)
+  async findByIdWithDetails(
+    id: number,
+  ): Promise<WarehouseWithManagerAndOrganization | null> {
+    const query = `
+    SELECT 
+      w.*,
+      row_to_json(o.*) as organization,
+      row_to_json(u.*) as manager
+    FROM warehouses w
+    INNER JOIN organizations o ON w.organization_id = o.id
+    LEFT JOIN app_users u ON w.manager_id = u.id
+    WHERE w.id = $1
+  `;
+    const result = await this.db.query(query, [id]);
+
+    if (result.rows.length === 0) return null;
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      organization_id: row.organization_id,
+      manager_id: row.manager_id,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      location: [row.latitude, row.longitude],
+      organization: row.organization,
+      manager: row.manager,
+    };
   }
 
   async findByName(
@@ -140,14 +214,16 @@ export class WarehouseRepository {
 
   async update(id: number, warehouse: Warehouse): Promise<Warehouse> {
     const query = `
-      UPDATE warehouses 
-      SET name = $1, manager_id = $2, latitude = $3, longitude = $4, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $5
-      RETURNING updated_at
-    `;
+    UPDATE warehouses 
+    SET name = $1, organization_id = $2, manager_id = $3, 
+        latitude = $4, longitude = $5, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $6
+    RETURNING updated_at
+  `;
 
     const result = await this.db.query(query, [
       warehouse.name,
+      warehouse.organization_id,
       warehouse.manager_id,
       warehouse.latitude,
       warehouse.longitude,
@@ -211,5 +287,52 @@ export class WarehouseRepository {
       [id],
     );
     return parseInt(result.rows[0]?.count || "0", 10) > 0;
+  }
+
+  // repositories/WarehouseRepository.ts (добавить метод)
+  async search(
+    queryStr: string,
+    organization_id?: number,
+    limit: number = 50,
+  ): Promise<Warehouse[]> {
+    let query = `
+    SELECT * FROM warehouses 
+    WHERE name ILIKE $1
+  `;
+    const params: any[] = [`%${queryStr}%`];
+    let paramIndex = 2;
+
+    if (organization_id) {
+      query += ` AND organization_id = $${paramIndex}`;
+      params.push(organization_id);
+      paramIndex++;
+    }
+
+    query += `
+    ORDER BY 
+      CASE 
+        WHEN name ILIKE $${paramIndex} THEN 1
+        ELSE 2
+      END,
+      name
+    LIMIT $${paramIndex + 1}
+  `;
+    params.push(`${queryStr}%`, limit);
+
+    const result = await this.db.query(query, params);
+
+    return result.rows.map(
+      (row) =>
+        new Warehouse(
+          row.id,
+          row.name,
+          row.organization_id,
+          row.manager_id,
+          row.latitude,
+          row.longitude,
+          row.created_at,
+          row.updated_at,
+        ),
+    );
   }
 }

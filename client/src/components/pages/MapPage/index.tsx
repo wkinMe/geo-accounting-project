@@ -20,7 +20,6 @@ export function MapPage() {
 		null
 	);
 
-	// Получаем сеттеры из store
 	const {
 		setSupplierOrg,
 		setSupplierWarehouse,
@@ -31,36 +30,43 @@ export function MapPage() {
 		resetForm,
 	} = useAgreementFormStore();
 
-	const profileQuery = useProfile();
-	const profile = profileQuery.data;
+	const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
-	const { data: warehousesData, isLoading: isLoadingWarehouses } = useQuery({
-		queryKey: ['warehouses'],
-		queryFn: () =>
-			atLeastManager(profile?.role)
-				? warehouseService.findAll()
-				: warehouseService.findByOrganizationId(profile?.organization_id || 0),
+	const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery({
+		queryKey: ['warehouses', 'map'],
+		queryFn: async () => {
+			if (atLeastManager(profile?.role)) {
+				return warehouseService.findAll();
+			}
+			return warehouseService.findAll(profile?.organization_id);
+		},
+		enabled: !!profile,
 	});
 
-	const { data: organizationsData, isLoading: isLoadingOrganizations } = useQuery({
-		queryKey: ['organizations'],
+	const { data: organizations, isLoading: isLoadingOrganizations } = useQuery({
+		queryKey: ['organizations', 'map'],
 		queryFn: async () => {
 			if (atLeastManager(profile?.role)) {
 				return organizationService.findAll();
-			} else {
-				const singleOrg = await organizationService.findById(profile?.organization_id || 0);
-				return [singleOrg];
 			}
+			const singleOrg = await organizationService.findById(profile?.organization_id || 0);
+			return [singleOrg];
 		},
+		enabled: !!profile,
 	});
 
-	const isLoading = isLoadingWarehouses || isLoadingOrganizations;
+	const isLoading = isLoadingProfile || isLoadingWarehouses || isLoadingOrganizations;
 	const currentUserOrgId = profile?.organization_id;
 
-	// Подготовка данных для поиска
 	const searchableItems: SearchableItem[] = [
-		...(organizationsData
-			?.filter((o) => o.latitude && o.longitude)
+		...(organizations
+			?.filter(
+				(o) =>
+					o.latitude !== undefined &&
+					o.latitude !== null &&
+					o.longitude !== undefined &&
+					o.longitude !== null
+			)
 			.map((org) => ({
 				id: org.id,
 				type: 'organization' as const,
@@ -69,8 +75,14 @@ export function MapPage() {
 				latitude: org.latitude!,
 				longitude: org.longitude!,
 			})) || []),
-		...(warehousesData?.data
-			?.filter((w) => w.latitude && w.longitude)
+		...(warehouses
+			?.filter(
+				(w) =>
+					w.latitude !== undefined &&
+					w.latitude !== null &&
+					w.longitude !== undefined &&
+					w.longitude !== null
+			)
 			.map((warehouse) => ({
 				id: warehouse.id,
 				type: 'warehouse' as const,
@@ -96,41 +108,40 @@ export function MapPage() {
 		}
 	};
 
-	// Обработчик создания договора
 	const handleCreateAgreement = (warehouseId: number, warehouseName: string) => {
 		setSelectedWarehouse({ id: warehouseId, name: warehouseName });
 		setIsModalOpen(true);
 	};
 
-	// Обработчик выбора роли
 	const handleRoleSelect = (warehouseId: number, role: 'supplier' | 'customer') => {
-		// Находим склад с данными об организации
-		const warehouse = warehousesData?.data?.find((w) => w.id === warehouseId);
+		const warehouse = warehouses?.find((w) => w.id === warehouseId);
 
 		if (warehouse) {
-			// Сбрасываем предыдущие данные формы
 			resetForm();
 
 			if (role === 'supplier') {
-				// Заполняем данные поставщика
 				setSupplierOrg(warehouse.organization_id);
 				setSupplierWarehouse(warehouse.id);
 				setSupplierManager(warehouse.manager_id);
 			} else {
-				// Заполняем данные покупателя
 				setCustomerOrg(warehouse.organization_id);
 				setCustomerWarehouse(warehouse.id);
 				setCustomerManager(warehouse.manager_id);
 			}
 
-			// Переход на страницу создания договора
 			navigate('/agreements/new');
 		}
 	};
 
 	const organizationsMarkers: MapMarker[] =
-		organizationsData
-			?.filter((o) => o.latitude && o.longitude)
+		organizations
+			?.filter(
+				(o) =>
+					o.latitude !== undefined &&
+					o.latitude !== null &&
+					o.longitude !== undefined &&
+					o.longitude !== null
+			)
 			.map((org) => ({
 				id: org.id,
 				type: 'organization',
@@ -141,8 +152,14 @@ export function MapPage() {
 			})) || [];
 
 	const warehousesMarkers: MapMarker[] =
-		warehousesData?.data
-			?.filter((w) => w.latitude && w.longitude)
+		warehouses
+			?.filter(
+				(w) =>
+					w.latitude !== undefined &&
+					w.latitude !== null &&
+					w.longitude !== undefined &&
+					w.longitude !== null
+			)
 			.map((warehouse) => ({
 				id: warehouse.id,
 				type: 'warehouse',
@@ -180,7 +197,6 @@ export function MapPage() {
 				/>
 			</div>
 
-			{/* Модальное окно для выбора роли */}
 			{selectedWarehouse && (
 				<CreateAgreementModal
 					open={isModalOpen}

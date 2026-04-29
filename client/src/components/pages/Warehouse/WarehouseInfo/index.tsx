@@ -1,28 +1,24 @@
 // client/src/pages/warehouses/WarehouseInfo.tsx
-import { userService, warehouseService } from '@/services';
+import { warehouseService } from '@/services';
 import type { UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
 import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
-import type { UserRole } from '@shared/models';
+import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 
 interface Props {
 	id: number;
-	canEdit?: boolean; // Добавляем пропс для изменения
-	canDelete?: boolean; // Добавляем пропс для удаления
+	canEdit?: boolean;
+	canDelete?: boolean;
 }
 
-export function WarehouseInfo({
-	id,
-	canEdit = false,
-	canDelete = false,
-}: Props) {
+export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props) {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const queryClient = useQueryClient();
 	const { data: warehouse } = useQuery({
@@ -31,9 +27,13 @@ export function WarehouseInfo({
 	});
 
 	const { mutateAsync: deleteMutate } = useMutation({
-		mutationFn: async (id: number) => warehouseService.delete(id),
+		mutationFn: async () => warehouseService.delete(id),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			window.location.href = '/warehouses';
+		},
+		onError: (err: any) => {
+			setError(err?.response?.data?.error || err?.message || 'Не удалось удалить склад');
 		},
 	});
 
@@ -41,28 +41,28 @@ export function WarehouseInfo({
 		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
 			warehouseService.update(id, data),
 		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouse'] });
-			setTimeout(() => {
-				setIsModalOpen(false);
-			}, 300);
+			await queryClient.invalidateQueries({ queryKey: ['warehouse', id] });
+			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+			setIsModalOpen(false);
+		},
+		onError: (err: any) => {
+			setError(err?.response?.data?.error || err?.message || 'Не удалось обновить склад');
 		},
 	});
 
-	const warehouseData = warehouse?.data;
+	console.log(warehouse);
 
 	const handleSubmit = async (data: UpdateWarehouseDTO) => {
-		if (warehouseData) {
-			await updateMutate({ id: warehouseData?.id, data: data as UpdateWarehouseDTO });
+		if (warehouse) {
+			await updateMutate({ id: warehouse.id, data });
 		}
 	};
 
 	const handleConfirm = async () => {
-		if (warehouseData) {
-			await deleteMutate(id);
-		}
+		await deleteMutate();
 	};
 
-	if (!warehouseData) {
+	if (!warehouse) {
 		return <h1>Информация о данном складе не найдена</h1>;
 	}
 
@@ -71,7 +71,7 @@ export function WarehouseInfo({
 			<div className="flex justify-between">
 				<div className="w-full bg-white p-5 rounded-2xl pb-10">
 					<div className="flex items-center justify-between">
-						<h1 className="text-2xl text-black font-medium mb-5">{warehouseData.name}</h1>
+						<h1 className="text-2xl text-black font-medium mb-5">{warehouse.name}</h1>
 						<div className="flex gap-5">
 							{canEdit && (
 								<Button variant="secondary" onClick={() => setIsModalOpen(true)}>
@@ -90,19 +90,23 @@ export function WarehouseInfo({
 						</div>
 					</div>
 
+					{error && (
+						<div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+							❌ {error}
+						</div>
+					)}
+
 					<table className="w-full border-collapse">
 						<tbody>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600 w-60">Организация владелец: </td>
-								<td className="py-3">{warehouseData.organization.name}</td>
+								<td className="py-3">{warehouse.organization?.name}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Менеджер склада: </td>
 								<td className="py-3">
-									{warehouseData.manager ? (
-										<Link to={`/managers/${warehouseData.manager?.id}`}>
-											{warehouseData.manager?.name}
-										</Link>
+									{warehouse.manager ? (
+										<Link to={`/users/${warehouse.manager?.id}`}>{warehouse.manager?.name}</Link>
 									) : (
 										'Не назначен'
 									)}
@@ -110,11 +114,11 @@ export function WarehouseInfo({
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Дата создания: </td>
-								<td className="py-3">{formatDateToDDMMYYYY(warehouseData.created_at)}</td>
+								<td className="py-3">{formatDateToDDMMYYYY(warehouse.created_at)}</td>
 							</tr>
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Последнее обновление: </td>
-								<td className="py-3">{getDaysAgoText(warehouseData.updated_at)}</td>
+								<td className="py-3">{getDaysAgoText(warehouse.updated_at)}</td>
 							</tr>
 						</tbody>
 					</table>
@@ -132,7 +136,7 @@ export function WarehouseInfo({
 			<WarehouseModal
 				open={isModalOpen}
 				setOpen={setIsModalOpen}
-				warehouse={warehouseData}
+				warehouse={warehouse}
 				onSubmit={handleSubmit}
 				isLoading={isUpdating}
 			/>

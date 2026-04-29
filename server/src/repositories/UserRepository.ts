@@ -253,28 +253,37 @@ export class UserRepository {
     }
   }
 
-  async search(queryStr: string, limit: number = 50): Promise<User[]> {
-    const query = `
-      SELECT id, name, organization_id, password, role, created_at, updated_at
-      FROM app_users 
-      WHERE name ILIKE $1
-      ORDER BY 
-        CASE 
-          WHEN name ILIKE $2 THEN 1
-          ELSE 2
-        END,
-        name
-      LIMIT $3
-    `;
+  async search(
+    queryStr: string,
+    organization_id?: number,
+    limit: number = 50,
+  ): Promise<User[]> {
+    let query = `
+    SELECT id, name, organization_id, password, role, created_at, updated_at
+    FROM app_users 
+    WHERE name ILIKE $1
+  `;
+    const params: any[] = [`%${queryStr}%`];
+    let paramIndex = 2;
 
-    const searchPattern = `%${queryStr}%`;
-    const exactStartPattern = `${queryStr}%`;
+    if (organization_id) {
+      query += ` AND organization_id = $${paramIndex}`;
+      params.push(organization_id);
+      paramIndex++;
+    }
 
-    const result = await this.db.query(query, [
-      searchPattern,
-      exactStartPattern,
-      limit,
-    ]);
+    query += `
+    ORDER BY 
+      CASE 
+        WHEN name ILIKE $${paramIndex} THEN 1
+        ELSE 2
+      END,
+      name
+    LIMIT $${paramIndex + 1}
+  `;
+    params.push(`${queryStr}%`, limit);
+
+    const result = await this.db.query(query, params);
 
     return result.rows.map(
       (row) =>

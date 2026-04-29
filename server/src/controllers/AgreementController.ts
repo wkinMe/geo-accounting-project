@@ -52,11 +52,11 @@ export class AgreementController {
   getAll = async (req: Request, res: Response) => {
     try {
       const user = (req as any).user as UserDataDTO;
-      const agreements = await this.agreementService.findAll(user);
+      const agreements = await this.agreementService.findAllWithDetails(user);
 
       res.json({
         success: true,
-        data: agreements.map((a) => a.toJSON()),
+        data: agreements,
         count: agreements.length,
       });
     } catch (error) {
@@ -67,11 +67,11 @@ export class AgreementController {
   getById = async (req: Request, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
-      const agreement = await this.agreementService.findById(id);
+      const agreement = await this.agreementService.findByIdWithDetails(id);
 
       res.json({
         success: true,
-        data: agreement.toJSON(),
+        data: agreement,
       });
     } catch (error) {
       this.handleError(error, res);

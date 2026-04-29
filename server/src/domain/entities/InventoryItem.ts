@@ -60,8 +60,8 @@ export class InventoryItem {
       warehouse_id: this.warehouse_id,
       material_id: this.material_id,
       amount: this.amount,
-      created_at: this.created_at,
-      updated_at: this.updated_at,
+      created_at: this.created_at.toISOString(),
+      updated_at: this.updated_at.toISOString(),
     };
   }
 }

@@ -5,6 +5,7 @@ import { OrganizationRepository } from "../repositories/OrganizationRepository";
 import { UserRepository } from "../repositories/UserRepository";
 import { CreateWarehouseDTO, UpdateWarehouseDTO } from "@shared/dto";
 import { ValidationError, NotFoundError } from "@shared/service";
+import { WarehouseWithManagerAndOrganization } from "@shared/models";
 
 export class WarehouseService {
   constructor(
@@ -15,6 +16,12 @@ export class WarehouseService {
 
   async findAll(organization_id?: number): Promise<Warehouse[]> {
     return await this.warehouseRepo.findAll(organization_id);
+  }
+
+  async findAllWithDetails(
+    organization_id?: number,
+  ): Promise<WarehouseWithManagerAndOrganization[]> {
+    return await this.warehouseRepo.findAllWithDetails(organization_id);
   }
 
   async findById(id: number): Promise<Warehouse> {
@@ -28,6 +35,12 @@ export class WarehouseService {
       );
     }
     return warehouse;
+  }
+
+  async findByIdWithDetails(
+    id: number,
+  ): Promise<WarehouseWithManagerAndOrganization | null> {
+    return await this.warehouseRepo.findByIdWithDetails(id);
   }
 
   async create(dto: CreateWarehouseDTO): Promise<Warehouse> {
@@ -85,6 +98,10 @@ export class WarehouseService {
     const existingWarehouse = await this.findById(id);
     this.validateUpdateDTO(dto);
 
+    // Флаг, указывающий на смену организации
+    let organizationChanged = false;
+
+    // Обновляем организацию, если она изменилась
     if (
       dto.organization_id !== undefined &&
       dto.organization_id !== existingWarehouse.organization_id
@@ -100,9 +117,16 @@ export class WarehouseService {
           dto.organization_id,
         );
       }
+      existingWarehouse.updateOrganization(dto.organization_id);
+      organizationChanged = true;
     }
 
-    if (dto.manager_id !== undefined) {
+    // Если организация изменилась, сбрасываем менеджера
+    if (organizationChanged) {
+      existingWarehouse.updateManager(null);
+    }
+    // Иначе обновляем менеджера если он передан
+    else if (dto.manager_id !== undefined) {
       if (dto.manager_id !== null) {
         const manager = await this.userRepo.findById(dto.manager_id);
         if (!manager) {
@@ -117,11 +141,15 @@ export class WarehouseService {
       existingWarehouse.updateManager(dto.manager_id);
     }
 
+    // Обновляем название
     if (dto.name !== undefined) {
       existingWarehouse.updateName(dto.name);
+      // Проверяем уникальность имени в новой организации (если организация изменилась)
+      const orgIdForCheck =
+        dto.organization_id ?? existingWarehouse.organization_id;
       const duplicate = await this.warehouseRepo.findByName(
         dto.name,
-        existingWarehouse.organization_id,
+        orgIdForCheck,
         id,
       );
       if (duplicate) {
@@ -134,6 +162,7 @@ export class WarehouseService {
       }
     }
 
+    // Обновляем координаты
     if (dto.latitude !== undefined || dto.longitude !== undefined) {
       const latitude = dto.latitude ?? existingWarehouse.latitude;
       const longitude = dto.longitude ?? existingWarehouse.longitude;
@@ -311,5 +340,12 @@ export class WarehouseService {
         dto.longitude.toString(),
       );
     }
+  }
+
+  async search(query: string, organization_id?: number): Promise<Warehouse[]> {
+    if (!query || query.trim().length === 0) {
+      return await this.findAll(organization_id);
+    }
+    return await this.warehouseRepo.search(query.trim(), organization_id);
   }
 }

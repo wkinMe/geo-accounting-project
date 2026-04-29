@@ -10,16 +10,14 @@ import {
 	useUsersByOrganization,
 	useWarehousesByOrganization,
 } from '@/hooks';
-import { type AgreementStatus } from '@shared/constants';
 
 interface PartySectionProps {
 	type: PartyType;
-	isEditing?: boolean;
 	canEdit?: boolean;
-	currentStatus?: AgreementStatus;
+	isViewMode?: boolean;
 }
 
-export function PartySection({ type, isEditing = false, canEdit = true }: PartySectionProps) {
+export function PartySection({ type, canEdit = true, isViewMode = true }: PartySectionProps) {
 	const isSupplier = type === 'supplier';
 	const {
 		control,
@@ -69,6 +67,30 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', -1);
 	};
 
+	// Обработчик выбора склада
+	const handleWarehouseChange = (id: number | null) => {
+		if (!canEdit) return;
+
+		setWarehouse(id);
+		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', id || -1);
+
+		if (id !== null && warehouses) {
+			const selectedWarehouse = warehouses.find((w) => w.id === id);
+			// Автоматически подставляем менеджера склада
+			if (selectedWarehouse?.manager_id) {
+				setManager(selectedWarehouse.manager_id);
+				setValue(isSupplier ? 'supplierManager' : 'customerManager', selectedWarehouse.manager_id);
+			} else {
+				setManager(null);
+				setValue(isSupplier ? 'supplierManager' : 'customerManager', -1);
+			}
+		} else if (id === null) {
+			// Если склад сброшен, сбрасываем и менеджера
+			setManager(null);
+			setValue(isSupplier ? 'supplierManager' : 'customerManager', -1);
+		}
+	};
+
 	const getUserLabel = (user: User) => {
 		const roleMap = {
 			super_admin: 'Главный администратор',
@@ -85,13 +107,10 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 
 	return (
 		<div className="space-y-4">
-			<h2 className="text-lg font-semibold">
+			<h2
+				className={`text-lg font-semibold ${!isViewMode && !canEdit && `text-amber-600 dark:text-amber-400`}`}
+			>
 				{isSupplier ? 'Поставщик' : 'Покупатель'}
-				{!canEdit && isEditing && (
-					<span className="ml-2 text-sm font-normal text-amber-600 dark:text-amber-400">
-						(только просмотр)
-					</span>
-				)}
 			</h2>
 
 			<div className="grid grid-cols-3 gap-4">
@@ -121,15 +140,11 @@ export function PartySection({ type, isEditing = false, canEdit = true }: PartyS
 				<Controller
 					name={warehouseField}
 					control={control}
-					render={({ field }) => (
+					render={() => (
 						<SearchableSelect<Warehouse>
 							label="Склад"
 							value={warehouseId}
-							onChange={(id) => {
-								if (!canEdit) return;
-								setWarehouse(id);
-								field.onChange(id);
-							}}
+							onChange={handleWarehouseChange}
 							options={warehouses || []}
 							onSearch={setWarehouseSearchQuery}
 							getOptionLabel={(warehouse) => warehouse.name}

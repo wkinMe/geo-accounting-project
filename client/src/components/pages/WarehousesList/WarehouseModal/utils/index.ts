@@ -15,8 +15,7 @@ export const getManagerFieldAvailable = (
 
 		return (
 			isSuperAdminRole(role) ||
-			(isAdminRole(role) && user.organization_id === warehouse.organization_id) ||
-			(isManagerRole(role) && user.organization_id === warehouse.organization_id)
+			(isAdminRole(role) && user.organization_id === warehouse.organization_id)
 		);
 	}
 };

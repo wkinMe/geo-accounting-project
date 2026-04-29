@@ -7,7 +7,7 @@ import {
 	WAREHOUSE_HISTORY_TYPE_COLORS,
 } from '@shared/constants/warehouseHistoryTypes';
 import { formatDateToDDMMYYYY } from '@/utils/dateFormatters';
-import type { WarehouseHistoryWithDetails } from '@shared/models';
+import type { WarehouseHistoryItemWithDetails } from '@shared/models';
 import type { Column } from '@/components/shared/Table/types';
 import { Link } from 'react-router';
 
@@ -39,7 +39,7 @@ const columns: Column<HistoryEntry>[] = [
 	{
 		key: 'agreement_id',
 		label: 'Договор',
-		render: (value: number | null, item: HistoryEntry) => {
+		render: (value: number | null) => {
 			if (!value) return <span>—</span>;
 			return (
 				<Link to={`/agreements/${value}`} className="cursor-pointer underline">
@@ -51,7 +51,7 @@ const columns: Column<HistoryEntry>[] = [
 	{ key: 'description', label: 'Описание' },
 ];
 
-const mapHistoryToTableItem = (item: WarehouseHistoryWithDetails): HistoryEntry => ({
+const mapHistoryToTableItem = (item: WarehouseHistoryItemWithDetails): HistoryEntry => ({
 	id: item.id,
 	operation_type_display: WAREHOUSE_HISTORY_TYPE_LABELS[item.operation_type],
 	operation_type_color: WAREHOUSE_HISTORY_TYPE_COLORS[item.operation_type],
@@ -79,12 +79,14 @@ export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
 		enabled: !!warehouseId,
 	});
 
-	const elements = history?.data.map(mapHistoryToTableItem) || [];
+	console.log(history);
+
+	const elements = history?.map(mapHistoryToTableItem) || [];
 
 	return (
 		<div className="mt-12">
 			<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center bg-white">
-				<h2 className="text-xl font-semibold text-gray-900 dark:text-white">История изменений</h2>
+				<h2 className="text-xl font-semibold text-gray-900">История изменений</h2>
 			</div>
 
 			<Table

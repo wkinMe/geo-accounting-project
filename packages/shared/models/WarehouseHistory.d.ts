@@ -6,7 +6,7 @@ import { Warehouse } from "./Warehouse";
 import { AgreementWithDetails } from "./Agreement";
 import { WarehouseHistoryType } from "../constants/warehouseHistoryTypes";
 
-export interface WarehouseHistory extends BaseModel {
+export interface WarehouseHistoryItem extends BaseModel {
   warehouse_id: number;
   material_id: number;
   operation_type: WarehouseHistoryType;
@@ -18,7 +18,7 @@ export interface WarehouseHistory extends BaseModel {
   description: string | null;
 }
 
-export interface WarehouseHistoryWithDetails extends WarehouseHistory {
+export interface WarehouseHistoryItemWithDetails extends WarehouseHistoryItem {
   material?: Material;
   user?: User;
   agreement?: AgreementWithDetails;

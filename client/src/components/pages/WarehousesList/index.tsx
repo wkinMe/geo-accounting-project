@@ -1,5 +1,5 @@
 // client/src/pages/warehouses/WarehousesList.tsx
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { warehouseService } from '@/services/warehouseService';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,25 +30,26 @@ export function WarehousesList() {
 	const queryClient = useQueryClient();
 
 	const [searchQuery, setSearchQuery] = useState('');
-
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedWarehouse, setSelectedWarehouse] = useState<TableWarehouse | null>(null);
 
 	const { canEdit, canDelete, canCreate } = useWarehousePermissions();
 
 	const role = useRole();
-	const profile = useProfile();
+	const { data: profile } = useProfile();
 
 	const { data: warehouses } = useQuery({
 		queryKey: ['warehouses'],
-		queryFn: () =>
-			isSuperAdminRole(role)
-				? warehouseService.findAll()
-				: warehouseService.findByOrganizationId(profile.data?.organization_id || 0),
+		queryFn: async () => {
+			if (isSuperAdminRole(role)) {
+				return await warehouseService.findAll();
+			}
+			return await warehouseService.findAll(profile?.organization_id);
+		},
 	});
 
 	const { data: searchedWarehouses } = useQuery({
-		queryKey: ['warehouses', searchQuery],
+		queryKey: ['warehouses', 'search', searchQuery],
 		queryFn: () => warehouseService.search(searchQuery),
 		enabled: searchQuery.length > 0,
 		retry: false,
@@ -80,12 +81,20 @@ export function WarehousesList() {
 		},
 	});
 
-	const elements =
-		searchQuery && searchedWarehouses
-			? searchedWarehouses.data.map(mapWarehouseToTableItem)
-			: warehouses?.data.map(mapWarehouseToTableItem) || [];
+	const elements = useMemo(() => {
+		const items =
+			searchQuery && searchedWarehouses
+				? searchedWarehouses.map(mapWarehouseToTableItem)
+				: warehouses?.map(mapWarehouseToTableItem) || [];
 
-	const openEditModal = (warehouse: (typeof elements)[0]) => {
+		return items.map((item) => ({
+			...item,
+			_canEdit: canEdit(item),
+			_canDelete: canDelete(item),
+		}));
+	}, [searchQuery, searchedWarehouses, warehouses, canEdit, canDelete]);
+
+	const openEditModal = (warehouse: TableWarehouse) => {
 		setSelectedWarehouse(warehouse);
 		setIsModalOpen(true);
 	};
@@ -113,7 +122,7 @@ export function WarehousesList() {
 			name: 'Редактировать',
 			action: (item: TableWarehouse) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: (item: TableWarehouse) => !canEdit(item),
+			hidden: (item: TableWarehouse) => !(item as any)._canEdit,
 		},
 		{
 			name: 'Удалить',
@@ -122,7 +131,7 @@ export function WarehousesList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item: TableWarehouse) => !canDelete(item),
+			hidden: (item: TableWarehouse) => !(item as any)._canDelete,
 		},
 	];
 

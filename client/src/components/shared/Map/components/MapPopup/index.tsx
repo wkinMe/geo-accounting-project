@@ -5,7 +5,7 @@ import type { MapMarker } from '../../types';
 interface MapPopupProps {
 	marker: MapMarker;
 	onDetailsClick?: () => void;
-	onCreateAgreement?: () => void; // 🆕 новый пропс
+	onCreateAgreement?: () => void; 
 }
 
 export function MapPopup({ marker, onDetailsClick, onCreateAgreement }: MapPopupProps) {
