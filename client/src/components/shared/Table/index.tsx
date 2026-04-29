@@ -20,6 +20,9 @@ interface Props<T extends { id: number }> {
 	isCreateDisabled?: boolean;
 	onSearch?: (query: string) => void;
 	onCreate?: () => void;
+	onSort?: (column: string) => void;
+	sortBy?: string;
+	sortOrder?: 'ASC' | 'DESC';
 	hoverPopupConfig?: HoverPopupConfig<T>;
 }
 
@@ -36,13 +39,15 @@ export function Table<T extends { id: number }>({
 	isCreateDisabled = false,
 	onSearch,
 	onCreate,
+	onSort,
+	sortBy,
+	sortOrder,
 	hoverPopupConfig,
 }: Props<T>) {
 	const [openModal, setOpenModal] = useState(false);
 	const [currentAction, setCurrentAction] = useState<null | Action<T>>(null);
 	const [currentItem, setCurrentItem] = useState<null | T>(null);
 	const [error, setError] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
 
 	const needConfirmation = actions?.some((i) => i.needConfirmation === true);
 	const useColumns = getColumns<T>(columns, headers);
@@ -65,7 +70,6 @@ export function Table<T extends { id: number }>({
 	const handleConfirm = async () => {
 		if (currentAction && currentItem) {
 			setError(null);
-			setIsLoading(true);
 			try {
 				await currentAction.action(currentItem);
 				setOpenModal(false);
@@ -76,7 +80,6 @@ export function Table<T extends { id: number }>({
 				setError(errorMessage);
 				throw new Error(errorMessage);
 			} finally {
-				setIsLoading(false);
 			}
 		}
 	};
@@ -135,11 +138,17 @@ export function Table<T extends { id: number }>({
 									<th
 										key={idx}
 										scope="col"
-										className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
+										onClick={() => onSort?.(col.key as string)}
+										className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
 											col.width ? `w-${col.width}` : ''
 										}`}
 									>
-										{col.label}
+										<div className="flex items-center gap-1">
+											{col.label}
+											{sortBy === col.key && (
+												<span className="text-gray-400">{sortOrder === 'ASC' ? '↑' : '↓'}</span>
+											)}
+										</div>
 									</th>
 								))}
 								{hasAnyVisibleActions && (

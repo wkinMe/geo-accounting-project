@@ -48,12 +48,12 @@ export function OrganizationModal({
 	setOpen,
 	organization,
 	onSubmit,
-	isLoading = false,
 	canEdit = true,
 }: Props) {
 	const isEditing = !!organization?.id;
 	const [error, setError] = useState<string | null>(null);
 
+	// Отдельное состояние для координат, которое обновляется только при изменении пропсов
 	const [latitude, setLatitude] = useState<number | null>(organization?.latitude ?? null);
 	const [longitude, setLongitude] = useState<number | null>(organization?.longitude ?? null);
 
@@ -74,24 +74,28 @@ export function OrganizationModal({
 		mode: 'onChange',
 	});
 
+	// Сброс формы при открытии, но с сохранением текущих координат
 	useEffect(() => {
 		if (open) {
+			const currentLat = organization?.latitude ?? latitude ?? null;
+			const currentLng = organization?.longitude ?? longitude ?? null;
+
 			reset({
 				name: organization?.name ?? '',
-				latitude: organization?.latitude ?? undefined,
-				longitude: organization?.longitude ?? undefined,
+				latitude: currentLat ?? undefined,
+				longitude: currentLng ?? undefined,
 			});
-			setLatitude(organization?.latitude ?? null);
-			setLongitude(organization?.longitude ?? null);
+			setLatitude(currentLat);
+			setLongitude(currentLng);
 			setError(null);
 		}
-	}, [open, organization, reset]);
+	}, [open]);
 
 	const handleLocationChange = (lat: number, lng: number) => {
 		setLatitude(lat);
 		setLongitude(lng);
-		setValue('latitude', lat);
-		setValue('longitude', lng);
+		setValue('latitude', lat, { shouldValidate: true });
+		setValue('longitude', lng, { shouldValidate: true });
 	};
 
 	const handleSubmit = async () => {
@@ -109,6 +113,7 @@ export function OrganizationModal({
 			name: formData.name,
 		};
 
+		// Используем актуальные координаты из состояния
 		if (latitude !== null && longitude !== null) {
 			submitData.latitude = latitude;
 			submitData.longitude = longitude;
@@ -120,6 +125,7 @@ export function OrganizationModal({
 			} else {
 				await onSubmit(submitData as CreateOrganizationDTO);
 			}
+			// Модалка закроется из ConfirmModal при успехе
 		} catch (err: any) {
 			const errorMessage =
 				err?.response?.data?.error || err?.message || 'Произошла ошибка при сохранении';

@@ -3,14 +3,38 @@ import { instance } from '@/api/instance';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import type { Organization } from '@shared/models';
 
+export interface OrganizationListResponse {
+	data: Organization[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
+
 class OrganizationService {
 	private readonly baseUrl = '/organizations';
 
-	async findAll(): Promise<Organization[]> {
-		const response = await instance.get<{ success: boolean; data: Organization[] }>(
-			`${this.baseUrl}/`
-		);
-		return response.data.data;
+	async findAll(
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<OrganizationListResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: Organization[];
+			pagination: any;
+		}>(`${this.baseUrl}/`, { params });
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async findById(id: number): Promise<Organization> {
@@ -45,14 +69,26 @@ class OrganizationService {
 		}
 	}
 
-	async search(query: string): Promise<Organization[]> {
-		const response = await instance.get<{ success: boolean; data: Organization[] }>(
-			`${this.baseUrl}/search`,
-			{
-				params: { q: query },
-			}
-		);
-		return response.data.data;
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<OrganizationListResponse> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: Organization[];
+			pagination: any;
+		}>(`${this.baseUrl}/search`, { params });
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 }
 

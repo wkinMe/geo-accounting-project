@@ -3,12 +3,37 @@ import { instance } from '@/api/instance';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import type { Material } from '@shared/models';
 
+export interface MaterialsListResponse {
+	data: Material[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
+
 class MaterialService {
 	private readonly baseUrl = '/materials';
 
-	async findAll(): Promise<Material[]> {
-		const response = await instance.get<{ success: boolean; data: Material[] }>(`${this.baseUrl}/`);
-		return response.data.data;
+	async findAll(
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<MaterialsListResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{ success: boolean; data: Material[]; pagination: any }>(
+			`${this.baseUrl}/`,
+			{ params }
+		);
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async findById(id: number): Promise<Material> {
@@ -72,14 +97,25 @@ class MaterialService {
 		}
 	}
 
-	async search(query: string): Promise<Material[]> {
-		const response = await instance.get<{ success: boolean; data: Material[] }>(
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<MaterialsListResponse> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{ success: boolean; data: Material[]; pagination: any }>(
 			`${this.baseUrl}/search`,
-			{
-				params: { q: query },
-			}
+			{ params }
 		);
-		return response.data.data;
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async getImageUrl(materialId: number): Promise<string> {

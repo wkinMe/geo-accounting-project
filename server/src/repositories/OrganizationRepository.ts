@@ -4,14 +4,38 @@ import { Organization } from "../domain/entities/Organization";
 import { DatabaseError, NotFoundError } from "@shared/service";
 import { USER_ROLES } from "@shared/constants";
 
+// Допустимые поля для сортировки
+const ALLOWED_SORT_FIELDS = ["id", "name", "created_at", "updated_at"];
+
 export class OrganizationRepository {
   constructor(private db: Pool) {}
 
-  async findAll(): Promise<Organization[]> {
-    const query = "SELECT * FROM organizations ORDER BY id";
-    const result = await this.db.query(query);
+  async findAll(
+    limit: number = 50,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Organization[]; total: number }> {
+    const sortField =
+      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "id";
+    const order = sortOrder === "DESC" ? "DESC" : "ASC";
 
-    return result.rows.map(
+    const query = `
+      SELECT * FROM organizations 
+      ORDER BY ${sortField} ${order}
+      LIMIT $1 OFFSET $2
+    `;
+
+    const countQuery = `SELECT COUNT(*) as total FROM organizations`;
+
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [limit, offset]),
+      this.db.query(countQuery),
+    ]);
+
+    const total = parseInt(countResult.rows[0]?.total || "0", 10);
+
+    const data = dataResult.rows.map(
       (row) =>
         new Organization(
           row.id,
@@ -22,6 +46,8 @@ export class OrganizationRepository {
           row.longitude,
         ),
     );
+
+    return { data, total };
   }
 
   async findById(id: number): Promise<Organization | null> {
@@ -145,7 +171,20 @@ export class OrganizationRepository {
     }
   }
 
-  async search(queryStr: string, limit: number = 50): Promise<Organization[]> {
+  async search(
+    queryStr: string,
+    limit: number = 50,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Organization[]; total: number }> {
+    const sortField =
+      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "name";
+    const order = sortOrder === "DESC" ? "DESC" : "ASC";
+
+    const searchPattern = `%${queryStr}%`;
+    const exactStartPattern = `${queryStr}%`;
+
     const query = `
       SELECT * FROM organizations 
       WHERE name ILIKE $1
@@ -154,20 +193,24 @@ export class OrganizationRepository {
           WHEN name ILIKE $2 THEN 1
           ELSE 2
         END,
-        name
-      LIMIT $3
+        ${sortField} ${order}
+      LIMIT $3 OFFSET $4
     `;
 
-    const searchPattern = `%${queryStr}%`;
-    const exactStartPattern = `${queryStr}%`;
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM organizations 
+      WHERE name ILIKE $1
+    `;
 
-    const result = await this.db.query(query, [
-      searchPattern,
-      exactStartPattern,
-      limit,
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [searchPattern, exactStartPattern, limit, offset]),
+      this.db.query(countQuery, [searchPattern]),
     ]);
 
-    return result.rows.map(
+    const total = parseInt(countResult.rows[0]?.total || "0", 10);
+
+    const data = dataResult.rows.map(
       (row) =>
         new Organization(
           row.id,
@@ -178,6 +221,8 @@ export class OrganizationRepository {
           row.longitude,
         ),
     );
+
+    return { data, total };
   }
 
   async getSuperAdminCount(organizationId: number): Promise<number> {

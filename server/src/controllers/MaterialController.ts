@@ -9,12 +9,28 @@ export class MaterialController {
 
   getAll = async (req: Request, res: Response) => {
     try {
-      const materials = await this.materialService.findAll();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+
+      const result = await this.materialService.findAll(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
 
       res.json({
         success: true,
-        data: materials.map((m) => m.toJSON()),
-        count: materials.length,
+        data: result.data.map((m) => m.toJSON()),
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -97,6 +113,11 @@ export class MaterialController {
   search = async (req: Request, res: Response) => {
     try {
       const { q } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({
@@ -105,12 +126,23 @@ export class MaterialController {
         });
       }
 
-      const materials = await this.materialService.search(q);
+      const result = await this.materialService.search(
+        q,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
 
       res.json({
         success: true,
-        data: materials.map((m) => m.toJSON()),
-        count: materials.length,
+        data: result.data.map((m) => m.toJSON()),
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
         query: q,
       });
     } catch (error) {
