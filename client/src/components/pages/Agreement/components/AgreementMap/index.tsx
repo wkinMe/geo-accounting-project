@@ -5,6 +5,7 @@ import { warehouseService } from '@/services/warehouseService';
 import { useQuery } from '@tanstack/react-query';
 import type { WarehouseWithManagerAndOrganization } from '@shared/models';
 import type { Map as LeafletMap } from 'leaflet';
+import Spinner from '@/components/shared/Spinner';
 
 interface AgreementMapProps {
 	supplierWarehouseId: number | null;
@@ -206,11 +207,7 @@ export function AgreementMap({
 	const selectionHint = getSelectionHint();
 
 	if (isLoading) {
-		return (
-			<div className="h-125 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg">
-				<span className="text-gray-500">Загрузка карты...</span>
-			</div>
-		);
+		return <Spinner />;
 	}
 
 	return (
@@ -220,7 +217,7 @@ export function AgreementMap({
 				{selectionHint && !readOnly && <div className="text-sm text-gray-500">{selectionHint}</div>}
 			</div>
 
-			<div className="h-112.5 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+			<div className="h-200 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
 				<Map
 					ref={mapRef}
 					markers={markers}

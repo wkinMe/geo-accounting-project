@@ -72,7 +72,7 @@ export function PartySection({ type, canEdit = true, isViewMode = true }: PartyS
 		if (!canEdit) return;
 
 		setWarehouse(id);
-		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', id !== null ? id : -1);
+		setValue(isSupplier ? 'supplierWarehouse' : 'customerWarehouse', id || -1);
 
 		if (id !== null && warehouses) {
 			const selectedWarehouse = warehouses.find((w) => w.id === id);
