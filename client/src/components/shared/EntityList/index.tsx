@@ -19,8 +19,6 @@ export function EntityList<T, TableItem extends { id: number }>({
 		actions,
 		hoverPopupConfig,
 		canCreate = false,
-		canEdit,
-		canDelete,
 		initialSortBy = 'id',
 		initialSortOrder = 'ASC',
 		defaultLimit = 20,
@@ -129,28 +127,30 @@ export function EntityList<T, TableItem extends { id: number }>({
 		}
 	};
 
-	// Обновляем actions - для всех действий, кроме удаления, вызываем openEditModal
+	// Обновляем actions - сохраняем оригинальную логику
 	const actionsWithPermissions = actions?.map((action) => {
-		// Для удаления - особая логика
-		if (action.name === 'Удалить' && canDelete) {
+		// Для удаления с подтверждением - особая обработка
+		if (action.needConfirmation) {
 			return {
 				...action,
 				action: async (item: TableItem) => {
 					await deleteMutate(item.id);
 				},
-				hidden: (item: TableItem) => !canDelete(item),
 			};
 		}
 
-		// Для всех остальных действий (Просмотреть, Редактировать и т.д.) - открываем модалку
-		// Проверяем, может ли пользователь редактировать (если canEdit передан)
-		const canPerformAction = canEdit ? canEdit : () => true;
+		// Проверяем, есть ли у действия своя реализация
+		const hasCustomAction = !!action.action;
 
+		if (hasCustomAction) {
+			// Если есть своя реализация (например, navigate), оставляем её
+			return action;
+		}
+
+		// Если своей action нет - открываем модалку
 		return {
 			...action,
 			action: (item: TableItem) => openEditModal(item),
-			hidden: (item: TableItem) => !canPerformAction(item),
-			needConfirmation: false, // Отключаем подтверждение для этих действий
 		};
 	});
 
@@ -165,11 +165,6 @@ export function EntityList<T, TableItem extends { id: number }>({
 				total={total}
 				actions={actionsWithPermissions}
 				searchValue={searchQuery}
-				onSearch={handleSearch}
-				onCreate={canCreate ? openCreateModal : undefined}
-				onPageChange={handlePageChange}
-				onLimitChange={handleLimitChange}
-				onSort={handleSort}
 				sortBy={sortBy}
 				sortOrder={sortOrder}
 				currentPage={page}
@@ -178,6 +173,11 @@ export function EntityList<T, TableItem extends { id: number }>({
 				isFetching={isFetchingData}
 				hoverPopupConfig={hoverPopupConfig}
 				isCreateDisabled={!canCreate}
+				onSearch={handleSearch}
+				onCreate={canCreate ? openCreateModal : undefined}
+				onPageChange={handlePageChange}
+				onLimitChange={handleLimitChange}
+				onSort={handleSort}
 			/>
 
 			{renderModal &&

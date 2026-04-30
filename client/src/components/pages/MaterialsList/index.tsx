@@ -8,8 +8,8 @@ import { EntityList } from '@/components/shared/EntityList';
 import { useNavigate } from 'react-router';
 import { MaterialModal } from './components';
 import { MaterialImagePopup } from './components/MaterialsImagePopup';
-import { useRole } from '@/hooks';
-import { isSuperAdminRole } from '@/utils';
+import { useRole, useProfile } from '@/hooks';
+import { isSuperAdminRole, isAdminRole } from '@/utils';
 
 export type TableMaterial = {
 	id: number;
@@ -32,7 +32,13 @@ const mapMaterialToTableItem = (material: Material): TableMaterial => ({
 export function MaterialsList() {
 	const navigate = useNavigate();
 	const role = useRole();
-	const canModify = isSuperAdminRole(role);
+
+	const isSuperAdmin = isSuperAdminRole(role);
+	const isAdmin = isAdminRole(role);
+
+	const canEdit = isAdmin || isSuperAdmin;
+	const canDelete = isSuperAdmin;
+	const canCreate = isAdmin || isSuperAdmin;
 
 	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
 		delay: 200,
@@ -47,14 +53,15 @@ export function MaterialsList() {
 		},
 		{
 			name: 'Редактировать',
-			action: () => {},
 			icon: <MdEdit />,
+			hidden: () => !canEdit,
 		},
 		{
 			name: 'Удалить',
 			action: async () => {},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
+			hidden: () => !canDelete,
 		},
 	];
 
@@ -62,6 +69,7 @@ export function MaterialsList() {
 		<EntityList
 			config={{
 				entityName: 'materials',
+				itemName: 'материал',
 				service: {
 					findAll: materialService.findAll.bind(materialService),
 					search: materialService.search.bind(materialService),
@@ -73,9 +81,9 @@ export function MaterialsList() {
 				mapToTableItem: mapMaterialToTableItem,
 				actions,
 				hoverPopupConfig,
-				canCreate: canModify,
-				canEdit: () => canModify,
-				canDelete: () => canModify,
+				canCreate,
+				canEdit: () => canEdit,
+				canDelete: () => canDelete,
 				initialSortBy: 'id',
 				initialSortOrder: 'ASC',
 				defaultLimit: 20,

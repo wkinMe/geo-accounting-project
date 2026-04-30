@@ -2,16 +2,7 @@
 import { instance } from '@/api/instance';
 import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
 import type { Material } from '@shared/models';
-
-export interface MaterialsListResponse {
-	data: Material[];
-	pagination: {
-		page: number;
-		limit: number;
-		total: number;
-		totalPages: number;
-	};
-}
+import type { PaginatedResponse } from '@shared/types';
 
 class MaterialService {
 	private readonly baseUrl = '/materials';
@@ -21,19 +12,32 @@ class MaterialService {
 		limit: number = 20,
 		sortBy?: string,
 		sortOrder?: 'ASC' | 'DESC'
-	): Promise<MaterialsListResponse> {
+	): Promise<PaginatedResponse<Material>> {
 		const params: Record<string, any> = { page, limit };
 		if (sortBy) params.sortBy = sortBy;
 		if (sortOrder) params.sortOrder = sortOrder;
 
-		const response = await instance.get<{ success: boolean; data: Material[]; pagination: any }>(
-			`${this.baseUrl}/`,
-			{ params }
-		);
-		return {
-			data: response.data.data,
-			pagination: response.data.pagination,
-		};
+		const response = await instance.get<PaginatedResponse<Material>>(`${this.baseUrl}/`, {
+			params,
+		});
+		return response.data;
+	}
+
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<PaginatedResponse<Material>> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<PaginatedResponse<Material>>(`${this.baseUrl}/search`, {
+			params,
+		});
+		return response.data;
 	}
 
 	async findById(id: number): Promise<Material> {
@@ -55,9 +59,7 @@ class MaterialService {
 			`${this.baseUrl}/`,
 			formData,
 			{
-				headers: {
-					'Content-Type': 'multipart/form-data',
-				},
+				headers: { 'Content-Type': 'multipart/form-data' },
 			}
 		);
 		return response.data.data;
@@ -67,7 +69,6 @@ class MaterialService {
 		const formData = new FormData();
 		if (data.name) formData.append('name', data.name);
 		if (data.unit) formData.append('unit', data.unit);
-
 		if (data.image !== undefined) {
 			if (data.image === null) {
 				formData.append('image', 'null');
@@ -80,9 +81,7 @@ class MaterialService {
 			`${this.baseUrl}/${id}`,
 			formData,
 			{
-				headers: {
-					'Content-Type': 'multipart/form-data',
-				},
+				headers: { 'Content-Type': 'multipart/form-data' },
 			}
 		);
 		return response.data.data;
@@ -95,27 +94,6 @@ class MaterialService {
 		if (!response.data.success) {
 			throw new Error(response.data.message || 'Не удалось удалить материал');
 		}
-	}
-
-	async search(
-		query: string,
-		page: number = 1,
-		limit: number = 20,
-		sortBy?: string,
-		sortOrder?: 'ASC' | 'DESC'
-	): Promise<MaterialsListResponse> {
-		const params: Record<string, any> = { q: query, page, limit };
-		if (sortBy) params.sortBy = sortBy;
-		if (sortOrder) params.sortOrder = sortOrder;
-
-		const response = await instance.get<{ success: boolean; data: Material[]; pagination: any }>(
-			`${this.baseUrl}/search`,
-			{ params }
-		);
-		return {
-			data: response.data.data,
-			pagination: response.data.pagination,
-		};
 	}
 
 	async getImageUrl(materialId: number): Promise<string> {

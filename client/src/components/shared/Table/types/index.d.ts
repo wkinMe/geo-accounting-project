@@ -23,7 +23,7 @@ export interface HoverPopupConfig<T> {
 
 export interface Action<T> {
 	name: string;
-	action: (item: T) => void | Promise<void>;
+	action?: (item: T) => void | Promise<void>;
 	icon: ReactNode;
 	hidden?: (item: T) => boolean;
 	needConfirmation?: boolean;

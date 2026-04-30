@@ -19,16 +19,16 @@ interface PaginatedTableProps<T extends { id: number }> {
 	isCreateDisabled?: boolean;
 	isLoading?: boolean;
 	isFetching?: boolean; // Добавляем isFetching
-	onSearch?: (query: string) => void;
-	onCreate?: () => void;
-	onPageChange: (page: number) => void;
-	onLimitChange: (limit: number) => void;
-	onSort?: (column: string, order: 'ASC' | 'DESC') => void;
 	sortBy?: string;
 	sortOrder?: 'ASC' | 'DESC';
 	hoverPopupConfig?: HoverPopupConfig<T>;
 	currentPage?: number;
 	currentLimit?: number;
+	onSearch?: (query: string) => void;
+	onCreate?: () => void;
+	onPageChange: (page: number) => void;
+	onLimitChange: (limit: number) => void;
+	onSort?: (column: string, order: 'ASC' | 'DESC') => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -47,16 +47,16 @@ export function PaginatedTable<T extends { id: number }>({
 	isCreateDisabled = false,
 	isLoading = false,
 	isFetching = false,
-	onSearch,
-	onCreate,
-	onPageChange,
-	onLimitChange,
-	onSort,
 	sortBy,
 	sortOrder,
 	hoverPopupConfig,
 	currentPage = 1,
 	currentLimit = 20,
+	onSearch,
+	onCreate,
+	onPageChange,
+	onLimitChange,
+	onSort,
 }: PaginatedTableProps<T>) {
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 	const totalPages = Math.ceil(total / currentLimit);

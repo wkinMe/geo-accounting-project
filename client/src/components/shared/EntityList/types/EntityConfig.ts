@@ -1,10 +1,9 @@
 // client/src/components/shared/EntityList/types.ts
-
 import type { Action, Column, HoverPopupConfig } from '../../Table/types';
 
 export interface EntityConfig<T, TableItem = any> {
-	entityName: string; // english name for tanstack usage for example
-  itemName: string; // русское название для кнопок и тд
+	entityName: string;
+	itemName: string;
 	service: {
 		findAll: (
 			page: number,
@@ -30,10 +29,10 @@ export interface EntityConfig<T, TableItem = any> {
 		update?: (id: number, data: any) => Promise<T>;
 	};
 	columns: Column<TableItem>[];
+	mapToTableItem: (item: T) => TableItem;
 	actions?: Action<TableItem>[];
 	hoverPopupConfig?: HoverPopupConfig<TableItem>;
 	canCreate?: boolean;
-	mapToTableItem: (item: T) => TableItem;
 	canEdit?: (item: TableItem) => boolean;
 	canDelete?: (item: TableItem) => boolean;
 	initialSortBy?: string;
