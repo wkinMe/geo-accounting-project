@@ -1,56 +1,101 @@
-// client/src/services/warehouseHistoryService.ts
 import { instance } from '@/api/instance';
 import type { WarehouseHistoryItemWithDetails } from '@shared/models';
+
+export interface WarehouseHistoryResponse {
+	data: WarehouseHistoryItemWithDetails[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
 
 class WarehouseHistoryService {
 	private readonly baseUrl = '/warehouse-history';
 
 	async getByWarehouseId(
 		warehouseId: number,
-		limit?: number,
-		offset?: number
-	): Promise<WarehouseHistoryItemWithDetails[]> {
-		const params: Record<string, any> = {};
-		if (limit) params.limit = limit;
-		if (offset) params.offset = offset;
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<WarehouseHistoryResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
 
 		const response = await instance.get<{
 			success: boolean;
 			data: WarehouseHistoryItemWithDetails[];
+			pagination: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+			};
 		}>(`${this.baseUrl}/warehouse/${warehouseId}`, { params });
-		return response.data.data;
+
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async getByAgreementId(
 		agreementId: number,
-		limit?: number,
-		offset?: number
-	): Promise<WarehouseHistoryItemWithDetails[]> {
-		const params: Record<string, any> = {};
-		if (limit) params.limit = limit;
-		if (offset) params.offset = offset;
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<WarehouseHistoryResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
 
 		const response = await instance.get<{
 			success: boolean;
 			data: WarehouseHistoryItemWithDetails[];
+			pagination: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+			};
 		}>(`${this.baseUrl}/agreement/${agreementId}`, { params });
-		return response.data.data;
+
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async getByMaterialId(
 		materialId: number,
-		limit?: number,
-		offset?: number
-	): Promise<WarehouseHistoryItemWithDetails[]> {
-		const params: Record<string, any> = {};
-		if (limit) params.limit = limit;
-		if (offset) params.offset = offset;
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<WarehouseHistoryResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
 
 		const response = await instance.get<{
 			success: boolean;
 			data: WarehouseHistoryItemWithDetails[];
+			pagination: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+			};
 		}>(`${this.baseUrl}/material/${materialId}`, { params });
-		return response.data.data;
+
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 }
 

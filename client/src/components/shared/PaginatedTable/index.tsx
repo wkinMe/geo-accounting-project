@@ -1,5 +1,5 @@
 // client/src/components/shared/PaginatedTable/index.tsx
-import { useRef, useEffect } from 'react';
+import { useRef, useLayoutEffect } from 'react';
 import { Table } from '../Table';
 import type { Action, Column, HoverPopupConfig } from '../Table/types';
 import { BiChevronLeft, BiChevronRight } from 'react-icons/bi';
@@ -78,14 +78,14 @@ export function PaginatedTable<T extends { id: number }>({
 	};
 
 	// Скролл к началу таблицы при изменении страницы или лимита
-	useEffect(() => {
+	useLayoutEffect(() => {
 		if (tableContainerRef.current) {
 			tableContainerRef.current.scrollIntoView({
 				behavior: 'smooth',
 				block: 'start',
 			});
 		}
-	}, [currentPage, currentLimit]);
+	}, [sortBy, sortOrder, currentPage, currentLimit]);
 
 	const getPageNumbers = () => {
 		const pages: (number | string)[] = [];

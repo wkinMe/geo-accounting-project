@@ -1,6 +1,5 @@
-// client/src/pages/warehouses/WarehouseHistory.tsx
 import { useQuery } from '@tanstack/react-query';
-import { Table } from '@/components/shared/Table';
+import { PaginatedTable } from '@/components/shared/PaginatedTable';
 import { warehouseHistoryService } from '@/services/warehouseHistoryService';
 import {
 	WAREHOUSE_HISTORY_TYPE_LABELS,
@@ -10,6 +9,7 @@ import { formatDateToDDMMYYYY } from '@/utils/dateFormatters';
 import type { WarehouseHistoryItemWithDetails } from '@shared/models';
 import type { Column } from '@/components/shared/Table/types';
 import { Link } from 'react-router';
+import { useTablePagination } from '@/hooks/useTablePagination';
 
 interface HistoryEntry {
 	id: number;
@@ -73,15 +73,24 @@ const mapHistoryToTableItem = (item: WarehouseHistoryItemWithDetails): HistoryEn
 });
 
 export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
-	const { data: history, isLoading } = useQuery({
-		queryKey: ['warehouseHistory', warehouseId],
-		queryFn: () => warehouseHistoryService.getByWarehouseId(warehouseId),
+	const { page, limit, sortBy, sortOrder, handleSort, handlePageChange, handleLimitChange } =
+		useTablePagination({
+			initialPage: 1,
+			initialLimit: 100,
+			initialSortBy: 'created_at',
+			initialSortOrder: 'DESC',
+		});
+
+	const { data, isLoading, isFetching } = useQuery({
+		queryKey: ['warehouseHistory', warehouseId, page, limit, sortBy, sortOrder],
+		queryFn: () =>
+			warehouseHistoryService.getByWarehouseId(warehouseId, page, limit, sortBy, sortOrder),
 		enabled: !!warehouseId,
+		placeholderData: (previousData) => previousData,
 	});
 
-	console.log(history);
-
-	const elements = history?.map(mapHistoryToTableItem) || [];
+	const elements = data?.data.map(mapHistoryToTableItem) || [];
+	const total = data?.pagination.total || 0;
 
 	return (
 		<div className="mt-12">
@@ -89,12 +98,23 @@ export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
 				<h2 className="text-xl font-semibold text-gray-900">История изменений</h2>
 			</div>
 
-			<Table
+			<PaginatedTable
 				roundedT={false}
-				itemName="Запись истории"
+				roundedB={true}
 				columns={columns}
+				itemName="Запись истории"
 				elements={elements}
+				total={total}
+				sortBy={sortBy}
+				sortOrder={sortOrder}
+				currentPage={page}
+				currentLimit={limit}
+				isLoading={isLoading}
+				isFetching={isFetching}
 				isCreateDisabled={true}
+				onPageChange={handlePageChange}
+				onLimitChange={handleLimitChange}
+				onSort={handleSort}
 			/>
 		</div>
 	);

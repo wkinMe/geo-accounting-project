@@ -1,8 +1,8 @@
-// services/WarehouseHistoryService.ts
 import { WarehouseHistoryItem } from "../domain/entities/WarehouseHistoryItem";
 import {
   WarehouseHistoryRepository,
   WarehouseHistoryItemWithDetails,
+  WarehouseHistoryResponse,
 } from "../repositories/WarehouseHistoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
@@ -59,7 +59,9 @@ export class WarehouseHistoryService {
     warehouse_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<WarehouseHistoryResponse> {
     const warehouse = await this.warehouseRepo.findById(warehouse_id);
     if (!warehouse) {
       throw new NotFoundError(
@@ -74,6 +76,8 @@ export class WarehouseHistoryService {
       warehouse_id,
       limit,
       offset,
+      sortBy,
+      sortOrder,
     );
   }
 
@@ -81,11 +85,15 @@ export class WarehouseHistoryService {
     agreement_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<WarehouseHistoryResponse> {
     return await this.historyRepo.findByAgreementWithDetails(
       agreement_id,
       limit,
       offset,
+      sortBy,
+      sortOrder,
     );
   }
 
@@ -93,7 +101,9 @@ export class WarehouseHistoryService {
     material_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<WarehouseHistoryResponse> {
     const material = await this.materialRepo.findById(material_id);
     if (!material) {
       throw new NotFoundError(
@@ -108,6 +118,8 @@ export class WarehouseHistoryService {
       material_id,
       limit,
       offset,
+      sortBy,
+      sortOrder,
     );
   }
 }
