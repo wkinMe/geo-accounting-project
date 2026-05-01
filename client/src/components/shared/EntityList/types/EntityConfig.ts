@@ -25,7 +25,7 @@ export interface EntityConfig<T, TableItem = any> {
 			pagination: { total: number; page: number; limit: number; totalPages: number };
 		}>;
 		delete: (id: number) => Promise<void>;
-		create?: (data: any) => Promise<T>;
+		create?: (data: any) => Promise<any>;
 		update?: (id: number, data: any) => Promise<T>;
 	};
 	columns: Column<TableItem>[];

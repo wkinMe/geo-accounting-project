@@ -213,7 +213,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 	// Формируем список менеджеров
 	const managers: User[] = useMemo(() => {
 		if (managerSearchQuery.length > 0 && selectedOrgId) {
-			const searchResults = managerSearchResponse || [];
+			const searchResults = managerSearchResponse?.data || [];
 			return filterManagers(searchResults);
 		}
 
