@@ -50,8 +50,6 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 		},
 	});
 
-	console.log(warehouse);
-
 	const handleSubmit = async (data: UpdateWarehouseDTO) => {
 		if (warehouse) {
 			await updateMutate({ id: warehouse.id, data });

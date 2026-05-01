@@ -1,5 +1,4 @@
 import { userService } from '@/services/userService';
-import type { UserWithOrganization } from '@shared/models';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { FaUserShield } from 'react-icons/fa';
 import { FaCrown } from 'react-icons/fa';
@@ -56,7 +55,6 @@ export function UsersList() {
 	const actions: Action<TableUser>[] = [
 		{
 			name: 'Редактировать',
-			action: () => {},
 			icon: <MdEdit />,
 			hidden: (item) => !canEdit(item),
 		},

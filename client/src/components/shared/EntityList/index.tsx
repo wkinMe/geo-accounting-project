@@ -143,11 +143,9 @@ export function EntityList<T, TableItem extends { id: number }>({
 		const hasCustomAction = !!action.action;
 
 		if (hasCustomAction) {
-			// Если есть своя реализация (например, navigate), оставляем её
 			return action;
 		}
 
-		// Если своей action нет - открываем модалку
 		return {
 			...action,
 			action: (item: TableItem) => openEditModal(item),

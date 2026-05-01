@@ -8,8 +8,6 @@ export function useUsersListPermissions(currentUser: UserDataDTO | undefined) {
 	const canEdit = (user: TableUser) => {
 		if (!currentUser) return false;
 
-		console.log(user);
-
 		// Супер-админ может редактировать всех
 		if (currentUser.role === USER_ROLES.SUPER_ADMIN) return true;
 
