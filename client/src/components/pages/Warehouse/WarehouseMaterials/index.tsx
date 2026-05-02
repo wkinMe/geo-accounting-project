@@ -70,11 +70,12 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 
 	return (
 		<div className="mt-12">
-			<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center bg-white">
+			<div className="flex p-3 rounded-t-md border-b-0 border border-gray-100 justify-between items-center bg-white">
 				<h2 className="text-xl font-semibold text-gray-900">Материалы на складе</h2>
 			</div>
 
 			<EntityList
+				roundedT={false}
 				config={{
 					entityName: 'warehouseMaterials',
 					itemName: 'материал',

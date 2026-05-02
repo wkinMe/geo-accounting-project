@@ -15,19 +15,11 @@ router.get(
   warehouseHistoryController.getByWarehouseId,
 );
 
-// GET /api/warehouse-history/agreement/:agreementId - получить историю по договору
+// GET /api/warehouse-history/warehouse/:warehouseId/search - поиск по истории склада
 router.get(
-  "/agreement/:agreementId",
+  "/warehouse/:warehouseId/search",
   authMiddleware,
-  warehouseHistoryController.getByAgreementId,
-);
-
-// GET /api/warehouse-history/material/:materialId - получить историю по материалу
-router.get(
-  "/material/:materialId",
-  authMiddleware,
-  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
-  warehouseHistoryController.getByMaterialId,
+  warehouseHistoryController.search,
 );
 
 export { router as warehouseHistoryRouter };

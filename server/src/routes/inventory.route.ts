@@ -84,4 +84,6 @@ router.get(
   inventoryController.searchMaterials,
 );
 
+
+
 export { router as inventoryRouter };

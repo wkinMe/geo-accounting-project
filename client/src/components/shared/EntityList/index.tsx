@@ -6,8 +6,12 @@ import type { EntityConfig } from './types';
 
 export function EntityList<T, TableItem extends { id: number }>({
 	config,
+	roundedT = true,
+	roundedB = true,
 }: {
 	config: EntityConfig<T, TableItem>;
+	roundedT?: boolean;
+	roundedB?: boolean;
 }) {
 	const {
 		entityName,
@@ -157,8 +161,8 @@ export function EntityList<T, TableItem extends { id: number }>({
 	return (
 		<>
 			<PaginatedTable
-				roundedT={true}
-				roundedB={true}
+				roundedT={roundedT}
+				roundedB={roundedB}
 				columns={columns}
 				itemName={itemName}
 				elements={elements}
