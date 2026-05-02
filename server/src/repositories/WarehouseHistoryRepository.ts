@@ -50,76 +50,109 @@ export class WarehouseHistoryRepository {
     sortBy?: string,
     sortOrder?: "ASC" | "DESC",
   ): Promise<WarehouseHistoryResponse> {
-    const sortField =
-      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "created_at";
     const order = sortOrder === "ASC" ? "ASC" : "DESC";
 
+    let orderByClause = "";
+
+    switch (sortBy) {
+      case "created_at":
+        orderByClause = `h.created_at ${order}`;
+        break;
+      case "operation_type":
+        orderByClause = `h.operation_type ${order}`;
+        break;
+      case "material_name":
+        orderByClause = `m.name ${order}`;
+        break;
+      case "old_amount":
+        orderByClause = `h.old_amount ${order}`;
+        break;
+      case "new_amount":
+        orderByClause = `h.new_amount ${order}`;
+        break;
+      case "delta":
+        orderByClause = `h.delta ${order}`;
+        break;
+      case "user_name":
+        orderByClause = `u.name ${order}`;
+        break;
+      case "agreement_id":
+        orderByClause = `h.agreement_id ${order}`;
+        break;
+      case "description":
+        orderByClause = `h.description ${order}`;
+        break;
+      default:
+        orderByClause = `h.created_at DESC`;
+        break;
+    }
+
     const query = `
-      SELECT 
-        h.id,
-        h.warehouse_id,
-        h.material_id,
-        h.operation_type,
-        h.old_amount,
-        h.new_amount,
-        h.delta,
-        h.user_id,
-        h.agreement_id,
-        h.description,
-        h.created_at,
-        json_build_object(
-          'id', m.id,
-          'name', m.name,
-          'unit', m.unit,
-          'created_at', m.created_at,
-          'updated_at', m.updated_at
-        ) as material,
-        json_build_object(
-          'id', u.id,
-          'name', u.name,
-          'role', u.role,
-          'organization_id', u.organization_id,
-          'created_at', u.created_at,
-          'updated_at', u.updated_at
-        ) as "user",
-        json_build_object(
-          'id', w.id,
-          'name', w.name,
-          'organization_id', w.organization_id,
-          'manager_id', w.manager_id,
-          'latitude', w.latitude,
-          'longitude', w.longitude,
-          'created_at', w.created_at,
-          'updated_at', w.updated_at
-        ) as warehouse,
-        CASE 
-          WHEN a.id IS NOT NULL THEN json_build_object(
-            'id', a.id,
-            'supplier_id', a.supplier_id,
-            'customer_id', a.customer_id,
-            'supplier_warehouse_id', a.supplier_warehouse_id,
-            'customer_warehouse_id', a.customer_warehouse_id,
-            'status', a.status,
-            'created_at', a.created_at,
-            'updated_at', a.updated_at
-          )
-          ELSE NULL
-        END as agreement
-      FROM warehouse_material_history h
-      LEFT JOIN materials m ON h.material_id = m.id
-      LEFT JOIN app_users u ON h.user_id = u.id
-      LEFT JOIN warehouses w ON h.warehouse_id = w.id
-      LEFT JOIN agreements a ON h.agreement_id = a.id
-      WHERE h.warehouse_id = $1
-      ORDER BY ${sortField} ${order}
-      LIMIT $2 OFFSET $3
-    `;
+    SELECT 
+      h.id,
+      h.warehouse_id,
+      h.material_id,
+      h.operation_type,
+      h.old_amount,
+      h.new_amount,
+      h.delta,
+      h.user_id,
+      h.agreement_id,
+      h.description,
+      h.created_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material,
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'role', u.role,
+        'organization_id', u.organization_id,
+        'created_at', u.created_at,
+        'updated_at', u.updated_at
+      ) as "user",
+      json_build_object(
+        'id', w.id,
+        'name', w.name,
+        'organization_id', w.organization_id,
+        'manager_id', w.manager_id,
+        'latitude', w.latitude,
+        'longitude', w.longitude,
+        'created_at', w.created_at,
+        'updated_at', w.updated_at
+      ) as warehouse,
+      CASE 
+        WHEN a.id IS NOT NULL THEN json_build_object(
+          'id', a.id,
+          'supplier_id', a.supplier_id,
+          'customer_id', a.customer_id,
+          'supplier_warehouse_id', a.supplier_warehouse_id,
+          'customer_warehouse_id', a.customer_warehouse_id,
+          'status', a.status,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at
+        )
+        ELSE NULL
+      END as agreement
+    FROM warehouse_material_history h
+    LEFT JOIN materials m ON h.material_id = m.id
+    LEFT JOIN app_users u ON h.user_id = u.id
+    LEFT JOIN warehouses w ON h.warehouse_id = w.id
+    LEFT JOIN agreements a ON h.agreement_id = a.id
+    WHERE h.warehouse_id = $1
+    ORDER BY ${orderByClause}
+    LIMIT $2 OFFSET $3
+  `;
 
     const countQuery = `
-      SELECT COUNT(*) as total
-      FROM warehouse_material_history h
-      WHERE h.warehouse_id = $1
-    `;
+    SELECT COUNT(*) as total
+    FROM warehouse_material_history h
+    WHERE h.warehouse_id = $1
+  `;
 
     const [dataResult, countResult] = await Promise.all([
       this.db.query(query, [warehouse_id, limit, offset]),
@@ -201,76 +234,106 @@ export class WarehouseHistoryRepository {
     sortBy?: string,
     sortOrder?: "ASC" | "DESC",
   ): Promise<WarehouseHistoryResponse> {
-    const sortField =
-      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "created_at";
     const order = sortOrder === "ASC" ? "ASC" : "DESC";
 
+    let orderByClause = "";
+
+    switch (sortBy) {
+      case "created_at":
+        orderByClause = `h.created_at ${order}`;
+        break;
+      case "operation_type":
+        orderByClause = `h.operation_type ${order}`;
+        break;
+      case "material_name":
+        orderByClause = `m.name ${order}`;
+        break;
+      case "old_amount":
+        orderByClause = `h.old_amount ${order}`;
+        break;
+      case "new_amount":
+        orderByClause = `h.new_amount ${order}`;
+        break;
+      case "delta":
+        orderByClause = `h.delta ${order}`;
+        break;
+      case "user_name":
+        orderByClause = `u.name ${order}`;
+        break;
+      case "description":
+        orderByClause = `h.description ${order}`;
+        break;
+      default:
+        orderByClause = `h.created_at DESC`;
+        break;
+    }
+
     const query = `
-      SELECT 
-        h.id,
-        h.warehouse_id,
-        h.material_id,
-        h.operation_type,
-        h.old_amount,
-        h.new_amount,
-        h.delta,
-        h.user_id,
-        h.agreement_id,
-        h.description,
-        h.created_at,
-        json_build_object(
-          'id', m.id,
-          'name', m.name,
-          'unit', m.unit,
-          'created_at', m.created_at,
-          'updated_at', m.updated_at
-        ) as material,
-        json_build_object(
-          'id', u.id,
-          'name', u.name,
-          'role', u.role,
-          'organization_id', u.organization_id,
-          'created_at', u.created_at,
-          'updated_at', u.updated_at
-        ) as "user",
-        json_build_object(
-          'id', w.id,
-          'name', w.name,
-          'organization_id', w.organization_id,
-          'manager_id', w.manager_id,
-          'latitude', w.latitude,
-          'longitude', w.longitude,
-          'created_at', w.created_at,
-          'updated_at', w.updated_at
-        ) as warehouse,
-        CASE 
-          WHEN a.id IS NOT NULL THEN json_build_object(
-            'id', a.id,
-            'supplier_id', a.supplier_id,
-            'customer_id', a.customer_id,
-            'supplier_warehouse_id', a.supplier_warehouse_id,
-            'customer_warehouse_id', a.customer_warehouse_id,
-            'status', a.status,
-            'created_at', a.created_at,
-            'updated_at', a.updated_at
-          )
-          ELSE NULL
-        END as agreement
-      FROM warehouse_material_history h
-      LEFT JOIN materials m ON h.material_id = m.id
-      LEFT JOIN app_users u ON h.user_id = u.id
-      LEFT JOIN warehouses w ON h.warehouse_id = w.id
-      LEFT JOIN agreements a ON h.agreement_id = a.id
-      WHERE h.agreement_id = $1
-      ORDER BY ${sortField} ${order}
-      LIMIT $2 OFFSET $3
-    `;
+    SELECT 
+      h.id,
+      h.warehouse_id,
+      h.material_id,
+      h.operation_type,
+      h.old_amount,
+      h.new_amount,
+      h.delta,
+      h.user_id,
+      h.agreement_id,
+      h.description,
+      h.created_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material,
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'role', u.role,
+        'organization_id', u.organization_id,
+        'created_at', u.created_at,
+        'updated_at', u.updated_at
+      ) as "user",
+      json_build_object(
+        'id', w.id,
+        'name', w.name,
+        'organization_id', w.organization_id,
+        'manager_id', w.manager_id,
+        'latitude', w.latitude,
+        'longitude', w.longitude,
+        'created_at', w.created_at,
+        'updated_at', w.updated_at
+      ) as warehouse,
+      CASE 
+        WHEN a.id IS NOT NULL THEN json_build_object(
+          'id', a.id,
+          'supplier_id', a.supplier_id,
+          'customer_id', a.customer_id,
+          'supplier_warehouse_id', a.supplier_warehouse_id,
+          'customer_warehouse_id', a.customer_warehouse_id,
+          'status', a.status,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at
+        )
+        ELSE NULL
+      END as agreement
+    FROM warehouse_material_history h
+    LEFT JOIN materials m ON h.material_id = m.id
+    LEFT JOIN app_users u ON h.user_id = u.id
+    LEFT JOIN warehouses w ON h.warehouse_id = w.id
+    LEFT JOIN agreements a ON h.agreement_id = a.id
+    WHERE h.agreement_id = $1
+    ORDER BY ${orderByClause}
+    LIMIT $2 OFFSET $3
+  `;
 
     const countQuery = `
-      SELECT COUNT(*) as total
-      FROM warehouse_material_history h
-      WHERE h.agreement_id = $1
-    `;
+    SELECT COUNT(*) as total
+    FROM warehouse_material_history h
+    WHERE h.agreement_id = $1
+  `;
 
     const [dataResult, countResult] = await Promise.all([
       this.db.query(query, [agreement_id, limit, offset]),
@@ -307,76 +370,106 @@ export class WarehouseHistoryRepository {
     sortBy?: string,
     sortOrder?: "ASC" | "DESC",
   ): Promise<WarehouseHistoryResponse> {
-    const sortField =
-      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "created_at";
     const order = sortOrder === "ASC" ? "ASC" : "DESC";
 
+    let orderByClause = "";
+
+    switch (sortBy) {
+      case "created_at":
+        orderByClause = `h.created_at ${order}`;
+        break;
+      case "operation_type":
+        orderByClause = `h.operation_type ${order}`;
+        break;
+      case "material_name":
+        orderByClause = `m.name ${order}`;
+        break;
+      case "old_amount":
+        orderByClause = `h.old_amount ${order}`;
+        break;
+      case "new_amount":
+        orderByClause = `h.new_amount ${order}`;
+        break;
+      case "delta":
+        orderByClause = `h.delta ${order}`;
+        break;
+      case "user_name":
+        orderByClause = `u.name ${order}`;
+        break;
+      case "description":
+        orderByClause = `h.description ${order}`;
+        break;
+      default:
+        orderByClause = `h.created_at DESC`;
+        break;
+    }
+
     const query = `
-      SELECT 
-        h.id,
-        h.warehouse_id,
-        h.material_id,
-        h.operation_type,
-        h.old_amount,
-        h.new_amount,
-        h.delta,
-        h.user_id,
-        h.agreement_id,
-        h.description,
-        h.created_at,
-        json_build_object(
-          'id', m.id,
-          'name', m.name,
-          'unit', m.unit,
-          'created_at', m.created_at,
-          'updated_at', m.updated_at
-        ) as material,
-        json_build_object(
-          'id', u.id,
-          'name', u.name,
-          'role', u.role,
-          'organization_id', u.organization_id,
-          'created_at', u.created_at,
-          'updated_at', u.updated_at
-        ) as "user",
-        json_build_object(
-          'id', w.id,
-          'name', w.name,
-          'organization_id', w.organization_id,
-          'manager_id', w.manager_id,
-          'latitude', w.latitude,
-          'longitude', w.longitude,
-          'created_at', w.created_at,
-          'updated_at', w.updated_at
-        ) as warehouse,
-        CASE 
-          WHEN a.id IS NOT NULL THEN json_build_object(
-            'id', a.id,
-            'supplier_id', a.supplier_id,
-            'customer_id', a.customer_id,
-            'supplier_warehouse_id', a.supplier_warehouse_id,
-            'customer_warehouse_id', a.customer_warehouse_id,
-            'status', a.status,
-            'created_at', a.created_at,
-            'updated_at', a.updated_at
-          )
-          ELSE NULL
-        END as agreement
-      FROM warehouse_material_history h
-      LEFT JOIN materials m ON h.material_id = m.id
-      LEFT JOIN app_users u ON h.user_id = u.id
-      LEFT JOIN warehouses w ON h.warehouse_id = w.id
-      LEFT JOIN agreements a ON h.agreement_id = a.id
-      WHERE h.material_id = $1
-      ORDER BY ${sortField} ${order}
-      LIMIT $2 OFFSET $3
-    `;
+    SELECT 
+      h.id,
+      h.warehouse_id,
+      h.material_id,
+      h.operation_type,
+      h.old_amount,
+      h.new_amount,
+      h.delta,
+      h.user_id,
+      h.agreement_id,
+      h.description,
+      h.created_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material,
+      json_build_object(
+        'id', u.id,
+        'name', u.name,
+        'role', u.role,
+        'organization_id', u.organization_id,
+        'created_at', u.created_at,
+        'updated_at', u.updated_at
+      ) as "user",
+      json_build_object(
+        'id', w.id,
+        'name', w.name,
+        'organization_id', w.organization_id,
+        'manager_id', w.manager_id,
+        'latitude', w.latitude,
+        'longitude', w.longitude,
+        'created_at', w.created_at,
+        'updated_at', w.updated_at
+      ) as warehouse,
+      CASE 
+        WHEN a.id IS NOT NULL THEN json_build_object(
+          'id', a.id,
+          'supplier_id', a.supplier_id,
+          'customer_id', a.customer_id,
+          'supplier_warehouse_id', a.supplier_warehouse_id,
+          'customer_warehouse_id', a.customer_warehouse_id,
+          'status', a.status,
+          'created_at', a.created_at,
+          'updated_at', a.updated_at
+        )
+        ELSE NULL
+      END as agreement
+    FROM warehouse_material_history h
+    LEFT JOIN materials m ON h.material_id = m.id
+    LEFT JOIN app_users u ON h.user_id = u.id
+    LEFT JOIN warehouses w ON h.warehouse_id = w.id
+    LEFT JOIN agreements a ON h.agreement_id = a.id
+    WHERE h.material_id = $1
+    ORDER BY ${orderByClause}
+    LIMIT $2 OFFSET $3
+  `;
 
     const countQuery = `
-      SELECT COUNT(*) as total
-      FROM warehouse_material_history h
-      WHERE h.material_id = $1
-    `;
+    SELECT COUNT(*) as total
+    FROM warehouse_material_history h
+    WHERE h.material_id = $1
+  `;
 
     const [dataResult, countResult] = await Promise.all([
       this.db.query(query, [material_id, limit, offset]),

@@ -79,4 +79,9 @@ router.post(
   inventoryController.checkAvailability,
 );
 
+router.get(
+  "/warehouse/:warehouseId/materials/search",
+  inventoryController.searchMaterials,
+);
+
 export { router as inventoryRouter };

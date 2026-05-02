@@ -13,12 +13,12 @@ import { useTablePagination } from '@/hooks/useTablePagination';
 
 interface HistoryEntry {
 	id: number;
-	operation_type_display: string;
+	operation_type: string;
 	operation_type_color: string;
 	old_amount: number;
 	new_amount: number;
-	delta: number;
-	delta_display: string;
+	delta: string;
+	delta_display: number;
 	delta_color: string;
 	description: string | null;
 	created_at: string;
@@ -30,11 +30,11 @@ interface HistoryEntry {
 
 const columns: Column<HistoryEntry>[] = [
 	{ key: 'created_at', label: 'Дата и время' },
-	{ key: 'operation_type_display', label: 'Тип операции' },
+	{ key: 'operation_type', label: 'Тип операции' },
 	{ key: 'material_name', label: 'Материал' },
 	{ key: 'old_amount', label: 'Было' },
 	{ key: 'new_amount', label: 'Стало' },
-	{ key: 'delta_display', label: 'Изменение' },
+	{ key: 'delta', label: 'Изменение' },
 	{ key: 'user_name', label: 'Пользователь' },
 	{
 		key: 'agreement_id',
@@ -53,12 +53,11 @@ const columns: Column<HistoryEntry>[] = [
 
 const mapHistoryToTableItem = (item: WarehouseHistoryItemWithDetails): HistoryEntry => ({
 	id: item.id,
-	operation_type_display: WAREHOUSE_HISTORY_TYPE_LABELS[item.operation_type],
+	operation_type: WAREHOUSE_HISTORY_TYPE_LABELS[item.operation_type],
 	operation_type_color: WAREHOUSE_HISTORY_TYPE_COLORS[item.operation_type],
 	old_amount: item.old_amount,
 	new_amount: item.new_amount,
-	delta: item.delta,
-	delta_display: item.delta > 0 ? `+${item.delta}` : String(item.delta),
+	delta: item.delta > 0 ? `+${item.delta}` : String(item.delta),
 	delta_color:
 		item.delta > 0 ? 'text-green-600' : item.delta < 0 ? 'text-red-600' : 'text-gray-500',
 	description: item.description,

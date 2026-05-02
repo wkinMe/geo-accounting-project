@@ -1,4 +1,3 @@
-// client/src/components/shared/EntityList/index.tsx
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PaginatedTable } from '../PaginatedTable';
@@ -23,6 +22,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 		initialSortOrder = 'ASC',
 		defaultLimit = 20,
 		renderModal,
+		getIdField = (item: TableItem) => item.id, // по умолчанию берём id
 	} = config;
 
 	const queryClient = useQueryClient();
@@ -121,7 +121,8 @@ export function EntityList<T, TableItem extends { id: number }>({
 
 	const handleSubmit = async (formData: any) => {
 		if (selectedItem) {
-			await updateMutate({ id: selectedItem.id, data: formData });
+			const id = getIdField(selectedItem);
+			await updateMutate({ id, data: formData });
 		} else {
 			await createMutate(formData);
 		}
@@ -134,7 +135,8 @@ export function EntityList<T, TableItem extends { id: number }>({
 			return {
 				...action,
 				action: async (item: TableItem) => {
-					await deleteMutate(item.id);
+					const id = getIdField(item);
+					await deleteMutate(id);
 				},
 			};
 		}
