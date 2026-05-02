@@ -18,7 +18,6 @@ interface HistoryEntry {
 	old_amount: number;
 	new_amount: number;
 	delta: string;
-	delta_display: number;
 	delta_color: string;
 	description: string | null;
 	created_at: string;
