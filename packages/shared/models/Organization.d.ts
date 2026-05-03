@@ -5,7 +5,6 @@ export interface Organization extends BaseModel{
   name: string;
   latitude: number;
   longitude: number;
-  location: Point;
 }
 
 export interface OrganizationWithWarehouses extends Organization {

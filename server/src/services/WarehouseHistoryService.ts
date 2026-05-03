@@ -1,8 +1,7 @@
-// services/WarehouseHistoryService.ts
 import { WarehouseHistoryItem } from "../domain/entities/WarehouseHistoryItem";
 import {
   WarehouseHistoryRepository,
-  WarehouseHistoryItemWithDetails,
+  WarehouseHistoryResponse,
 } from "../repositories/WarehouseHistoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
@@ -55,11 +54,13 @@ export class WarehouseHistoryService {
     return await this.historyRepo.save(historyItem);
   }
 
-  async getHistoryByWarehouse(
+  async getHistory(
     warehouse_id: number,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<WarehouseHistoryResponse> {
     const warehouse = await this.warehouseRepo.findById(warehouse_id);
     if (!warehouse) {
       throw new NotFoundError(
@@ -74,40 +75,36 @@ export class WarehouseHistoryService {
       warehouse_id,
       limit,
       offset,
+      sortBy,
+      sortOrder,
     );
   }
 
-  async getHistoryByAgreement(
-    agreement_id: number,
+  async search(
+    warehouse_id: number,
+    searchQuery: string,
     limit: number = 100,
     offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
-    return await this.historyRepo.findByAgreementWithDetails(
-      agreement_id,
-      limit,
-      offset,
-    );
-  }
-
-  async getHistoryByMaterial(
-    material_id: number,
-    limit: number = 100,
-    offset: number = 0,
-  ): Promise<WarehouseHistoryItemWithDetails[]> {
-    const material = await this.materialRepo.findById(material_id);
-    if (!material) {
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<WarehouseHistoryResponse> {
+    const warehouse = await this.warehouseRepo.findById(warehouse_id);
+    if (!warehouse) {
       throw new NotFoundError(
-        `Материал с ID ${material_id} не найден`,
-        "Material",
-        "getHistoryByMaterial",
-        material_id,
+        `Склад с ID ${warehouse_id} не найден`,
+        "Warehouse",
+        "searchHistoryByWarehouse",
+        warehouse_id,
       );
     }
 
-    return await this.historyRepo.findByMaterialWithDetails(
-      material_id,
+    return await this.historyRepo.search(
+      warehouse_id,
+      searchQuery,
       limit,
       offset,
+      sortBy,
+      sortOrder,
     );
   }
 }

@@ -2,17 +2,48 @@
 import { instance } from '@/api/instance';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
 import type { WarehouseWithManagerAndOrganization } from '@shared/models';
+import type { PaginatedResponse } from '@shared/types';
 
 class WarehouseService {
 	private readonly baseUrl = '/warehouses';
 
-	async findAll(organization_id?: number): Promise<WarehouseWithManagerAndOrganization[]> {
-		const params = organization_id ? { organization_id } : {};
-		const response = await instance.get<{
-			success: boolean;
-			data: WarehouseWithManagerAndOrganization[];
-		}>(`${this.baseUrl}/`, { params });
-		return response.data.data;
+	async findAll(
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC',
+		organization_id?: number
+	): Promise<PaginatedResponse<WarehouseWithManagerAndOrganization>> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+		if (organization_id) params.organization_id = organization_id;
+
+		const response = await instance.get<PaginatedResponse<WarehouseWithManagerAndOrganization>>(
+			`${this.baseUrl}/`,
+			{ params }
+		);
+		return response.data;
+	}
+
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC',
+		organization_id?: number
+	): Promise<PaginatedResponse<WarehouseWithManagerAndOrganization>> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+		if (organization_id) params.organization_id = organization_id;
+
+		const response = await instance.get<PaginatedResponse<WarehouseWithManagerAndOrganization>>(
+			`${this.baseUrl}/search`,
+			{ params }
+		);
+		return response.data;
 	}
 
 	async findById(id: number): Promise<WarehouseWithManagerAndOrganization> {
@@ -64,21 +95,6 @@ class WarehouseService {
 			success: boolean;
 			data: WarehouseWithManagerAndOrganization;
 		}>(`${this.baseUrl}/${warehouseId}/assign-manager`, { manager_id });
-		return response.data.data;
-	}
-
-	async search(
-		query: string,
-		organization_id?: number
-	): Promise<WarehouseWithManagerAndOrganization[]> {
-		const params: Record<string, any> = { q: query };
-		if (organization_id) {
-			params.organization_id = organization_id;
-		}
-		const response = await instance.get<{
-			success: boolean;
-			data: WarehouseWithManagerAndOrganization[];
-		}>(`${this.baseUrl}/search`, { params });
 		return response.data.data;
 	}
 }

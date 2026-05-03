@@ -1,4 +1,3 @@
-// client/src/pages/users/UserModal.tsx
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,6 +11,8 @@ import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
 import type { UserRole } from '@shared/models';
 import CustomSelect from '@/components/shared/Select';
 import { USER_ROLES } from '@shared/constants';
+import { isSuperAdminRole } from '@/utils';
+import { useProfile } from '@/hooks';
 
 const userSchema = z.object({
 	name: z.string().min(1, 'Имя пользователя обязательно'),
@@ -42,6 +43,8 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 	const [error, setError] = useState<string | null>(null);
 
 	const isEditing = !!user?.id;
+	const { data: profileData } = useProfile();
+	const isSuperAdmin = isSuperAdminRole(user?.role);
 
 	const {
 		register,
@@ -64,15 +67,22 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 	const selectedRole = watch('role');
 	const selectedOrgId = watch('organization_id');
 
-	const { data: organizations } = useQuery({
+	const { data: organizationsResponse } = useQuery({
 		queryKey: ['organizations'],
-		queryFn: () => organizationService.findAll(),
+		queryFn: async () => {
+			if (isSuperAdmin) {
+				return organizationService.findAll();
+			}
+			const org = await organizationService.findById(profileData?.organization_id || 0);
+			return { data: [org], pagination: { total: 1, page: 1, limit: 1, totalPages: 1 } };
+		},
+		enabled: !!profileData?.organization_id,
 	});
 
-	const { data: searchedOrgs, isLoading: isOrgSearching } = useQuery({
+	const { data: searchedOrgsResponse, isLoading: isOrgSearching } = useQuery({
 		queryKey: ['organizations', 'search', orgSearchQuery],
 		queryFn: () => organizationService.search(orgSearchQuery),
-		enabled: open && orgSearchQuery.length > 0,
+		enabled: open && orgSearchQuery.length > 0 && isSuperAdmin,
 	});
 
 	const getAvailableRoles = () => {
@@ -159,7 +169,10 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 	const availableRoles = getAvailableRoles();
 	const canEdit = canEditRole();
 
-	const orgList = orgSearchQuery && searchedOrgs ? searchedOrgs : organizations || [];
+	const orgList =
+		orgSearchQuery && searchedOrgsResponse
+			? searchedOrgsResponse.data || []
+			: organizationsResponse?.data || [];
 
 	return (
 		<ConfirmModal
@@ -175,6 +188,7 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 				<TextField
 					label="Имя пользователя"
 					error={errors.name?.message}
+					placeholder="Имя пользователя"
 					required
 					{...register('name')}
 				/>
@@ -182,6 +196,7 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 				<TextField
 					label={isEditing ? 'Новый пароль (оставьте пустым, если не хотите менять)' : 'Пароль'}
 					type="password"
+					placeholder="Пароль"
 					error={errors.password?.message}
 					required={!isEditing}
 					{...register('password')}
@@ -195,18 +210,12 @@ export function UserModal({ open, setOpen, user, onSubmit, isLoading, currentUse
 					<CustomSelect
 						label="Роль"
 						value={selectedRole}
-						onChange={(value) => setValue('role', value as any, { shouldValidate: true })}
+						onChange={(value) => setValue('role', value as UserRole, { shouldValidate: true })}
 						options={availableRoles}
 						error={errors.role?.message}
 						disabled={!canEdit}
 						required
 					/>
-				)}
-
-				{selectedRole === USER_ROLES.SUPER_ADMIN && currentUserRole !== USER_ROLES.SUPER_ADMIN && (
-					<p className="text-sm text-amber-600">
-						⚠️ Для назначения роли главного администратора требуются права супер-администратора
-					</p>
 				)}
 
 				<SearchableSelect

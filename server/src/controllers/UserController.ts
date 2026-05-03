@@ -1,5 +1,4 @@
-// controllers/UserController.ts
-import { Request, Response } from "express";
+import { Response } from "express";
 import { UserService } from "../services/UserService";
 import { UserRepository } from "../repositories/UserRepository";
 import { RefreshTokenRepository } from "../repositories/RefreshTokenRepository";
@@ -12,6 +11,7 @@ import {
   NotFoundError,
   ForbiddenError,
 } from "@shared/service";
+import { RequestWithUser } from "../types";
 
 export class UserController {
   private userService: UserService;
@@ -28,34 +28,53 @@ export class UserController {
     );
   }
 
-  getAll = async (req: Request, res: Response) => {
+  getAll = async (req: RequestWithUser, res: Response) => {
     try {
-      const users = await this.userService.findAll();
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+      const organization_id = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
+        : undefined;
+
+      const result = await this.userService.findAll(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
+
       res.json({
         success: true,
-        data: users.map((u) => u.toJSON()),
-        count: users.length,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
       });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  getById = async (req: Request, res: Response) => {
+  getById = async (req: RequestWithUser, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
       const user = await this.userService.findById(id);
-      res.json({ success: true, data: user.toJSON() });
+      res.json({ success: true, data: user });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  register = async (req: Request, res: Response) => {
+  register = async (req: RequestWithUser, res: Response) => {
     try {
       const dto: CreateUserDTO = req.body;
-
-      // @ts-expect-error в каждом запросе летит
       const result = await this.userService.register(dto, req.user?.role);
 
       res.cookie("refreshToken", result.refreshToken, {
@@ -68,7 +87,7 @@ export class UserController {
       res.status(201).json({
         success: true,
         data: {
-          user: result.user.toJSON(),
+          user: result.user,
           accessToken: result.accessToken,
         },
       });
@@ -77,7 +96,7 @@ export class UserController {
     }
   };
 
-  login = async (req: Request, res: Response) => {
+  login = async (req: RequestWithUser, res: Response) => {
     try {
       const { name, password } = req.body;
       const result = await this.userService.login(name, password);
@@ -92,7 +111,7 @@ export class UserController {
       res.json({
         success: true,
         data: {
-          user: result.user.toJSON(),
+          user: result.user,
           accessToken: result.accessToken,
         },
       });
@@ -101,7 +120,7 @@ export class UserController {
     }
   };
 
-  refresh = async (req: Request, res: Response) => {
+  refresh = async (req: RequestWithUser, res: Response) => {
     try {
       const refreshToken = req.cookies?.refreshToken;
       const result = await this.userService.refreshToken(refreshToken);
@@ -115,7 +134,7 @@ export class UserController {
       res.json({
         success: true,
         data: {
-          user: result.user.toJSON(),
+          user: result.user,
           accessToken: result.accessToken,
         },
       });
@@ -124,147 +143,128 @@ export class UserController {
     }
   };
 
-  logout = async (req: Request, res: Response) => {
+  logout = async (req: RequestWithUser, res: Response) => {
     try {
       const refreshToken = req.cookies?.refreshToken;
       await this.userService.logout(refreshToken);
       res.clearCookie("refreshToken");
-      res.json({ success: true, message: "Logout successful" });
+      res.json({ success: true, message: "Выход выполнен успешно" });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  getProfile = async (req: Request, res: Response) => {
+  getProfile = async (req: RequestWithUser, res: Response) => {
     try {
-      // @ts-expect-error в каждом запросе летит
       const userId = req.user?.id;
       if (!userId) {
-        return res.status(401).json({ success: false, error: "Unauthorized" });
+        return res
+          .status(401)
+          .json({ success: false, error: "Не авторизован" });
       }
       const user = await this.userService.findById(userId);
-      res.json({ success: true, data: user.toJSON() });
+      res.json({ success: true, data: user });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  update = async (req: Request, res: Response) => {
+  update = async (req: RequestWithUser, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
       const dto: UpdateUserDTO = req.body;
       const user = await this.userService.update(
         id,
         dto,
-        // @ts-expect-error
         req.user?.role,
-        // @ts-expect-error
         req.user?.id,
       );
-      res.json({ success: true, data: user.toJSON() });
+      res.json({ success: true, data: user });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  delete = async (req: Request, res: Response) => {
+  delete = async (req: RequestWithUser, res: Response) => {
     try {
       const id = this.parseId(req.params.id);
-
-      // @ts-expect-error в каждом запросе летит
       await this.userService.delete(id, req.user?.role, req.user?.id);
-      res.json({ success: true, message: "User deleted successfully" });
+      res.json({ success: true, message: "Пользователь успешно удалён" });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  // controllers/UserController.ts - обновляем метод search
-  search = async (req: Request, res: Response) => {
+  search = async (req: RequestWithUser, res: Response) => {
     try {
-      const { q, organization_id } = req.query;
-
-      if (!q || typeof q !== "string") {
-        return res
-          .status(400)
-          .json({ success: false, error: "Search query is required" });
-      }
-
-      const orgId = organization_id
-        ? parseInt(organization_id as string)
+      const { q } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+      const organization_id = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
         : undefined;
 
-      const users = await this.userService.search(q, orgId);
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "Параметр поиска 'q' обязателен",
+        });
+      }
+
+      const result = await this.userService.search(
+        q,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
+
       res.json({
         success: true,
-        data: users.map((u) => u.toJSON()),
-        count: users.length,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
+        query: q,
       });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  findByOrganizationId = async (req: Request, res: Response) => {
+  findByOrganizationId = async (req: RequestWithUser, res: Response) => {
     try {
       const organizationId = this.parseId(req.params.id);
       const users = await this.userService.findByOrganizationId(organizationId);
-      res.json({ success: true, data: users.map((u) => u.toJSON()) });
+      res.json({ success: true, data: users });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  getAdmins = async (req: Request, res: Response) => {
+  getAdmins = async (req: RequestWithUser, res: Response) => {
     try {
       const organizationId = req.query.organization_id
         ? parseInt(req.query.organization_id as string)
         : undefined;
       const admins = await this.userService.findAdmins(organizationId);
-      res.json({ success: true, data: admins.map((u) => u.toJSON()) });
+      res.json({ success: true, data: admins });
     } catch (error) {
       this.handleError(error, res);
     }
   };
 
-  getSuperAdmins = async (req: Request, res: Response) => {
+  getSuperAdmins = async (req: RequestWithUser, res: Response) => {
     try {
       const superAdmins = await this.userService.findSuperAdmins();
-      res.json({ success: true, data: superAdmins.map((u) => u.toJSON()) });
-    } catch (error) {
-      this.handleError(error, res);
-    }
-  };
-
-  getAvailableManagers = async (req: Request, res: Response) => {
-    try {
-      const organizationId = req.query.organization_id
-        ? parseInt(req.query.organization_id as string)
-        : undefined;
-      const managers =
-        await this.userService.getAvailableManagers(organizationId);
-      res.json({ success: true, data: managers.map((u) => u.toJSON()) });
-    } catch (error) {
-      this.handleError(error, res);
-    }
-  };
-
-  searchAvailableManagers = async (req: Request, res: Response) => {
-    try {
-      const { q, organization_id } = req.query;
-      if (!q || typeof q !== "string") {
-        return res
-          .status(400)
-          .json({ success: false, error: "Search query is required" });
-      }
-      const organizationId = organization_id
-        ? parseInt(organization_id as string)
-        : undefined;
-      const managers = await this.userService.searchAvailableManagers(
-        q,
-        organizationId,
-      );
-      res.json({ success: true, data: managers.map((u) => u.toJSON()) });
+      res.json({ success: true, data: superAdmins });
     } catch (error) {
       this.handleError(error, res);
     }
@@ -273,7 +273,7 @@ export class UserController {
   private parseId(idParam: string | string[] | undefined): number {
     if (!idParam) {
       throw new ValidationError(
-        "ID parameter is required",
+        "ID параметр обязателен",
         "parseId",
         "id",
         "undefined",
@@ -282,7 +282,12 @@ export class UserController {
     const idString = Array.isArray(idParam) ? idParam[0] : idParam;
     const id = parseInt(idString, 10);
     if (isNaN(id)) {
-      throw new ValidationError("Invalid ID format", "parseId", "id", idString);
+      throw new ValidationError(
+        "Неверный формат ID",
+        "parseId",
+        "id",
+        idString,
+      );
     }
     return id;
   }
@@ -291,15 +296,27 @@ export class UserController {
     console.error("UserController error:", error);
 
     if (error instanceof ValidationError) {
-      res
-        .status(400)
-        .json({ success: false, error: error.message, field: error.field });
+      res.status(400).json({
+        success: false,
+        error: error.message,
+        field: error.field,
+        operation: error.operation,
+      });
     } else if (error instanceof NotFoundError) {
-      res.status(404).json({ success: false, error: error.message });
+      res.status(404).json({
+        success: false,
+        error: error.message,
+      });
     } else if (error instanceof ForbiddenError) {
-      res.status(403).json({ success: false, error: error.message });
+      res.status(403).json({
+        success: false,
+        error: error.message,
+      });
     } else {
-      res.status(500).json({ success: false, error: "Internal server error" });
+      res.status(500).json({
+        success: false,
+        error: "Внутренняя ошибка сервера",
+      });
     }
   }
 }

@@ -10,6 +10,7 @@ import { atLeastManager } from '@/utils';
 import type { Map as LeafletMap } from 'leaflet';
 import { CreateAgreementModal } from './components/CreateAgreementModal';
 import { useAgreementFormStore } from '@/components/pages/Agreement/store';
+import type { WarehouseWithManagerAndOrganization } from '@shared/models';
 
 export function MapPage() {
 	const navigate = useNavigate();
@@ -32,35 +33,45 @@ export function MapPage() {
 
 	const { data: profile, isLoading: isLoadingProfile } = useProfile();
 
-	const { data: warehouses, isLoading: isLoadingWarehouses } = useQuery({
+	// В MapPage.tsx
+	const { data: warehousesResponse, isLoading: isLoadingWarehouses } = useQuery({
 		queryKey: ['warehouses', 'map'],
 		queryFn: async () => {
 			if (atLeastManager(profile?.role)) {
-				return warehouseService.findAll();
+				return await warehouseService.findAll(1, 1000);
 			}
-			return warehouseService.findAll(profile?.organization_id);
+			return await warehouseService.findAll(
+				1,
+				1000,
+				undefined,
+				undefined,
+				profile?.organization_id
+			);
 		},
 		enabled: !!profile,
 	});
 
-	const { data: organizations, isLoading: isLoadingOrganizations } = useQuery({
+	const { data: organizationsResponse, isLoading: isLoadingOrganizations } = useQuery({
 		queryKey: ['organizations', 'map'],
 		queryFn: async () => {
 			if (atLeastManager(profile?.role)) {
-				return organizationService.findAll();
+				return await organizationService.findAll(1, 1000);
 			}
 			const singleOrg = await organizationService.findById(profile?.organization_id || 0);
-			return [singleOrg];
+			return { data: [singleOrg], pagination: { total: 1, page: 1, limit: 1, totalPages: 1 } };
 		},
 		enabled: !!profile,
 	});
+
+	const warehouses = warehousesResponse?.data || [];
+	const organizations = organizationsResponse?.data || [];
 
 	const isLoading = isLoadingProfile || isLoadingWarehouses || isLoadingOrganizations;
 	const currentUserOrgId = profile?.organization_id;
 
 	const searchableItems: SearchableItem[] = [
-		...(organizations
-			?.filter(
+		...organizations
+			.filter(
 				(o) =>
 					o.latitude !== undefined &&
 					o.latitude !== null &&
@@ -74,9 +85,9 @@ export function MapPage() {
 				subtitle: 'Головной офис',
 				latitude: org.latitude!,
 				longitude: org.longitude!,
-			})) || []),
-		...(warehouses
-			?.filter(
+			})),
+		...warehouses
+			.filter(
 				(w) =>
 					w.latitude !== undefined &&
 					w.latitude !== null &&
@@ -90,14 +101,14 @@ export function MapPage() {
 				subtitle: warehouse.organization?.name || 'Склад',
 				latitude: warehouse.latitude!,
 				longitude: warehouse.longitude!,
-			})) || []),
+			})),
 	];
 
 	const getOrganizationColor = (orgId: number) => {
 		return orgId === currentUserOrgId ? MARKER_COLORS.OWN_ORG : MARKER_COLORS.OTHER_ORG;
 	};
 
-	const getWarehouseColor = (warehouse: any) => {
+	const getWarehouseColor = (warehouse: WarehouseWithManagerAndOrganization) => {
 		const isOwnOrg = warehouse.organization_id === currentUserOrgId;
 		const hasManager = warehouse.manager_id !== null;
 
@@ -114,7 +125,7 @@ export function MapPage() {
 	};
 
 	const handleRoleSelect = (warehouseId: number, role: 'supplier' | 'customer') => {
-		const warehouse = warehouses?.find((w) => w.id === warehouseId);
+		const warehouse = warehouses.find((w) => w.id === warehouseId);
 
 		if (warehouse) {
 			resetForm();
@@ -133,46 +144,44 @@ export function MapPage() {
 		}
 	};
 
-	const organizationsMarkers: MapMarker[] =
-		organizations
-			?.filter(
-				(o) =>
-					o.latitude !== undefined &&
-					o.latitude !== null &&
-					o.longitude !== undefined &&
-					o.longitude !== null
-			)
-			.map((org) => ({
-				id: org.id,
-				type: 'organization',
-				position: [org.latitude!, org.longitude!],
-				iconColor: getOrganizationColor(org.id),
-				title: org.name,
-				subtitle: 'Головной офис',
-			})) || [];
+	const organizationsMarkers: MapMarker[] = organizations
+		.filter(
+			(o) =>
+				o.latitude !== undefined &&
+				o.latitude !== null &&
+				o.longitude !== undefined &&
+				o.longitude !== null
+		)
+		.map((org) => ({
+			id: org.id,
+			type: 'organization',
+			position: [org.latitude!, org.longitude!],
+			iconColor: getOrganizationColor(org.id),
+			title: org.name,
+			subtitle: 'Головной офис',
+		}));
 
-	const warehousesMarkers: MapMarker[] =
-		warehouses
-			?.filter(
-				(w) =>
-					w.latitude !== undefined &&
-					w.latitude !== null &&
-					w.longitude !== undefined &&
-					w.longitude !== null
-			)
-			.map((warehouse) => ({
-				id: warehouse.id,
-				type: 'warehouse',
-				position: [warehouse.latitude!, warehouse.longitude!],
-				iconColor: getWarehouseColor(warehouse),
-				title: warehouse.name,
-				subtitle: warehouse.organization?.name,
-				description: `Менеджер: ${warehouse.manager?.name || 'Не назначен'}`,
-				onDetailsClick: () => {
-					window.open(`/warehouses/${warehouse.id}`, '_blank');
-				},
-				onCreateAgreement: () => handleCreateAgreement(warehouse.id, warehouse.name),
-			})) || [];
+	const warehousesMarkers: MapMarker[] = warehouses
+		.filter(
+			(w) =>
+				w.latitude !== undefined &&
+				w.latitude !== null &&
+				w.longitude !== undefined &&
+				w.longitude !== null
+		)
+		.map((warehouse) => ({
+			id: warehouse.id,
+			type: 'warehouse',
+			position: [warehouse.latitude!, warehouse.longitude!],
+			iconColor: getWarehouseColor(warehouse),
+			title: warehouse.name,
+			subtitle: warehouse.organization?.name,
+			description: `Менеджер: ${warehouse.manager?.name || 'Не назначен'}`,
+			onDetailsClick: () => {
+				window.open(`/warehouses/${warehouse.id}`, '_blank');
+			},
+			onCreateAgreement: () => handleCreateAgreement(warehouse.id, warehouse.name),
+		}));
 
 	const allMarkers = [...organizationsMarkers, ...warehousesMarkers];
 

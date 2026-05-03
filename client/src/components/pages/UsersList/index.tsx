@@ -1,21 +1,17 @@
-// client/src/pages/users/UsersList.tsx
-import { useState } from 'react';
-import { Table } from '@/components/shared/Table';
 import { userService } from '@/services/userService';
-import type { CreateUserDTO, UpdateUserDTO } from '@shared/dto';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FaRegTrashAlt } from 'react-icons/fa';
 import { FaUserShield } from 'react-icons/fa';
 import { FaCrown } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { mapUserToTableItem } from './utils';
-import { UserModal } from './UserModal';
-import type { UserRole } from '@shared/models';
 import type { Action, Column } from '@/components/shared/Table/types';
-import type { TableUser } from './types';
+import { EntityList } from '@/components/shared/EntityList';
+import { UserModal } from './UserModal';
 import { useUsersListPermissions } from './hooks';
 import { useProfile } from '@/hooks';
 import { USER_ROLES } from '@shared/constants';
+import { mapUserToTableItem } from './utils';
+import type { TableUser } from './types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const columns: Column<TableUser>[] = [
 	{ key: 'id', label: 'ID' },
@@ -25,158 +21,102 @@ const columns: Column<TableUser>[] = [
 ];
 
 export function UsersList() {
-	const queryClient = useQueryClient();
-
-	const [searchQuery, setSearchQuery] = useState('');
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedUser, setSelectedUser] = useState<{
-		id: number;
-		name: string;
-		role: UserRole;
-		organization_id?: number | null;
-	} | null>(null);
-
 	const { data: currentUser } = useProfile();
-
-	const { data: users } = useQuery({
-		queryKey: ['users'],
-		queryFn: () => userService.findAll(),
-	});
-
-	const { data: searchedUsers } = useQuery({
-		queryKey: ['users', 'search', searchQuery],
-		queryFn: () => userService.search(searchQuery),
-		enabled: searchQuery.length > 0,
-		retry: false,
-	});
-
-	const { mutateAsync: deleteMutate } = useMutation({
-		mutationFn: async (id: number) => userService.delete(id),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['users'] });
-		},
-	});
-
-	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
-		mutationFn: async (data: CreateUserDTO) => userService.register(data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['users'] });
-			setIsModalOpen(false);
-			setSelectedUser(null);
-		},
-	});
-
-	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
-		mutationFn: async ({ id, data }: { id: number; data: UpdateUserDTO }) =>
-			userService.update(id, data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['users'] });
-			setIsModalOpen(false);
-			setSelectedUser(null);
-		},
-	});
-
+	const queryClient = useQueryClient();
 	const { canEdit, canDelete, canMakeAdmin, canMakeSuperAdmin } =
 		useUsersListPermissions(currentUser);
 
-	const elements =
-		searchQuery && searchedUsers
-			? searchedUsers.map(mapUserToTableItem)
-			: users?.map(mapUserToTableItem) || [];
+	const canCreate =
+		currentUser?.role === USER_ROLES.SUPER_ADMIN || currentUser?.role === USER_ROLES.ADMIN;
 
-	const openEditModal = (user: TableUser) => {
-		setSelectedUser({
-			id: user.id,
-			name: user.name,
-			role: user.role,
-			organization_id: user.organization_id,
-		});
-		setIsModalOpen(true);
-	};
+	const organizationId =
+		currentUser?.role === USER_ROLES.SUPER_ADMIN ? undefined : currentUser?.organization_id;
 
-	const openCreateModal = () => {
-		setSelectedUser(null);
-		setIsModalOpen(true);
-	};
+	const makeAdminMutation = useMutation({
+		mutationFn: async (user: TableUser) => {
+			await userService.update(user.id, { ...user, role: USER_ROLES.ADMIN });
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['users'] });
+			await queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
+		},
+	});
 
-	const handleSubmit = async (data: CreateUserDTO | UpdateUserDTO) => {
-		if (selectedUser) {
-			await updateMutate({ id: selectedUser.id, data: data as UpdateUserDTO });
-		} else {
-			await createMutate(data as CreateUserDTO);
-		}
-	};
-
-	const handleMakeAdmin = async (userId: number) => {
-		await updateMutate({
-			id: userId,
-			data: { id: userId, role: USER_ROLES.ADMIN },
-		});
-	};
-
-	const handleMakeSuperAdmin = async (userId: number) => {
-		if (currentUser?.role !== USER_ROLES.SUPER_ADMIN) return;
-		await updateMutate({
-			id: userId,
-			data: { id: userId, role: USER_ROLES.SUPER_ADMIN },
-		});
-	};
+	const makeSuperAdminMutation = useMutation({
+		mutationFn: async (user: TableUser) => {
+			await userService.update(user.id, { ...user, role: USER_ROLES.SUPER_ADMIN });
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['users'] });
+			await queryClient.invalidateQueries({ queryKey: ['users', 'search'] });
+		},
+	});
 
 	const actions: Action<TableUser>[] = [
 		{
 			name: 'Редактировать',
-			action: (item) => openEditModal(item),
 			icon: <MdEdit />,
 			hidden: (item) => !canEdit(item),
 		},
 		{
 			name: 'Сделать администратором',
-			action: (item) => handleMakeAdmin(item.id),
+			action: (item) => {
+				makeAdminMutation.mutate(item);
+			},
 			icon: <FaUserShield />,
 			hidden: (item) => !canMakeAdmin(item),
 		},
 		{
 			name: 'Сделать главным администратором',
-			action: (item) => handleMakeSuperAdmin(item.id),
+			action: (item) => {
+				makeSuperAdminMutation.mutate(item);
+			},
 			icon: <FaCrown className="text-yellow-500" />,
 			hidden: (item) => !canMakeSuperAdmin(item),
 		},
 		{
 			name: 'Удалить',
-			action: async (item) => {
-				await deleteMutate(item.id);
-			},
+			action: async () => {},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
 			hidden: (item) => !canDelete(item),
 		},
 	];
 
-	const canCreate = () => {
-		if (!currentUser) return false;
-		return currentUser.role === USER_ROLES.SUPER_ADMIN || currentUser.role === USER_ROLES.ADMIN;
-	};
-
 	return (
-		<>
-			<Table
-				searchValue={searchQuery}
-				onSearch={setSearchQuery}
-				debounceMs={300}
-				itemName="Пользователь"
-				columns={columns}
-				elements={elements}
-				actions={actions}
-				onCreate={canCreate() ? openCreateModal : undefined}
-			/>
-			<UserModal
-				open={isModalOpen}
-				setOpen={setIsModalOpen}
-				user={selectedUser}
-				onSubmit={handleSubmit}
-				isLoading={isCreating || isUpdating}
-				currentUserRole={currentUser?.role}
-			/>
-		</>
+		<EntityList
+			config={{
+				entityName: 'users',
+				itemName: 'пользователя',
+				service: {
+					findAll: (page, limit, sortBy, sortOrder) =>
+						userService.findAll(page, limit, sortBy, sortOrder, organizationId),
+					search: (query, page, limit, sortBy, sortOrder) =>
+						userService.search(query, page, limit, sortBy, sortOrder, organizationId),
+					delete: userService.delete.bind(userService),
+					create: async (data) => {
+						const response = await userService.register(data);
+						return response.user;
+					},
+					update: userService.update.bind(userService),
+				},
+				columns,
+				mapToTableItem: mapUserToTableItem,
+				actions,
+				canCreate,
+				initialSortBy: 'id',
+				initialSortOrder: 'ASC',
+				defaultLimit: 20,
+				renderModal: ({ open, setOpen, selectedItem, onSubmit }) => (
+					<UserModal
+						open={open}
+						setOpen={setOpen}
+						user={selectedItem}
+						onSubmit={onSubmit}
+						currentUserRole={currentUser?.role}
+					/>
+				),
+			}}
+		/>
 	);
 }

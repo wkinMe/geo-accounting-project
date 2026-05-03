@@ -1,8 +1,8 @@
-// services/InventoryService.ts
 import { InventoryItem as InventoryItemEntity } from "../domain/entities/InventoryItem";
 import {
   InventoryRepository,
   InventoryItemWithMaterial,
+  InventoryResponse,
 } from "../repositories/InventoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
@@ -37,7 +37,11 @@ export class InventoryService {
 
   async getWarehouseStock(
     warehouseId: number,
-  ): Promise<InventoryItemWithMaterial[]> {
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
     const warehouse = await this.warehouseRepo.findById(warehouseId);
     if (!warehouse) {
       throw new NotFoundError(
@@ -48,7 +52,13 @@ export class InventoryService {
       );
     }
 
-    return await this.inventoryRepo.findByWarehouseWithMaterial(warehouseId);
+    return await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouseId,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async getMaterialDistribution(material_id: number): Promise<{
@@ -179,10 +189,14 @@ export class InventoryService {
       description: description || `Добавлено ${amount} единиц материала`,
     });
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem!;
   }
 
@@ -256,10 +270,14 @@ export class InventoryService {
       description: description || `Списано ${amount} единиц материала`,
     });
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem!;
   }
 
@@ -355,11 +373,43 @@ export class InventoryService {
         description || `Количество изменено с ${old_amount} на ${amount}`,
     });
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem || null;
+  }
+
+  async searchMaterials(
+    warehouseId: number,
+    query: string,
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
+    const warehouse = await this.warehouseRepo.findById(warehouseId);
+    if (!warehouse) {
+      throw new NotFoundError(
+        `Склад с ID ${warehouseId} не найден`,
+        "Warehouse",
+        "searchMaterials",
+        warehouseId,
+      );
+    }
+
+    return await this.inventoryRepo.searchMaterials(
+      warehouseId,
+      query,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async checkAvailability(

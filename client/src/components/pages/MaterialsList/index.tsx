@@ -1,17 +1,15 @@
 // client/src/pages/materials/MaterialsList.tsx
-import { useState } from 'react';
 import { materialService } from '@/services/materialService';
-import type { CreateMaterialDTO, UpdateMaterialDTO } from '@shared/dto';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Material } from '@shared/models';
 import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import type { Action, Column, HoverPopupConfig } from '@/components/shared/Table/types';
-import { Table } from '@/components/shared/Table';
+import { EntityList } from '@/components/shared/EntityList';
 import { useNavigate } from 'react-router';
 import { MaterialModal } from './components';
 import { MaterialImagePopup } from './components/MaterialsImagePopup';
-import { useRole } from '@/hooks';
-import { isSuperAdminRole } from '@/utils';
+import { useRole, useProfile } from '@/hooks';
+import { isSuperAdminRole, isAdminRole } from '@/utils';
 
 export type TableMaterial = {
 	id: number;
@@ -25,7 +23,7 @@ const columns: Column<TableMaterial>[] = [
 	{ key: 'unit', label: 'Ед. измерения' },
 ];
 
-const mapMaterialToTableItem = (material: any): TableMaterial => ({
+const mapMaterialToTableItem = (material: Material): TableMaterial => ({
 	id: material.id,
 	name: material.name,
 	unit: material.unit,
@@ -33,75 +31,14 @@ const mapMaterialToTableItem = (material: any): TableMaterial => ({
 
 export function MaterialsList() {
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-
-	const [searchQuery, setSearchQuery] = useState('');
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedMaterial, setSelectedMaterial] = useState<TableMaterial | null>(null);
-
 	const role = useRole();
 
-	const { data: materials } = useQuery({
-		queryKey: ['materials'],
-		queryFn: () => materialService.findAll(),
-	});
+	const isSuperAdmin = isSuperAdminRole(role);
+	const isAdmin = isAdminRole(role);
 
-	const { data: searchedMaterials } = useQuery({
-		queryKey: ['materials', 'search', searchQuery],
-		queryFn: () => materialService.search(searchQuery),
-		enabled: searchQuery.length > 0,
-		retry: false,
-	});
-
-	const { mutateAsync: deleteMutate } = useMutation({
-		mutationFn: async (id: number) => materialService.delete(id),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['materials'] });
-		},
-	});
-
-	const { mutateAsync: createMutate } = useMutation({
-		mutationFn: async (data: CreateMaterialDTO) => materialService.create(data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['materials'] });
-		},
-	});
-
-	const { mutateAsync: updateMutate } = useMutation({
-		mutationFn: ({ id, data }: { id: number; data: UpdateMaterialDTO }) =>
-			materialService.update(id, data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['materials'] });
-			if (selectedMaterial) {
-				await queryClient.invalidateQueries({ queryKey: ['materialImage', selectedMaterial.id] });
-			}
-		},
-	});
-
-	const elements =
-		searchQuery && searchedMaterials
-			? searchedMaterials.map(mapMaterialToTableItem)
-			: materials?.map(mapMaterialToTableItem) || [];
-
-	const openEditModal = (material: TableMaterial) => {
-		setSelectedMaterial(material);
-		setIsModalOpen(true);
-	};
-
-	const openCreateModal = () => {
-		setSelectedMaterial(null);
-		setIsModalOpen(true);
-	};
-
-	const handleSubmit = async (data: CreateMaterialDTO | UpdateMaterialDTO) => {
-		if (selectedMaterial) {
-			await updateMutate({ id: selectedMaterial.id, data: data as UpdateMaterialDTO });
-		} else {
-			await createMutate(data as CreateMaterialDTO);
-		}
-	};
-
-	const canModify = () => isSuperAdminRole(role);
+	const canEdit = isAdmin || isSuperAdmin;
+	const canDelete = isSuperAdmin;
+	const canCreate = isAdmin || isSuperAdmin;
 
 	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
 		delay: 200,
@@ -116,48 +53,57 @@ export function MaterialsList() {
 		},
 		{
 			name: 'Редактировать',
-			action: (item: TableMaterial) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: () => !canModify(),
+			hidden: () => !canEdit,
 		},
 		{
 			name: 'Удалить',
-			action: async (item: TableMaterial) => {
-				await deleteMutate(item.id);
-			},
+			action: async () => {},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: () => !canModify(),
+			hidden: () => !canDelete,
 		},
 	];
 
-	const handleCloseModal = () => {
-		setIsModalOpen(false);
-		setSelectedMaterial(null);
-	};
-
 	return (
-		<>
-			<Table
-				searchValue={searchQuery}
-				onSearch={setSearchQuery}
-				debounceMs={300}
-				itemName="Материал"
-				columns={columns}
-				elements={elements}
-				actions={actions}
-				onCreate={canModify() ? openCreateModal : undefined}
-				hoverPopupConfig={hoverPopupConfig}
-			/>
-			<MaterialModal
-				open={isModalOpen}
-				setOpen={(open) => {
-					if (!open) handleCloseModal();
-					else setIsModalOpen(true);
-				}}
-				material={selectedMaterial}
-				onSubmit={handleSubmit}
-			/>
-		</>
+		<EntityList
+			config={{
+				entityName: 'materials',
+				itemName: 'материал',
+				service: {
+					findAll: materialService.findAll.bind(materialService),
+					search: materialService.search.bind(materialService),
+					delete: materialService.delete.bind(materialService),
+					create: materialService.create.bind(materialService),
+					update: materialService.update.bind(materialService),
+				},
+				columns,
+				mapToTableItem: mapMaterialToTableItem,
+				actions,
+				hoverPopupConfig,
+				canCreate,
+				canEdit: () => canEdit,
+				canDelete: () => canDelete,
+				initialSortBy: 'id',
+				initialSortOrder: 'ASC',
+				defaultLimit: 20,
+				renderModal: ({ open, setOpen, selectedItem, onSubmit }) => (
+					<MaterialModal
+						open={open}
+						setOpen={setOpen}
+						material={
+							selectedItem
+								? {
+										id: selectedItem.id,
+										name: selectedItem.name,
+										unit: selectedItem.unit,
+									}
+								: null
+						}
+						onSubmit={onSubmit}
+					/>
+				),
+			}}
+		/>
 	);
 }

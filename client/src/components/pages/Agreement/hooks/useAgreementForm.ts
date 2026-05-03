@@ -16,6 +16,7 @@ import {
 } from '../types';
 import { AGREEMENT_STATUS } from '@shared/constants/agreementStatuses';
 import { inventoryService } from '@/services/inventoryService';
+import type { AgreementWithDetails } from '@shared/models';
 
 type AgreementFormStore = AgreementFormState & {
 	setSupplierOrg: (id: number | null) => void;
@@ -43,6 +44,7 @@ interface UseAgreementFormReturn {
 	isSubmitting: boolean;
 	handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
 	error: string | null;
+	agreementData?: AgreementWithDetails | undefined; // Добавляем agreementData
 }
 
 export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
@@ -145,7 +147,7 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			store.setCustomerWarehouse(data.customer_warehouse_id);
 
 			if (data.materials && warehouseStock) {
-				const materialsMap = new Map(warehouseStock.map((m) => [m.material_id, m.amount]));
+				const materialsMap = new Map(warehouseStock.data.map((m) => [m.material_id, m.amount]));
 
 				data.materials.forEach((material) => {
 					store.addMaterial({
@@ -277,5 +279,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		isSubmitting,
 		handleSubmit,
 		error,
+		agreementData: agreement, 
 	};
 }

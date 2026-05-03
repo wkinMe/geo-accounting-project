@@ -2,15 +2,42 @@
 import { instance } from '@/api/instance';
 import type { CreateOrganizationDTO, UpdateOrganizationDTO } from '@shared/dto';
 import type { Organization } from '@shared/models';
+import type { PaginatedResponse } from '@shared/types';
 
 class OrganizationService {
 	private readonly baseUrl = '/organizations';
 
-	async findAll(): Promise<Organization[]> {
-		const response = await instance.get<{ success: boolean; data: Organization[] }>(
-			`${this.baseUrl}/`
-		);
-		return response.data.data;
+	async findAll(
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<PaginatedResponse<Organization>> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<PaginatedResponse<Organization>>(`${this.baseUrl}/`, {
+			params,
+		});
+		return response.data;
+	}
+
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<PaginatedResponse<Organization>> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<PaginatedResponse<Organization>>(`${this.baseUrl}/search`, {
+			params,
+		});
+		return response.data;
 	}
 
 	async findById(id: number): Promise<Organization> {
@@ -43,16 +70,6 @@ class OrganizationService {
 		if (!response.data.success) {
 			throw new Error(response.data.message || 'Не удалось удалить организацию');
 		}
-	}
-
-	async search(query: string): Promise<Organization[]> {
-		const response = await instance.get<{ success: boolean; data: Organization[] }>(
-			`${this.baseUrl}/search`,
-			{
-				params: { q: query },
-			}
-		);
-		return response.data.data;
 	}
 }
 

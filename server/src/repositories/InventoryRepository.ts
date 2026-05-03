@@ -1,11 +1,7 @@
-// repositories/InventoryRepository.ts
 import { Pool } from "pg";
 import { DatabaseError, NotFoundError } from "@shared/service";
 import { InventoryItem as InventoryItemEntity } from "../domain/entities/InventoryItem";
-import type {
-  Material,
-  InventoryItem as SharedInventoryItem,
-} from "@shared/models";
+import type { Material } from "@shared/models";
 
 // Тип для ответа с материалом
 export interface InventoryItemWithMaterial {
@@ -17,6 +13,19 @@ export interface InventoryItemWithMaterial {
   updated_at: Date;
   material: Material;
 }
+
+export interface InventoryResponse {
+  data: InventoryItemWithMaterial[];
+  total: number;
+}
+
+const ALLOWED_SORT_FIELDS = [
+  "id",
+  "amount",
+  "material_name",
+  "created_at",
+  "updated_at",
+];
 
 export class InventoryRepository {
   constructor(private db: Pool) {}
@@ -91,30 +100,69 @@ export class InventoryRepository {
 
   async findByWarehouseWithMaterial(
     warehouse_id: number,
-  ): Promise<InventoryItemWithMaterial[]> {
-    const query = `
-      SELECT 
-        wm.id,
-        wm.warehouse_id,
-        wm.material_id,
-        wm.amount,
-        wm.created_at,
-        wm.updated_at,
-        json_build_object(
-          'id', m.id,
-          'name', m.name,
-          'unit', m.unit,
-          'created_at', m.created_at,
-          'updated_at', m.updated_at
-        ) as material
-      FROM warehouse_material wm
-      INNER JOIN materials m ON wm.material_id = m.id
-      WHERE wm.warehouse_id = $1
-      ORDER BY m.name
-    `;
-    const result = await this.db.query(query, [warehouse_id]);
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
+    const sortField =
+      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "material_name";
+    const order = sortOrder === "ASC" ? "ASC" : "DESC";
 
-    return result.rows.map((row) => ({
+    let orderByClause = "";
+
+    switch (sortField) {
+      case "amount":
+        orderByClause = `wm.amount ${order}`;
+        break;
+      case "created_at":
+        orderByClause = `wm.created_at ${order}`;
+        break;
+      case "updated_at":
+        orderByClause = `wm.updated_at ${order}`;
+        break;
+      case "material_name":
+      default:
+        orderByClause = `m.name ${order}`;
+        break;
+    }
+
+    const query = `
+    SELECT 
+      wm.id,
+      wm.warehouse_id,
+      wm.material_id,
+      wm.amount,
+      wm.created_at,
+      wm.updated_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material
+    FROM warehouse_material wm
+    INNER JOIN materials m ON wm.material_id = m.id
+    WHERE wm.warehouse_id = $1
+    ORDER BY ${orderByClause}
+    LIMIT $2 OFFSET $3
+  `;
+
+    const countQuery = `
+    SELECT COUNT(*) as total
+    FROM warehouse_material wm
+    WHERE wm.warehouse_id = $1
+  `;
+
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [warehouse_id, limit, offset]),
+      this.db.query(countQuery, [warehouse_id]),
+    ]);
+
+    const total = parseInt(countResult.rows[0]?.total || "0", 10);
+
+    const data = dataResult.rows.map((row) => ({
       id: row.id,
       warehouse_id: row.warehouse_id,
       material_id: row.material_id,
@@ -123,6 +171,8 @@ export class InventoryRepository {
       updated_at: row.updated_at,
       material: row.material,
     }));
+
+    return { data, total };
   }
 
   async save(inventoryItem: InventoryItemEntity): Promise<InventoryItemEntity> {
@@ -302,5 +352,81 @@ export class InventoryRepository {
         percentage: parseFloat(row.percentage),
       })),
     };
+  }
+
+  async searchMaterials(
+    warehouse_id: number,
+    searchQuery: string,
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
+    const sortField =
+      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "m.name";
+    const order = sortOrder === "ASC" ? "ASC" : "DESC";
+
+    const query = `
+    SELECT 
+      wm.id,
+      wm.warehouse_id,
+      wm.material_id,
+      wm.amount,
+      wm.created_at,
+      wm.updated_at,
+      json_build_object(
+        'id', m.id,
+        'name', m.name,
+        'unit', m.unit,
+        'created_at', m.created_at,
+        'updated_at', m.updated_at
+      ) as material
+    FROM warehouse_material wm
+    INNER JOIN materials m ON wm.material_id = m.id
+    WHERE wm.warehouse_id = $1 AND m.name ILIKE $2
+    ORDER BY 
+      CASE 
+        WHEN $5 = 'amount' THEN wm.amount::text
+        WHEN $5 = 'material_name' THEN m.name
+        WHEN $5 = 'created_at' THEN wm.created_at::text
+        WHEN $5 = 'updated_at' THEN wm.updated_at::text
+        ELSE m.name
+      END ${order}
+    LIMIT $3 OFFSET $4
+  `;
+
+    const countQuery = `
+    SELECT COUNT(*) as total
+    FROM warehouse_material wm
+    INNER JOIN materials m ON wm.material_id = m.id
+    WHERE wm.warehouse_id = $1 AND m.name ILIKE $2
+  `;
+
+    const searchPattern = `%${searchQuery}%`;
+
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [
+        warehouse_id,
+        searchPattern,
+        limit,
+        offset,
+        sortField,
+      ]),
+      this.db.query(countQuery, [warehouse_id, searchPattern]),
+    ]);
+
+    const total = parseInt(countResult.rows[0]?.total || "0", 10);
+
+    const data = dataResult.rows.map((row) => ({
+      id: row.id,
+      warehouse_id: row.warehouse_id,
+      material_id: row.material_id,
+      amount: row.amount,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      material: row.material,
+    }));
+
+    return { data, total };
   }
 }
