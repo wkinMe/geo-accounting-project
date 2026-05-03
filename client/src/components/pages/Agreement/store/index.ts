@@ -19,7 +19,7 @@ const initialState: AgreementFormState = {
 	materialSearchQuery: '',
 
 	materials: [],
-	status: AGREEMENT_STATUS.DRAFT, // Добавляем статус
+	status: AGREEMENT_STATUS.DRAFT,
 };
 
 type AgreementFormStore = AgreementFormState & {
@@ -38,13 +38,30 @@ type AgreementFormStore = AgreementFormState & {
 	addMaterial: (material: Omit<MaterialRow, 'id'>) => void;
 	removeMaterial: (id: string) => void;
 	updateMaterialAmount: (id: string, amount: number) => void;
-
 	updateItemPrice: (id: string, price: number) => void;
-	setStatus: (status: AgreementStatus) => void; // Добавляем сеттер для статуса
+	setStatus: (status: AgreementStatus) => void;
 	resetForm: () => void;
+
+	// Метод для проверки изменений
+	hasChanges: (
+		initialData: {
+			supplierOrg: number | null;
+			supplierManager: number | null;
+			supplierWarehouse: number | null;
+			customerOrg: number | null;
+			customerManager: number | null;
+			customerWarehouse: number | null;
+			materials: Array<{
+				material_id: number;
+				amount: number;
+				item_price: number;
+			}>;
+			status: string;
+		} | null
+	) => boolean;
 };
 
-export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
+export const useAgreementFormStore = create<AgreementFormStore>((set, get) => ({
 	...initialState,
 
 	setSupplierOrg: (id) => set({ supplierOrg: id, supplierWarehouse: null, supplierManager: null }),
@@ -87,9 +104,38 @@ export const useAgreementFormStore = create<AgreementFormStore>((set) => ({
 			materials: state.materials.map((m) => (m.id === id ? { ...m, item_price: price } : m)),
 		})),
 
-	setStatus: (status) => set({ status }), // Добавляем сеттер
+	setStatus: (status) => set({ status }),
 
 	resetForm: () => {
 		set(initialState);
+	},
+
+	hasChanges: (initialData) => {
+		if (!initialData) return true;
+
+		const state = get();
+
+		// Сравниваем основные поля
+		if (state.supplierOrg !== initialData.supplierOrg) return true;
+		if (state.supplierManager !== initialData.supplierManager) return true;
+		if (state.supplierWarehouse !== initialData.supplierWarehouse) return true;
+		if (state.customerOrg !== initialData.customerOrg) return true;
+		if (state.customerManager !== initialData.customerManager) return true;
+		if (state.customerWarehouse !== initialData.customerWarehouse) return true;
+		if (state.status !== initialData.status) return true;
+
+		// Сравниваем материалы
+		if (state.materials.length !== initialData.materials.length) return true;
+
+		for (let i = 0; i < state.materials.length; i++) {
+			const current = state.materials[i];
+			const initial = initialData.materials.find((m) => m.material_id === current.material_id);
+
+			if (!initial) return true;
+			if (current.amount !== initial.amount) return true;
+			if (current.item_price !== initial.item_price) return true;
+		}
+
+		return false;
 	},
 }));

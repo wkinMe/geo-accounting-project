@@ -80,7 +80,7 @@ export function AgreementMap({
 	// Синхронизация выбранных складов из store
 	useEffect(() => {
 		if (supplierWarehouseId && warehousesData) {
-			const found = warehousesData.find((w) => w.id === supplierWarehouseId);
+			const found = warehousesData.data.find((w) => w.id === supplierWarehouseId);
 			if (found && found !== selectedWarehouses.supplier) {
 				setSelectedWarehouses((prev) => ({ ...prev, supplier: found }));
 			}
@@ -89,7 +89,7 @@ export function AgreementMap({
 
 	useEffect(() => {
 		if (customerWarehouseId && warehousesData) {
-			const found = warehousesData.find((w) => w.id === customerWarehouseId);
+			const found = warehousesData.data.find((w) => w.id === customerWarehouseId);
 			if (found && found !== selectedWarehouses.customer) {
 				setSelectedWarehouses((prev) => ({ ...prev, customer: found }));
 			}
@@ -118,7 +118,7 @@ export function AgreementMap({
 
 	// Фильтруем склады для отображения
 	const displayWarehouses = useMemo(() => {
-		const allWarehouses = warehousesData;
+		const allWarehouses = warehousesData?.data;
 		if (!allWarehouses) return [];
 
 		if (selectedWarehouses.supplier && selectedWarehouses.customer) {
@@ -182,7 +182,7 @@ export function AgreementMap({
 		const allWarehouses = warehousesData;
 		if (!allWarehouses) return [];
 
-		return allWarehouses
+		return allWarehouses.data
 			.filter((warehouse) => warehouse.latitude && warehouse.longitude)
 			.map((warehouse) => ({
 				id: warehouse.id,

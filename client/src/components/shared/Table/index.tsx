@@ -57,7 +57,7 @@ export function Table<T extends { id: number }>({
 	);
 
 	const handleActionClick = (action: Action<T>, item: T) => {
-		if (!action.needConfirmation) {
+		if (!action.needConfirmation && action.action) {
 			action.action(item);
 		} else {
 			setError(null);
@@ -68,13 +68,11 @@ export function Table<T extends { id: number }>({
 	};
 
 	const handleConfirm = async () => {
-		if (currentAction && currentItem) {
+		if (currentAction && currentItem && currentAction.action) {
 			setError(null);
 			try {
 				await currentAction.action(currentItem);
 				setOpenModal(false);
-				setCurrentAction(null);
-				setCurrentItem(null);
 			} catch (err: any) {
 				const errorMessage = err?.response?.data?.error || err?.message || 'Произошла ошибка';
 				setError(errorMessage);
@@ -94,7 +92,7 @@ export function Table<T extends { id: number }>({
 					setOpen={setOpenModal}
 					error={error}
 				>
-					<div className="h-30">
+					<div>
 						{currentAction?.confirmationBody && currentItem ? (
 							currentAction.confirmationBody(currentItem)
 						) : (
