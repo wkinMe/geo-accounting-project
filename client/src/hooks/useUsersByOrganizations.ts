@@ -2,6 +2,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
 
+const MAX_LIMIT = 1000;
+
 export function useUsersByOrganization(organizationId: number | null, searchQuery: string) {
 	// Получаем всех пользователей организации (без поиска)
 	const { data: users, isLoading: isLoadingAll } = useQuery({
@@ -13,7 +15,8 @@ export function useUsersByOrganization(organizationId: number | null, searchQuer
 	// Поиск пользователей по имени в рамках организации
 	const { data: searchedUsers, isLoading: isSearching } = useQuery({
 		queryKey: ['users', 'search', searchQuery, organizationId],
-		queryFn: () => userService.search(searchQuery, organizationId!),
+		queryFn: () =>
+			userService.search(searchQuery, 1, MAX_LIMIT, undefined, undefined, organizationId!),
 		enabled: searchQuery.length > 0 && !!organizationId,
 	});
 

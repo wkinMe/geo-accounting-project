@@ -1,5 +1,5 @@
 // client/src/pages/Agreements/AgreementForm/index.tsx
-import { useParams } from 'react-router';
+import { useParams, useLocation } from 'react-router';
 import { FormProvider } from 'react-hook-form';
 import { useState, useEffect, useMemo } from 'react';
 import { useAgreementForm } from '../../hooks';
@@ -21,6 +21,7 @@ interface Props {
 
 export function AgreementForm({ mode = 'create' }: Props) {
 	const { id } = useParams();
+	const location = useLocation();
 	const agreementId = id ? Number(id) : undefined;
 
 	const isViewMode = mode === 'view';
@@ -41,6 +42,9 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const isAdmin = isAdminRole(role);
 	const isManager = isManagerRole(role);
 
+	// Проверяем, пришли ли мы из предзаполненного источника (TopWarehouses, MapPage)
+	const isFromPreselected = (location.state as any)?.preserveData === true;
+
 	const canEditAgreement = useMemo(() => {
 		if (isViewMode) return false;
 
@@ -50,11 +54,9 @@ export function AgreementForm({ mode = 'create' }: Props) {
 			return false;
 		}
 
-		// В остальных случаях могут редактировать супер-админ, админ и менеджер
 		return isSuperAdmin || isAdmin || isManager;
 	}, [isViewMode, isCreateMode, agreementId, initialStatus, isSuperAdmin, isAdmin, isManager]);
 
-	// Подготовка initialData для FormActions
 	const initialData = useMemo(() => {
 		if (!isEditMode || !agreementData) return null;
 
@@ -75,27 +77,34 @@ export function AgreementForm({ mode = 'create' }: Props) {
 		};
 	}, [isEditMode, agreementData]);
 
+	// Сброс при монтировании формы создания
 	useEffect(() => {
-		return () => {
-			// Не сбрасываем форму, если был выбран склад из карты
-			const hasPreselectedData = store.supplierOrg || store.customerOrg;
-			if (!hasPreselectedData) {
-				form.reset({
-					supplierOrg: undefined,
-					supplierManager: undefined,
-					supplierWarehouse: undefined,
-					customerOrg: undefined,
-					customerManager: undefined,
-					customerWarehouse: undefined,
-					status: 'draft',
-					materials: [],
-				});
-				store.resetForm();
-			}
-		};
-	}, []);
+		// Только для режима создания нового договора
+		if (!isCreateMode) return;
 
-	// Обработчик отправки с подтверждением
+		// Если пришли из предзаполненного источника (TopWarehouses/MapPage) - не сбрасываем
+		if (isFromPreselected) return;
+
+		// В остальных случаях (простое создание) - сбрасываем всё
+		form.reset({
+			supplierOrg: undefined,
+			supplierManager: undefined,
+			supplierWarehouse: undefined,
+			customerOrg: undefined,
+			customerManager: undefined,
+			customerWarehouse: undefined,
+			status: 'draft',
+			materials: [],
+		});
+		store.resetForm();
+		store.setOrgSearchQuery('');
+		store.setSupplierManagerSearchQuery('');
+		store.setCustomerManagerSearchQuery('');
+		store.setSupplierWarehouseSearchQuery('');
+		store.setCustomerWarehouseSearchQuery('');
+		store.setMaterialSearchQuery('');
+	}, [isCreateMode, isFromPreselected]);
+
 	const onSubmit = async (data: AgreementFormValues) => {
 		const isChangingToIrreversible =
 			initialStatus &&
@@ -110,7 +119,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 		}
 	};
 
-	// Подтверждение отправки
 	const confirmSubmit = async () => {
 		if (pendingData) {
 			Object.entries(pendingData).forEach(([key, value]) => {
@@ -158,7 +166,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 						/>
 					</div>
 
-					{/* ✅ AgreementMap добавлен сюда */}
 					<div className="mt-8">
 						<AgreementMap
 							supplierWarehouseId={store.supplierWarehouse}
@@ -167,7 +174,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 								store.setSupplierOrg(warehouse.organization_id);
 								store.setSupplierWarehouse(warehouse.id);
 								store.setSupplierManager(warehouse.manager_id);
-
 								form.setValue('supplierOrg', warehouse.organization_id);
 								form.setValue('supplierWarehouse', warehouse.id);
 								form.setValue('supplierManager', warehouse.manager_id);
@@ -176,7 +182,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 								store.setCustomerOrg(warehouse.organization_id);
 								store.setCustomerWarehouse(warehouse.id);
 								store.setCustomerManager(warehouse.manager_id);
-
 								form.setValue('customerOrg', warehouse.organization_id);
 								form.setValue('customerWarehouse', warehouse.id);
 								form.setValue('customerManager', warehouse.manager_id);

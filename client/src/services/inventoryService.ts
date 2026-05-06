@@ -79,7 +79,7 @@ class InventoryService {
 
 	async findTopWarehousesByMaterial(
 		materialId: number,
-		limit: number = 5
+		limit: number = 20
 	): Promise<{ warehouse_id: number; amount: number }[]> {
 		const response = await instance.get<{
 			success: boolean;

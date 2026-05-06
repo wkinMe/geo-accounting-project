@@ -2,6 +2,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { organizationService } from '@/services/organizationService';
 
+const MAX_LIMIT = 1000; // Максимальное количество записей
+
 export function useOrganizations(searchQuery: string, fixedOrganizationId?: number | null) {
 	// Если передан фиксированный ID организации, возвращаем только её
 	const { data: fixedOrg, isLoading: isLoadingFixed } = useQuery({
@@ -13,14 +15,14 @@ export function useOrganizations(searchQuery: string, fixedOrganizationId?: numb
 	// Поиск организаций (только если нет фиксированной)
 	const { data: searchedOrgs, isLoading: isSearching } = useQuery({
 		queryKey: ['organizations', 'search', searchQuery],
-		queryFn: () => organizationService.search(searchQuery),
+		queryFn: () => organizationService.search(searchQuery, 1, MAX_LIMIT),
 		enabled: !fixedOrganizationId && searchQuery.length > 0,
 	});
 
 	// Все организации (только если нет фиксированной)
 	const { data: allOrgs, isLoading: isLoadingAll } = useQuery({
 		queryKey: ['organizations'],
-		queryFn: () => organizationService.findAll(),
+		queryFn: () => organizationService.findAll(1, MAX_LIMIT),
 		enabled: !fixedOrganizationId && searchQuery.length === 0,
 	});
 

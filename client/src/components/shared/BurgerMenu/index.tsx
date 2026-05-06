@@ -10,6 +10,10 @@ import {
 	FaFileContract,
 	FaBuilding,
 	FaBoxOpen,
+	FaChartLine,
+	FaShoppingCart,
+	FaBoxes,
+	FaDollarSign, // Добавь иконку для страницы топ складов
 } from 'react-icons/fa';
 import { userService } from '@/services/userService';
 import { useRole } from '@/hooks';
@@ -67,6 +71,12 @@ export function BurgerMenu({ isOpen, onClose, onToggle }: BurgerMenuProps) {
 		},
 		{ path: '/organizations', label: 'Организации', icon: <FaBuilding /> },
 		{ path: '/materials', label: 'Материалы', icon: <FaBoxOpen /> },
+		{
+			path: '/materials/top-warehouses',
+			label: 'Закупить материалы',
+			icon: <FaDollarSign />,
+			allowedRoles: [USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN],
+		},
 		{
 			path: '/users',
 			label: 'Пользователи',

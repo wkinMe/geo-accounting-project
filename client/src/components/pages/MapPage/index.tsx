@@ -29,6 +29,12 @@ export function MapPage() {
 		setCustomerWarehouse,
 		setCustomerManager,
 		resetForm,
+		setOrgSearchQuery,
+		setSupplierManagerSearchQuery,
+		setCustomerManagerSearchQuery,
+		setSupplierWarehouseSearchQuery,
+		setCustomerWarehouseSearchQuery,
+		setMaterialSearchQuery,
 	} = useAgreementFormStore();
 
 	const { data: profile, isLoading: isLoadingProfile } = useProfile();
@@ -129,6 +135,12 @@ export function MapPage() {
 
 		if (warehouse) {
 			resetForm();
+			setOrgSearchQuery('');
+			setSupplierManagerSearchQuery('');
+			setCustomerManagerSearchQuery('');
+			setSupplierWarehouseSearchQuery('');
+			setCustomerWarehouseSearchQuery('');
+			setMaterialSearchQuery('');
 
 			if (role === 'supplier') {
 				setSupplierOrg(warehouse.organization_id);
@@ -140,7 +152,7 @@ export function MapPage() {
 				setCustomerManager(warehouse.manager_id);
 			}
 
-			navigate('/agreements/new');
+			navigate('/agreements/new', { state: { preserveData: true } });
 		}
 	};
 
