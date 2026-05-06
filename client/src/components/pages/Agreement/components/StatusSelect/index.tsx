@@ -5,6 +5,7 @@ import type { AgreementFormValues } from '../../types';
 import { useAgreementStatusPermissions } from '@/components/pages/AgreementsList/hooks/useAgreementStatusPermissions';
 import { AGREEMENT_STATUS_LABELS, type AgreementStatus } from '@shared/constants';
 import { useEffect } from 'react';
+import { useAgreementFormStore } from '../../store';
 
 interface StatusSelectProps {
 	agreement: any;
@@ -25,6 +26,8 @@ export function StatusSelect({
 		watch,
 		setValue,
 	} = useFormContext<AgreementFormValues>();
+
+	const { setStatus } = useAgreementFormStore();
 
 	// Используем хук для прав на статусы с привязкой к договору
 	const { canChangeStatus, getAvailableStatuses, isStatusLocked } =
@@ -52,6 +55,9 @@ export function StatusSelect({
 		// Сначала вызываем onChange из register для синхронизации с формой
 		onChange(e);
 
+		// Обновляем store
+		setStatus(newStatus);
+
 		// Потом вызываем внешний обработчик если есть
 		if (onStatusChange) {
 			onStatusChange(newStatus);
@@ -64,9 +70,10 @@ export function StatusSelect({
 			const defaultStatus = availableStatuses[0];
 			if (defaultStatus) {
 				setValue('status', defaultStatus);
+				setStatus(defaultStatus);
 			}
 		}
-	}, [statusToUse, availableStatuses, setValue]);
+	}, [statusToUse, availableStatuses, setValue, setStatus]);
 
 	return (
 		<SelectField

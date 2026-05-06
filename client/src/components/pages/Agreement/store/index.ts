@@ -124,6 +124,7 @@ export const useAgreementFormStore = create<AgreementFormStore>((set, get) => ({
 		if (state.customerWarehouse !== initialData.customerWarehouse) return true;
 		if (state.status !== initialData.status) return true;
 
+
 		// Сравниваем материалы
 		if (state.materials.length !== initialData.materials.length) return true;
 

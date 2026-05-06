@@ -1,7 +1,9 @@
-import { useState } from 'react';
+// client/src/components/shared/EntityList/index.tsx
+import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PaginatedTable } from '../PaginatedTable';
 import { useTablePagination } from '@/hooks/useTablePagination';
+import { useDebounce } from '@/hooks/useDebounce';
 import type { EntityConfig } from './types';
 
 export function EntityList<T, TableItem extends { id: number }>({
@@ -26,12 +28,13 @@ export function EntityList<T, TableItem extends { id: number }>({
 		initialSortOrder = 'ASC',
 		defaultLimit = 20,
 		renderModal,
-		getIdField = (item: TableItem) => item.id, // по умолчанию берём id
+		getIdField = (item: TableItem) => item.id,
 	} = config;
 
 	const queryClient = useQueryClient();
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedItem, setSelectedItem] = useState<TableItem | null>(null);
+	const [localSearchQuery, setLocalSearchQuery] = useState('');
 
 	const {
 		page,
@@ -49,6 +52,19 @@ export function EntityList<T, TableItem extends { id: number }>({
 		initialSortBy,
 		initialSortOrder,
 	});
+
+	// Дебаунс для поиска
+	const debouncedHandleSearch = useDebounce((query: string) => {
+		handleSearch(query);
+	}, 100);
+
+	const onSearch = useCallback(
+		(query: string) => {
+			setLocalSearchQuery(query);
+			debouncedHandleSearch(query);
+		},
+		[debouncedHandleSearch]
+	);
 
 	const { data, isLoading, isFetching } = useQuery({
 		queryKey: [entityName, page, limit, sortBy, sortOrder],
@@ -132,9 +148,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 		}
 	};
 
-	// Обновляем actions - сохраняем оригинальную логику
 	const actionsWithPermissions = actions?.map((action) => {
-		// Для удаления с подтверждением - особая обработка
 		if (action.needConfirmation) {
 			return {
 				...action,
@@ -145,7 +159,6 @@ export function EntityList<T, TableItem extends { id: number }>({
 			};
 		}
 
-		// Проверяем, есть ли у действия своя реализация
 		const hasCustomAction = !!action.action;
 
 		if (hasCustomAction) {
@@ -168,7 +181,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 				elements={elements}
 				total={total}
 				actions={actionsWithPermissions}
-				searchValue={searchQuery}
+				searchValue={localSearchQuery}
 				sortBy={sortBy}
 				sortOrder={sortOrder}
 				currentPage={page}
@@ -177,7 +190,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 				isFetching={isFetchingData}
 				hoverPopupConfig={hoverPopupConfig}
 				isCreateDisabled={!canCreate}
-				onSearch={handleSearch}
+				onSearch={onSearch}
 				onCreate={canCreate ? openCreateModal : undefined}
 				onPageChange={handlePageChange}
 				onLimitChange={handleLimitChange}

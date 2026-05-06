@@ -65,18 +65,15 @@ export class AgreementService {
     return IRREVERSIBLE_STATUSES.includes(status);
   }
 
+  private isStatusCompleted(status: AgreementStatus): boolean {
+    return status === AGREEMENT_STATUS.COMPLETED;
+  }
+
   private isTransitionToActive(
     oldStatus: AgreementStatus,
     newStatus: AgreementStatus,
   ): boolean {
     return !this.isActiveStatus(oldStatus) && this.isActiveStatus(newStatus);
-  }
-
-  private isTransitionFromActive(
-    oldStatus: AgreementStatus,
-    newStatus: AgreementStatus,
-  ): boolean {
-    return this.isActiveStatus(oldStatus) && !this.isActiveStatus(newStatus);
   }
 
   private async validateUserExists(
@@ -126,8 +123,6 @@ export class AgreementService {
   ): Promise<AgreementMaterial[]> {
     return await this.agreementMaterialRepo.findByAgreement(agreement_id);
   }
-
-  // services/AgreementService.ts (продолжение)
 
   async findAll(user: UserDataDTO): Promise<Agreement[]> {
     try {
@@ -187,93 +182,7 @@ export class AgreementService {
     }
   }
 
-  async create(params: AgreementCreateParams): Promise<Agreement> {
-    try {
-      await this.validateUserExists(params.supplier_id, "supplier_id");
-      await this.validateUserExists(params.customer_id, "customer_id");
-      await this.validateWarehouseExists(
-        params.supplier_warehouse_id,
-        "supplier_warehouse_id",
-      );
-      await this.validateWarehouseExists(
-        params.customer_warehouse_id,
-        "customer_warehouse_id",
-      );
-
-      // Проверка, что склады разные
-      if (params.supplier_warehouse_id === params.customer_warehouse_id) {
-        throw new ValidationError(
-          "Склад поставщика и склад покупателя не могут быть одинаковыми",
-          "create",
-          "customer_warehouse_id",
-          params.customer_warehouse_id.toString(),
-        );
-      }
-
-      // Создаём договор
-      const agreement = Agreement.create({
-        supplier_id: params.supplier_id,
-        customer_id: params.customer_id,
-        supplier_warehouse_id: params.supplier_warehouse_id,
-        customer_warehouse_id: params.customer_warehouse_id,
-        status: params.status || AGREEMENT_STATUS.DRAFT,
-      });
-
-      const savedAgreement = await this.agreementRepo.save(agreement);
-
-      // Добавляем материалы
-      if (params.materials && params.materials.length > 0) {
-        const materials: AgreementMaterial[] = [];
-
-        for (const material of params.materials) {
-          await this.validateMaterialExists(material.material_id);
-
-          if (material.amount <= 0) {
-            throw new ValidationError(
-              "Количество материала должно быть положительным",
-              "create",
-              "amount",
-              material.amount.toString(),
-            );
-          }
-
-          console.log(material.item_price);
-
-          materials.push(
-            AgreementMaterial.create({
-              agreement_id: savedAgreement.id!,
-              material_id: material.material_id,
-              amount: material.amount,
-              item_price: material.item_price,
-            }),
-          );
-        }
-
-        await this.agreementMaterialRepo.saveMany(materials);
-      }
-
-      // Если договор сразу создаётся со статусом, требующим списания материалов
-      if (this.isActiveStatus(savedAgreement.status)) {
-        await this.processAgreementActivation(savedAgreement.id!);
-      }
-
-      return await this.findById(savedAgreement.id!);
-    } catch (error) {
-      if (
-        error instanceof DatabaseError ||
-        error instanceof NotFoundError ||
-        error instanceof ValidationError
-      ) {
-        throw error;
-      }
-      throw new ServiceError(
-        "Не удалось создать договор",
-        "AgreementService",
-        "create",
-        error instanceof Error ? error : new Error(String(error)),
-      );
-    }
-  }
+  // services/AgreementService.ts (только изменённые методы)
 
   async update(params: AgreementUpdateParams): Promise<Agreement> {
     try {
@@ -281,7 +190,6 @@ export class AgreementService {
       const oldStatus = existingAgreement.status;
       const newStatus = params.status || oldStatus;
 
-      // Обновляем поля
       if (params.supplier_id !== undefined) {
         await this.validateUserExists(params.supplier_id, "supplier_id");
         existingAgreement.updateSupplier(params.supplier_id);
@@ -312,13 +220,11 @@ export class AgreementService {
         existingAgreement.updateStatus(params.status);
       }
 
-      // Сохраняем изменения
       const updatedAgreement = await this.agreementRepo.update(
         params.id,
         existingAgreement,
       );
 
-      // Обновляем материалы
       if (params.materials !== undefined) {
         await this.agreementMaterialRepo.deleteByAgreement(params.id);
 
@@ -352,9 +258,28 @@ export class AgreementService {
       }
 
       // Обрабатываем переходы статусов
-      if (this.isTransitionToActive(oldStatus, newStatus)) {
-        await this.processAgreementActivation(params.id);
-      } else if (this.isTransitionFromActive(oldStatus, newStatus)) {
+
+      // 1. Если договор переходит в любой активный статус (включая "Завершён"),
+      //    но НЕ из активного статуса - списываем со склада поставщика
+      const isBecomingActive =
+        this.isActiveStatus(newStatus) && !this.isActiveStatus(oldStatus);
+      if (isBecomingActive) {
+        await this.processSupplierWriteOff(params.id);
+      }
+
+      // 2. Если договор переходит в статус "Завершён" (из любого статуса) -
+      //    добавляем на склад покупателя
+      const isBecomingCompleted = newStatus === AGREEMENT_STATUS.COMPLETED;
+      if (isBecomingCompleted) {
+        await this.processCustomerReceipt(params.id);
+      }
+
+      // 3. Если договор выходит из статуса "Завершён" (в любой другой статус) -
+      //    откатываем
+      const isLeavingCompleted =
+        oldStatus === AGREEMENT_STATUS.COMPLETED &&
+        newStatus !== AGREEMENT_STATUS.COMPLETED;
+      if (isLeavingCompleted) {
         await this.processAgreementDeactivation(params.id);
       }
 
@@ -371,6 +296,94 @@ export class AgreementService {
         `Не удалось обновить договор с ID ${params.id}`,
         "AgreementService",
         "update",
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+  }
+
+  async create(params: AgreementCreateParams): Promise<Agreement> {
+    try {
+      await this.validateUserExists(params.supplier_id, "supplier_id");
+      await this.validateUserExists(params.customer_id, "customer_id");
+      await this.validateWarehouseExists(
+        params.supplier_warehouse_id,
+        "supplier_warehouse_id",
+      );
+      await this.validateWarehouseExists(
+        params.customer_warehouse_id,
+        "customer_warehouse_id",
+      );
+
+      if (params.supplier_warehouse_id === params.customer_warehouse_id) {
+        throw new ValidationError(
+          "Склад поставщика и склад покупателя не могут быть одинаковыми",
+          "create",
+          "customer_warehouse_id",
+          params.customer_warehouse_id.toString(),
+        );
+      }
+
+      const agreement = Agreement.create({
+        supplier_id: params.supplier_id,
+        customer_id: params.customer_id,
+        supplier_warehouse_id: params.supplier_warehouse_id,
+        customer_warehouse_id: params.customer_warehouse_id,
+        status: params.status || AGREEMENT_STATUS.DRAFT,
+      });
+
+      const savedAgreement = await this.agreementRepo.save(agreement);
+
+      if (params.materials && params.materials.length > 0) {
+        const materials: AgreementMaterial[] = [];
+
+        for (const material of params.materials) {
+          await this.validateMaterialExists(material.material_id);
+
+          if (material.amount <= 0) {
+            throw new ValidationError(
+              "Количество материала должно быть положительным",
+              "create",
+              "amount",
+              material.amount.toString(),
+            );
+          }
+
+          materials.push(
+            AgreementMaterial.create({
+              agreement_id: savedAgreement.id!,
+              material_id: material.material_id,
+              amount: material.amount,
+              item_price: material.item_price,
+            }),
+          );
+        }
+
+        await this.agreementMaterialRepo.saveMany(materials);
+      }
+
+      // Если договор создаётся с активным статусом (включая "Завершён")
+      if (this.isActiveStatus(savedAgreement.status)) {
+        await this.processSupplierWriteOff(savedAgreement.id!);
+      }
+
+      // Если договор создаётся со статусом "Завершён"
+      if (savedAgreement.status === AGREEMENT_STATUS.COMPLETED) {
+        await this.processCustomerReceipt(savedAgreement.id!);
+      }
+
+      return await this.findById(savedAgreement.id!);
+    } catch (error) {
+      if (
+        error instanceof DatabaseError ||
+        error instanceof NotFoundError ||
+        error instanceof ValidationError
+      ) {
+        throw error;
+      }
+      throw new ServiceError(
+        "Не удалось создать договор",
+        "AgreementService",
+        "create",
         error instanceof Error ? error : new Error(String(error)),
       );
     }
@@ -394,14 +407,13 @@ export class AgreementService {
     }
   }
 
-  // Приватные методы для обработки активации/деактивации договора
-  private async processAgreementActivation(agreementId: number): Promise<void> {
+  // Списание со склада поставщика
+  private async processSupplierWriteOff(agreementId: number): Promise<void> {
     const agreement = await this.findById(agreementId);
     const materials = await this.getAgreementMaterials(agreementId);
 
     if (materials.length === 0) return;
 
-    // Проверяем наличие материалов на складе поставщика
     const requirements = materials.map((m) => ({
       material_id: m.material_id,
       required_amount: m.amount,
@@ -412,17 +424,21 @@ export class AgreementService {
       requirements,
     );
 
-    // Списываем материалы со склада поставщика
     for (const material of materials) {
       const supplierStock = await this.inventoryService.getStock(
         agreement.supplier_warehouse_id,
         material.material_id,
       );
 
+      const newAmount = supplierStock - material.amount;
+
       await this.inventoryService.setAmount({
         warehouse_id: agreement.supplier_warehouse_id,
         material_id: material.material_id,
-        amount: supplierStock - material.amount,
+        amount: newAmount,
+        agreement_id: agreementId,
+        user_id: agreement.supplier_id,
+        description: `Списание по договору №${agreementId}`,
       });
 
       await this.historyService.createEntry({
@@ -430,23 +446,37 @@ export class AgreementService {
         material_id: material.material_id,
         operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_OUT,
         old_amount: supplierStock,
-        new_amount: supplierStock - material.amount,
+        new_amount: newAmount,
         delta: -material.amount,
-        agreement_id: agreementId,
         user_id: agreement.supplier_id,
+        agreement_id: agreementId,
         description: `Списание по договору №${agreementId}`,
       });
+    }
+  }
 
-      // Добавляем материалы на склад покупателя
+  // Поступление на склад покупателя
+  private async processCustomerReceipt(agreementId: number): Promise<void> {
+    const agreement = await this.findById(agreementId);
+    const materials = await this.getAgreementMaterials(agreementId);
+
+    if (materials.length === 0) return;
+
+    for (const material of materials) {
       const customerStock = await this.inventoryService.getStock(
         agreement.customer_warehouse_id,
         material.material_id,
       );
 
+      const newAmount = customerStock + material.amount;
+
       await this.inventoryService.setAmount({
         warehouse_id: agreement.customer_warehouse_id,
         material_id: material.material_id,
-        amount: customerStock + material.amount,
+        amount: newAmount,
+        agreement_id: agreementId,
+        user_id: agreement.customer_id,
+        description: `Поступление по договору №${agreementId}`,
       });
 
       await this.historyService.createEntry({
@@ -454,15 +484,16 @@ export class AgreementService {
         material_id: material.material_id,
         operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_IN,
         old_amount: customerStock,
-        new_amount: customerStock + material.amount,
+        new_amount: newAmount,
         delta: material.amount,
-        agreement_id: agreementId,
         user_id: agreement.customer_id,
+        agreement_id: agreementId,
         description: `Поступление по договору №${agreementId}`,
       });
     }
   }
 
+  // Откат (если договор выходит из завершённого статуса)
   private async processAgreementDeactivation(
     agreementId: number,
   ): Promise<void> {
@@ -471,18 +502,21 @@ export class AgreementService {
 
     if (materials.length === 0) return;
 
-    // Возвращаем материалы обратно
     for (const material of materials) {
-      // Возвращаем на склад поставщика
+      // Возврат поставщику
       const supplierStock = await this.inventoryService.getStock(
         agreement.supplier_warehouse_id,
         material.material_id,
       );
 
+      const supplierNewAmount = supplierStock + material.amount;
+
       await this.inventoryService.setAmount({
         warehouse_id: agreement.supplier_warehouse_id,
         material_id: material.material_id,
-        amount: supplierStock + material.amount,
+        amount: supplierNewAmount,
+        agreement_id: agreementId,
+        description: `Возврат на склад поставщика по договору №${agreementId}`,
       });
 
       await this.historyService.createEntry({
@@ -490,22 +524,26 @@ export class AgreementService {
         material_id: material.material_id,
         operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_IN,
         old_amount: supplierStock,
-        new_amount: supplierStock + material.amount,
+        new_amount: supplierNewAmount,
         delta: material.amount,
         agreement_id: agreementId,
         description: `Возврат на склад поставщика по договору №${agreementId}`,
       });
 
-      // Списываем со склада покупателя
+      // Списание у покупателя
       const customerStock = await this.inventoryService.getStock(
         agreement.customer_warehouse_id,
         material.material_id,
       );
 
+      const customerNewAmount = customerStock - material.amount;
+
       await this.inventoryService.setAmount({
         warehouse_id: agreement.customer_warehouse_id,
         material_id: material.material_id,
-        amount: customerStock - material.amount,
+        amount: customerNewAmount,
+        agreement_id: agreementId,
+        description: `Списание со склада покупателя по договору №${agreementId}`,
       });
 
       await this.historyService.createEntry({
@@ -513,15 +551,13 @@ export class AgreementService {
         material_id: material.material_id,
         operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_OUT,
         old_amount: customerStock,
-        new_amount: customerStock - material.amount,
+        new_amount: customerNewAmount,
         delta: -material.amount,
         agreement_id: agreementId,
         description: `Списание со склада покупателя по договору №${agreementId}`,
       });
     }
   }
-
-  // services/AgreementService.ts (добавить/заменить методы)
 
   async findAllWithDetails(user: UserDataDTO): Promise<any[]> {
     try {

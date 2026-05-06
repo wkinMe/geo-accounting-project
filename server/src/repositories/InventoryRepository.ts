@@ -2,6 +2,7 @@ import { Pool } from "pg";
 import { DatabaseError, NotFoundError } from "@shared/service";
 import { InventoryItem as InventoryItemEntity } from "../domain/entities/InventoryItem";
 import type { Material } from "@shared/models";
+import { WarehouseHistoryType } from "@shared/constants";
 
 // Тип для ответа с материалом
 export interface InventoryItemWithMaterial {
