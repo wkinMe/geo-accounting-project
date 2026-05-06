@@ -14,14 +14,36 @@ export class WarehouseService {
     private userRepo: UserRepository,
   ) {}
 
-  async findAll(organization_id?: number): Promise<Warehouse[]> {
-    return await this.warehouseRepo.findAll(organization_id);
+  async findAll(
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+    organization_id?: number,
+  ): Promise<{ data: Warehouse[]; total: number }> {
+    return await this.warehouseRepo.findAll(
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      organization_id,
+    );
   }
 
   async findAllWithDetails(
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
     organization_id?: number,
-  ): Promise<WarehouseWithManagerAndOrganization[]> {
-    return await this.warehouseRepo.findAllWithDetails(organization_id);
+  ): Promise<{ data: WarehouseWithManagerAndOrganization[]; total: number }> {
+    return await this.warehouseRepo.findAllWithDetails(
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      organization_id,
+    );
   }
 
   async findById(id: number): Promise<Warehouse> {
@@ -98,10 +120,8 @@ export class WarehouseService {
     const existingWarehouse = await this.findById(id);
     this.validateUpdateDTO(dto);
 
-    // Флаг, указывающий на смену организации
     let organizationChanged = false;
 
-    // Обновляем организацию, если она изменилась
     if (
       dto.organization_id !== undefined &&
       dto.organization_id !== existingWarehouse.organization_id
@@ -121,12 +141,9 @@ export class WarehouseService {
       organizationChanged = true;
     }
 
-    // Если организация изменилась, сбрасываем менеджера
     if (organizationChanged) {
       existingWarehouse.updateManager(null);
-    }
-    // Иначе обновляем менеджера если он передан
-    else if (dto.manager_id !== undefined) {
+    } else if (dto.manager_id !== undefined) {
       if (dto.manager_id !== null) {
         const manager = await this.userRepo.findById(dto.manager_id);
         if (!manager) {
@@ -141,10 +158,8 @@ export class WarehouseService {
       existingWarehouse.updateManager(dto.manager_id);
     }
 
-    // Обновляем название
     if (dto.name !== undefined) {
       existingWarehouse.updateName(dto.name);
-      // Проверяем уникальность имени в новой организации (если организация изменилась)
       const orgIdForCheck =
         dto.organization_id ?? existingWarehouse.organization_id;
       const duplicate = await this.warehouseRepo.findByName(
@@ -162,7 +177,6 @@ export class WarehouseService {
       }
     }
 
-    // Обновляем координаты
     if (dto.latitude !== undefined || dto.longitude !== undefined) {
       const latitude = dto.latitude ?? existingWarehouse.latitude;
       const longitude = dto.longitude ?? existingWarehouse.longitude;
@@ -233,6 +247,34 @@ export class WarehouseService {
     return await this.warehouseRepo.update(warehouse_id, warehouse);
   }
 
+  // services/WarehouseService.ts
+  async search(
+    query: string,
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+    organization_id?: number,
+  ): Promise<{ data: WarehouseWithManagerAndOrganization[]; total: number }> {
+    if (!query || query.trim().length === 0) {
+      return await this.warehouseRepo.findAllWithDetails(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
+    }
+    return await this.warehouseRepo.search(
+      query.trim(),
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      organization_id,
+    );
+  }
+
   private validateCreateDTO(dto: CreateWarehouseDTO): void {
     if (!dto.name || dto.name.trim().length === 0) {
       throw new ValidationError(
@@ -242,7 +284,6 @@ export class WarehouseService {
         dto.name,
       );
     }
-
     if (dto.name.length > 255) {
       throw new ValidationError(
         "Название склада не может превышать 255 символов",
@@ -251,7 +292,6 @@ export class WarehouseService {
         dto.name,
       );
     }
-
     if (!dto.organization_id) {
       throw new ValidationError(
         "ID организации обязательно",
@@ -260,7 +300,6 @@ export class WarehouseService {
         dto.organization_id?.toString(),
       );
     }
-
     if (dto.latitude === undefined || dto.latitude === null) {
       throw new ValidationError(
         "Широта обязательна",
@@ -269,7 +308,6 @@ export class WarehouseService {
         dto.latitude?.toString(),
       );
     }
-
     if (dto.longitude === undefined || dto.longitude === null) {
       throw new ValidationError(
         "Долгота обязательна",
@@ -278,7 +316,6 @@ export class WarehouseService {
         dto.longitude?.toString(),
       );
     }
-
     if (dto.latitude < -90 || dto.latitude > 90) {
       throw new ValidationError(
         "Широта должна быть в диапазоне от -90 до 90",
@@ -287,7 +324,6 @@ export class WarehouseService {
         dto.latitude.toString(),
       );
     }
-
     if (dto.longitude < -180 || dto.longitude > 180) {
       throw new ValidationError(
         "Долгота должна быть в диапазоне от -180 до 180",
@@ -307,7 +343,6 @@ export class WarehouseService {
         dto.name,
       );
     }
-
     if (dto.name !== undefined && dto.name.length > 255) {
       throw new ValidationError(
         "Название склада не может превышать 255 символов",
@@ -316,7 +351,6 @@ export class WarehouseService {
         dto.name,
       );
     }
-
     if (
       dto.latitude !== undefined &&
       (dto.latitude < -90 || dto.latitude > 90)
@@ -328,7 +362,6 @@ export class WarehouseService {
         dto.latitude.toString(),
       );
     }
-
     if (
       dto.longitude !== undefined &&
       (dto.longitude < -180 || dto.longitude > 180)
@@ -340,12 +373,5 @@ export class WarehouseService {
         dto.longitude.toString(),
       );
     }
-  }
-
-  async search(query: string, organization_id?: number): Promise<Warehouse[]> {
-    if (!query || query.trim().length === 0) {
-      return await this.findAll(organization_id);
-    }
-    return await this.warehouseRepo.search(query.trim(), organization_id);
   }
 }

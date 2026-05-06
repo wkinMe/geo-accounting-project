@@ -85,7 +85,7 @@ export function MaterialModal({ open, setOpen, material, onSubmit }: Props) {
 			setExistingImageUrl(null);
 			setError(null);
 		}
-	}, [open, material, reset]);
+	}, [open, material?.id]);
 
 	const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];

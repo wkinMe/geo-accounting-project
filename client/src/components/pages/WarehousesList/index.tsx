@@ -1,170 +1,141 @@
 // client/src/pages/warehouses/WarehousesList.tsx
-import { useState, useMemo } from 'react';
 import { warehouseService } from '@/services/warehouseService';
-import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FaRegEye } from 'react-icons/fa';
-import { FaRegTrashAlt } from 'react-icons/fa';
+import type { WarehouseWithManagerAndOrganization } from '@shared/models';
+import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import { useNavigate } from 'react-router';
-import { mapWarehouseToTableItem } from './utils';
-import { WarehouseModal } from './WarehouseModal';
-import type { TableWarehouse } from './types';
-import { useWarehousePermissions } from './hooks';
 import type { Action, Column } from '@/components/shared/Table/types';
-import { Table } from '@/components/shared/Table';
-import { useProfile, useRole } from '@/hooks';
-import { isSuperAdminRole } from '@/utils';
+import { EntityList } from '@/components/shared/EntityList';
+import { useNavigate } from 'react-router';
+import { WarehouseModal } from './WarehouseModal';
+import { useRole, useProfile } from '@/hooks';
+import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
+
+type TableWarehouse = {
+	id: number;
+	name: string;
+	manager: string;
+	manager_id: number | null;
+	organization: string;
+	organization_id: number;
+	latitude: number;
+	longitude: number;
+	created_at: string;
+	updated_at: string;
+};
 
 const columns: Column<TableWarehouse>[] = [
 	{ key: 'id', label: 'ID' },
 	{ key: 'name', label: 'Название' },
 	{ key: 'manager', label: 'Менеджер' },
 	{ key: 'organization', label: 'Организация' },
-	{ key: 'created_at', label: 'Дата создания' },
-	{ key: 'updated_at', label: 'Дата обновления' },
 ];
+
+const mapWarehouseToTableItem = (
+	warehouse: WarehouseWithManagerAndOrganization
+): TableWarehouse => ({
+	id: warehouse.id,
+	name: warehouse.name,
+	manager: warehouse.manager?.name || '-',
+	manager_id: warehouse.manager?.id || null,
+	organization: warehouse.organization?.name || '-',
+	organization_id: warehouse.organization_id,
+	latitude: warehouse.latitude,
+	longitude: warehouse.longitude,
+	created_at: new Date(warehouse.created_at).toLocaleDateString('ru-RU'),
+	updated_at: new Date(warehouse.updated_at).toLocaleDateString('ru-RU'),
+});
 
 export function WarehousesList() {
 	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-
-	const [searchQuery, setSearchQuery] = useState('');
-	const [isModalOpen, setIsModalOpen] = useState(false);
-	const [selectedWarehouse, setSelectedWarehouse] = useState<TableWarehouse | null>(null);
-
-	const { canEdit, canDelete, canCreate } = useWarehousePermissions();
-
 	const role = useRole();
 	const { data: profile } = useProfile();
 
-	const { data: warehouses } = useQuery({
-		queryKey: ['warehouses'],
-		queryFn: async () => {
-			if (isSuperAdminRole(role)) {
-				return await warehouseService.findAll();
-			}
-			return await warehouseService.findAll(profile?.organization_id);
-		},
-	});
+	const isSuperAdmin = isSuperAdminRole(role);
+	const isAdmin = isAdminRole(role);
+	const isManager = isManagerRole(role);
 
-	const { data: searchedWarehouses } = useQuery({
-		queryKey: ['warehouses', 'search', searchQuery],
-		queryFn: () => warehouseService.search(searchQuery),
-		enabled: searchQuery.length > 0,
-		retry: false,
-	});
-
-	const { mutateAsync: deleteMutate } = useMutation({
-		mutationFn: async (id: number) => warehouseService.delete(id),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-		},
-	});
-
-	const { mutateAsync: createMutate, isPending: isCreating } = useMutation({
-		mutationFn: async (data: CreateWarehouseDTO) => warehouseService.create(data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-			setIsModalOpen(false);
-			setSelectedWarehouse(null);
-		},
-	});
-
-	const { mutateAsync: updateMutate, isPending: isUpdating } = useMutation({
-		mutationFn: ({ id, data }: { id: number; data: UpdateWarehouseDTO }) =>
-			warehouseService.update(id, data),
-		onSuccess: async () => {
-			await queryClient.invalidateQueries({ queryKey: ['warehouses'] });
-			setIsModalOpen(false);
-			setSelectedWarehouse(null);
-		},
-	});
-
-	const elements = useMemo(() => {
-		const items =
-			searchQuery && searchedWarehouses
-				? searchedWarehouses.map(mapWarehouseToTableItem)
-				: warehouses?.map(mapWarehouseToTableItem) || [];
-
-		return items.map((item) => ({
-			...item,
-			_canEdit: canEdit(item),
-			_canDelete: canDelete(item),
-		}));
-	}, [searchQuery, searchedWarehouses, warehouses, canEdit, canDelete]);
-
-	const openEditModal = (warehouse: TableWarehouse) => {
-		setSelectedWarehouse(warehouse);
-		setIsModalOpen(true);
+	// Функции для проверки прав на основе данных склада
+	const canEditWarehouse = (item: TableWarehouse) => {
+		if (isSuperAdmin) return true;
+		if (isAdmin && profile?.organization_id === item.organization_id) return true;
+		if (isManager && profile?.id === item.manager_id) return true;
+		return false;
 	};
 
-	const openCreateModal = () => {
-		setSelectedWarehouse(null);
-		setIsModalOpen(true);
-	};
-
-	const handleSubmit = async (data: CreateWarehouseDTO | UpdateWarehouseDTO) => {
-		if (selectedWarehouse) {
-			await updateMutate({ id: selectedWarehouse.id, data: data as UpdateWarehouseDTO });
-		} else {
-			await createMutate(data as CreateWarehouseDTO);
-		}
+	const canDeleteWarehouse = (item: TableWarehouse) => {
+		if (isSuperAdmin) return true;
+		if (isAdmin && profile?.organization_id === item.organization_id) return true;
+		return false;
 	};
 
 	const actions: Action<TableWarehouse>[] = [
 		{
 			name: 'Просмотреть',
-			action: (item: TableWarehouse) => navigate(`${item.id}`),
+			action: (item) => navigate(`${item.id}`),
 			icon: <FaRegEye />,
 		},
 		{
 			name: 'Редактировать',
-			action: (item: TableWarehouse) => openEditModal(item),
 			icon: <MdEdit />,
-			hidden: (item: TableWarehouse) => !(item as any)._canEdit,
+			hidden: (item) => !canEditWarehouse(item),
 		},
 		{
 			name: 'Удалить',
-			action: async (item: TableWarehouse) => {
-				await deleteMutate(item.id);
-			},
+			action: async () => {},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			hidden: (item: TableWarehouse) => !(item as any)._canDelete,
+			hidden: (item) => !canDeleteWarehouse(item),
 		},
 	];
 
+	// Только обычный пользователь (не super_admin, не admin, не manager) получает фильтрацию
+	const organizationId =
+		!isSuperAdmin && !isAdmin && !isManager ? profile?.organization_id : undefined;
+
 	return (
-		<>
-			<Table
-				searchValue={searchQuery}
-				onSearch={setSearchQuery}
-				debounceMs={300}
-				itemName="Склад"
-				columns={columns}
-				elements={elements}
-				actions={actions}
-				onCreate={canCreate() ? openCreateModal : undefined}
-			/>
-			<WarehouseModal
-				open={isModalOpen}
-				setOpen={setIsModalOpen}
-				warehouse={
-					selectedWarehouse
-						? {
-								id: selectedWarehouse.id,
-								name: selectedWarehouse.name,
-								organization_id: selectedWarehouse.organization_id,
-								manager_id: selectedWarehouse.managerId,
-								latitude: selectedWarehouse.latitude,
-								longitude: selectedWarehouse.longitude,
-							}
-						: null
-				}
-				onSubmit={handleSubmit}
-				isLoading={isCreating || isUpdating}
-			/>
-		</>
+		<EntityList
+			config={{
+				entityName: 'warehouses',
+				itemName: 'склад',
+				service: {
+					findAll: (page, limit, sortBy, sortOrder) =>
+						warehouseService.findAll(page, limit, sortBy, sortOrder, organizationId),
+					search: (query, page, limit, sortBy, sortOrder) =>
+						warehouseService.search(query, page, limit, sortBy, sortOrder, organizationId),
+					delete: warehouseService.delete.bind(warehouseService),
+					create: warehouseService.create.bind(warehouseService),
+					update: warehouseService.update.bind(warehouseService),
+				},
+				columns,
+				mapToTableItem: mapWarehouseToTableItem,
+				actions,
+				canCreate: isSuperAdmin || role === 'admin',
+				canEdit: canEditWarehouse,
+				canDelete: canDeleteWarehouse,
+				initialSortBy: 'id',
+				initialSortOrder: 'ASC',
+				defaultLimit: 20,
+				renderModal: ({ open, setOpen, selectedItem, onSubmit }) => (
+					<WarehouseModal
+						open={open}
+						setOpen={setOpen}
+						warehouse={
+							selectedItem
+								? {
+										id: selectedItem.id,
+										name: selectedItem.name,
+										organization_id: selectedItem.organization_id,
+										manager_id: selectedItem.manager_id,
+										latitude: selectedItem.latitude,
+										longitude: selectedItem.longitude,
+									}
+								: null
+						}
+						onSubmit={onSubmit}
+						isLoading={false}
+					/>
+				),
+			}}
+		/>
 	);
 }

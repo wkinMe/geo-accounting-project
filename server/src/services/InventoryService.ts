@@ -3,11 +3,15 @@ import { InventoryItem as InventoryItemEntity } from "../domain/entities/Invento
 import {
   InventoryRepository,
   InventoryItemWithMaterial,
+  InventoryResponse,
 } from "../repositories/InventoryRepository";
 import { WarehouseRepository } from "../repositories/WarehouseRepository";
 import { MaterialRepository } from "../repositories/MaterialRepository";
 import { WarehouseHistoryService } from "./WarehouseHistoryService";
-import { WAREHOUSE_HISTORY_TYPES } from "@shared/constants/warehouseHistoryTypes";
+import {
+  WAREHOUSE_HISTORY_TYPES,
+  WarehouseHistoryType,
+} from "@shared/constants/warehouseHistoryTypes";
 import { NotFoundError, ValidationError } from "@shared/service";
 
 export interface InventoryTransactionParams {
@@ -17,6 +21,8 @@ export interface InventoryTransactionParams {
   user_id?: number;
   agreement_id?: number;
   description?: string;
+
+  operationType?: WarehouseHistoryType;
 }
 
 export class InventoryService {
@@ -37,7 +43,11 @@ export class InventoryService {
 
   async getWarehouseStock(
     warehouseId: number,
-  ): Promise<InventoryItemWithMaterial[]> {
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
     const warehouse = await this.warehouseRepo.findById(warehouseId);
     if (!warehouse) {
       throw new NotFoundError(
@@ -48,7 +58,13 @@ export class InventoryService {
       );
     }
 
-    return await this.inventoryRepo.findByWarehouseWithMaterial(warehouseId);
+    return await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouseId,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async getMaterialDistribution(material_id: number): Promise<{
@@ -179,10 +195,14 @@ export class InventoryService {
       description: description || `Добавлено ${amount} единиц материала`,
     });
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem!;
   }
 
@@ -256,10 +276,14 @@ export class InventoryService {
       description: description || `Списано ${amount} единиц материала`,
     });
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem!;
   }
 
@@ -273,6 +297,7 @@ export class InventoryService {
       user_id,
       agreement_id,
       description,
+      operationType, // добавляем operationType
     } = params;
 
     if (amount < 0) {
@@ -314,18 +339,19 @@ export class InventoryService {
       old_amount = inventoryItem.amount;
       if (amount === 0) {
         await this.inventoryRepo.delete(warehouse_id, material_id);
-        await this.historyService.createEntry({
-          warehouse_id,
-          material_id,
-          operation_type: WAREHOUSE_HISTORY_TYPES.MANUAL_REMOVE,
-          old_amount,
-          new_amount: 0,
-          delta: -old_amount,
-          user_id,
-          agreement_id,
-          description:
-            description || `Удалён материал (было ${old_amount} единиц)`,
-        });
+        // await this.historyService.createEntry({
+        //   warehouse_id,
+        //   material_id,
+        //   operation_type:
+        //     operationType || WAREHOUSE_HISTORY_TYPES.MANUAL_REMOVE,
+        //   old_amount,
+        //   new_amount: 0,
+        //   delta: -old_amount,
+        //   user_id,
+        //   agreement_id,
+        //   description:
+        //     description || `Удалён материал (было ${old_amount} единиц)`,
+        // });
         return null;
       } else {
         inventoryItem.setAmount(amount);
@@ -342,24 +368,60 @@ export class InventoryService {
       return null;
     }
 
-    await this.historyService.createEntry({
-      warehouse_id,
-      material_id,
-      operation_type: WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE,
-      old_amount,
-      new_amount: amount,
-      delta: amount - old_amount,
-      user_id,
-      agreement_id,
-      description:
-        description || `Количество изменено с ${old_amount} на ${amount}`,
-    });
+    // Используем переданный operationType или MANUAL_UPDATE по умолчанию
+    // const historyOperationType =
+    //   operationType || WAREHOUSE_HISTORY_TYPES.MANUAL_UPDATE;
 
-    // Получаем обновлённые данные с материалом
-    const result =
-      await this.inventoryRepo.findByWarehouseWithMaterial(warehouse_id);
-    const updatedItem = result.find((item) => item.material_id === material_id);
+    // await this.historyService.createEntry({
+    //   warehouse_id,
+    //   material_id,
+    //   operation_type: historyOperationType,
+    //   old_amount,
+    //   new_amount: amount,
+    //   delta: amount - old_amount,
+    //   user_id,
+    //   agreement_id,
+    //   description:
+    //     description || `Количество изменено с ${old_amount} на ${amount}`,
+    // });
+
+    const result = await this.inventoryRepo.findByWarehouseWithMaterial(
+      warehouse_id,
+      1000,
+      0,
+    );
+    const updatedItem = result.data.find(
+      (item) => item.material_id === material_id,
+    );
     return updatedItem || null;
+  }
+
+  async searchMaterials(
+    warehouseId: number,
+    query: string,
+    limit: number = 20,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<InventoryResponse> {
+    const warehouse = await this.warehouseRepo.findById(warehouseId);
+    if (!warehouse) {
+      throw new NotFoundError(
+        `Склад с ID ${warehouseId} не найден`,
+        "Warehouse",
+        "searchMaterials",
+        warehouseId,
+      );
+    }
+
+    return await this.inventoryRepo.searchMaterials(
+      warehouseId,
+      query,
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async checkAvailability(

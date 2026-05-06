@@ -3,21 +3,44 @@ import { Pool } from "pg";
 import { Material } from "../domain/entities/Material";
 import { DatabaseError, NotFoundError } from "@shared/service";
 
+// Допустимые поля для сортировки
+const ALLOWED_SORT_FIELDS = ["id", "name", "unit"];
+
 export class MaterialRepository {
   constructor(private db: Pool) {}
 
-  async findAll(): Promise<Material[]> {
+  async findAll(
+    limit: number = 50,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Material[]; total: number }> {
+    // Определяем сортировку
+    const sortField =
+      sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : "id";
+    const order = sortOrder === "DESC" ? "DESC" : "ASC";
+
+    // Запрос данных с пагинацией
     const query = `
       SELECT 
         m.*,
         EXISTS(SELECT 1 FROM materials_images mi WHERE mi.material_id = m.id) as has_image
       FROM materials m 
-      ORDER BY m.id
+      ORDER BY ${sortField} ${order}
+      LIMIT $1 OFFSET $2
     `;
 
-    const result = await this.db.query(query);
+    // Запрос общего количества
+    const countQuery = `SELECT COUNT(*) as total FROM materials`;
 
-    return result.rows.map(
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [limit, offset]),
+      this.db.query(countQuery),
+    ]);
+
+    const total = parseInt(countResult.rows[0]?.total || "0", 10);
+
+    const data = dataResult.rows.map(
       (row) =>
         new Material(
           row.id,
@@ -28,6 +51,8 @@ export class MaterialRepository {
           row.has_image,
         ),
     );
+
+    return { data, total };
   }
 
   async findById(id: number): Promise<Material | null> {
@@ -168,8 +193,20 @@ export class MaterialRepository {
     }
   }
 
-  async search(queryStr: string, limit: number = 50): Promise<Material[]> {
-    const sql = `
+  async search(
+    queryStr: string,
+    limit: number = 50,
+    offset: number = 0,
+    sortBy?: string,
+    sortOrder?: 'ASC' | 'DESC'
+  ): Promise<{ data: Material[]; total: number }> {
+    const sortField = sortBy && ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'name';
+    const order = sortOrder === 'DESC' ? 'DESC' : 'ASC';
+    
+    const searchPattern = `%${queryStr}%`;
+    const exactStartPattern = `${queryStr}%`;
+    
+    const query = `
       SELECT 
         m.*,
         EXISTS(SELECT 1 FROM materials_images mi WHERE mi.material_id = m.id) as has_image
@@ -181,21 +218,24 @@ export class MaterialRepository {
           WHEN m.name ILIKE $3 THEN 2
           ELSE 3
         END,
-        m.name
-      LIMIT $4
+        ${sortField} ${order}
+      LIMIT $4 OFFSET $5
     `;
-
-    const searchPattern = `%${queryStr}%`;
-    const exactStartPattern = `${queryStr}%`;
-
-    const result = await this.db.query(sql, [
-      searchPattern,
-      exactStartPattern,
-      searchPattern,
-      limit,
+    
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM materials m 
+      WHERE m.name ILIKE $1 OR m.unit ILIKE $1
+    `;
+    
+    const [dataResult, countResult] = await Promise.all([
+      this.db.query(query, [searchPattern, exactStartPattern, searchPattern, limit, offset]),
+      this.db.query(countQuery, [searchPattern])
     ]);
-
-    return result.rows.map(
+    
+    const total = parseInt(countResult.rows[0]?.total || '0', 10);
+    
+    const data = dataResult.rows.map(
       (row) =>
         new Material(
           row.id,
@@ -206,5 +246,7 @@ export class MaterialRepository {
           row.has_image,
         ),
     );
+    
+    return { data, total };
   }
 }

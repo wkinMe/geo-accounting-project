@@ -9,13 +9,13 @@ import { TextField } from '@/components/shared/Fields';
 import { SearchableSelect } from '@/components/shared/SearchableSelect';
 import { userService, organizationService } from '@/services';
 import type { CreateWarehouseDTO, UpdateWarehouseDTO } from '@shared/dto';
-import { atLeastAdmin, isSuperAdminRole } from '@/utils';
+import { atLeastAdmin, isSuperAdminRole, isAdminRole } from '@/utils';
 import { getManagerFieldAvailable } from './utils';
 import type { WarehouseModalData } from './types';
 import { USER_ROLES, USER_ROLES_MAP } from '@shared/constants';
 import { LocationPicker } from '../../../shared/LocationPicker';
 import { useProfile } from '@/hooks';
-import type { User } from '@shared/models';
+import type { User, Organization } from '@shared/models';
 
 const warehouseSchema = z.object({
 	name: z.string().min(1, 'Название обязательно'),
@@ -53,6 +53,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 
 	const isEditing = !!warehouse?.id;
 	const isSuperAdmin = isSuperAdminRole(profileData?.role);
+	const isAdmin = isAdminRole(profileData?.role);
 	const canAssignManager = getManagerFieldAvailable(profileData, warehouse, !isEditing);
 
 	const {
@@ -83,34 +84,36 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 		enabled: !!warehouse?.manager_id && open,
 	});
 
-	const { data: organizationsData } = useQuery({
+	// Получаем список организаций (для супер-админа - все, для администратора - только его)
+	const { data: organizationsResponse, isLoading: isLoadingOrgs } = useQuery({
 		queryKey: ['organizations'],
-		queryFn: () => organizationService.findAll(),
+		queryFn: async () => {
+			if (isSuperAdmin) {
+				return organizationService.findAll();
+			}
+			// Для администратора - получаем только его организацию
+			const org = await organizationService.findById(profileData?.organization_id || 0);
+			return { data: [org], pagination: { total: 1, page: 1, limit: 1, totalPages: 1 } };
+		},
+		enabled: !!profileData?.organization_id,
 	});
 
-	const { data: orgSearchData, isLoading: isOrgSearching } = useQuery({
+	// Поиск организаций
+	const { data: orgSearchResponse, isLoading: isOrgSearching } = useQuery({
 		queryKey: ['organizations', 'search', orgSearchQuery],
 		queryFn: () => organizationService.search(orgSearchQuery),
 		enabled: open && orgSearchQuery.length > 0,
 	});
 
-	// Функция для получения фильтра организации при поиске менеджеров
-	const getManagerSearchOrgId = () => {
-		if (isSuperAdmin) {
-			return undefined;
-		}
-		return profileData?.organization_id;
-	};
-
-	// Поиск менеджеров по запросу
-	const { data: managerSearchData, isLoading: isManagerSearching } = useQuery({
-		queryKey: ['users', 'search', managerSearchQuery, getManagerSearchOrgId()],
-		queryFn: () => userService.search(managerSearchQuery, getManagerSearchOrgId()),
-		enabled: open && managerSearchQuery.length > 0,
+	// Поиск менеджеров - только по выбранной организации
+	const { data: managerSearchResponse, isLoading: isManagerSearching } = useQuery({
+		queryKey: ['users', 'search', selectedOrgId, managerSearchQuery],
+		queryFn: () => userService.search(managerSearchQuery, selectedOrgId),
+		enabled: open && managerSearchQuery.length > 0 && !!selectedOrgId,
 		retry: false,
 	});
 
-	// Для отображения без поиска - загружаем пользователей организации
+	// Загрузка пользователей организации
 	const { data: organizationUsers, isLoading: isLoadingOrganizationUsers } = useQuery({
 		queryKey: ['users', 'organization', selectedOrgId],
 		queryFn: () => userService.findByOrganizationId(selectedOrgId),
@@ -119,9 +122,15 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 
 	useEffect(() => {
 		if (open) {
+			// Для администратора при создании - сразу подставляем его организацию
+			const defaultOrgId =
+				!isEditing && isAdmin && profileData?.organization_id
+					? profileData.organization_id
+					: (warehouse?.organization_id ?? 0);
+
 			reset({
 				name: warehouse?.name ?? '',
-				organization_id: warehouse?.organization_id ?? 0,
+				organization_id: defaultOrgId,
 				manager_id: warehouse?.manager_id ?? null,
 				latitude: warehouse?.latitude,
 				longitude: warehouse?.longitude,
@@ -144,7 +153,7 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 
 			return () => clearTimeout(timeoutId);
 		}
-	}, [open, warehouse, reset]);
+	}, [open, warehouse, reset, isEditing, isAdmin, profileData?.organization_id]);
 
 	const handleSubmit = async () => {
 		setError(null);
@@ -180,10 +189,18 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 		setValue('longitude', lng, { shouldValidate: true });
 	};
 
-	const organizations = orgSearchQuery.length > 0 ? orgSearchData || [] : organizationsData || [];
+	// Формируем список организаций
+	const organizations: Organization[] = useMemo(() => {
+		if (!organizationsResponse?.data) return [];
 
-	// Фильтруем пользователей, оставляя только менеджеров, администраторов и супер-администраторов
-	const filterManagers = (users: User[]) => {
+		if (orgSearchQuery.length > 0) {
+			return orgSearchResponse?.data || [];
+		}
+
+		return organizationsResponse.data;
+	}, [orgSearchQuery, orgSearchResponse, organizationsResponse]);
+
+	const filterManagers = (users: User[]): User[] => {
 		if (!users) return [];
 		return users.filter(
 			(user) =>
@@ -193,38 +210,26 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 		);
 	};
 
-	// Формируем список менеджеров для отображения
-	const managers = useMemo(() => {
-		// Если есть поисковый запрос, используем результаты поиска
-		if (managerSearchQuery.length > 0) {
-			return filterManagers(managerSearchData || []);
+	// Формируем список менеджеров
+	const managers: User[] = useMemo(() => {
+		if (managerSearchQuery.length > 0 && selectedOrgId) {
+			const searchResults = managerSearchResponse?.data || [];
+			return filterManagers(searchResults);
 		}
 
-		// Если выбран склад с менеджером, но организация ещё не выбрана
 		if (warehouse?.manager_id && currentManagerData) {
-			// Показываем текущего менеджера даже если организация не выбрана
 			return [currentManagerData];
 		}
 
-		// Без поиска показываем пользователей выбранной организации
 		if (selectedOrgId && organizationUsers) {
-			const filtered = filterManagers(organizationUsers);
-
-			// Если есть текущий менеджер склада, добавляем его в список
-			if (warehouse?.manager_id && currentManagerData) {
-				const managerInList = filtered.some((m) => m.id === warehouse.manager_id);
-				if (!managerInList) {
-					return [currentManagerData, ...filtered];
-				}
-			}
-			return filtered;
+			return filterManagers(organizationUsers);
 		}
 
 		return [];
 	}, [
 		managerSearchQuery,
-		managerSearchData,
 		selectedOrgId,
+		managerSearchResponse,
 		organizationUsers,
 		warehouse?.manager_id,
 		currentManagerData,
@@ -234,6 +239,9 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 		(managerSearchQuery.length > 0 && isManagerSearching) ||
 		(!managerSearchQuery.length && isLoadingOrganizationUsers) ||
 		isCurrentManagerDataLoading;
+
+	// Определяем, может ли пользователь выбирать организацию (все кроме менеджеров и обычных пользователей)
+	const canSelectOrganization = isSuperAdmin || isAdmin;
 
 	return (
 		<ConfirmModal
@@ -252,21 +260,28 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 					required
 					{...register('name')}
 				/>
-				<SearchableSelect
+
+				<SearchableSelect<Organization>
 					label="Организация"
 					value={selectedOrgId}
-					onChange={(id) => setValue('organization_id', id ?? 0, { shouldValidate: true })}
+					onChange={(id) => {
+						setValue('organization_id', id ?? 0, { shouldValidate: true });
+						if (selectedManagerId) {
+							setValue('manager_id', null, { shouldValidate: true });
+						}
+					}}
 					options={organizations}
-					disabled={!atLeastAdmin(profileData?.role)}
 					onSearch={setOrgSearchQuery}
-					isLoading={isOrgSearching}
+					isLoading={isOrgSearching || isLoadingOrgs}
 					getOptionLabel={(org) => org.name}
 					placeholder="Поиск организации..."
 					error={errors.organization_id?.message}
+					disabled={!canSelectOrganization}
 					required
 				/>
+
 				<div className="space-y-2">
-					<SearchableSelect
+					<SearchableSelect<User>
 						label="Менеджер"
 						value={selectedManagerId}
 						onChange={(id) => setValue('manager_id', id, { shouldValidate: true })}
@@ -276,12 +291,8 @@ export function WarehouseModal({ open, setOpen, warehouse, onSubmit, isLoading }
 						getOptionLabel={(manager) => {
 							return `${manager.name} (${USER_ROLES_MAP[manager.role]})`;
 						}}
-						disabled={!canAssignManager}
-						placeholder={
-							!selectedOrgId && !warehouse?.manager_id
-								? 'Сначала выберите организацию'
-								: 'Поиск менеджера...'
-						}
+						disabled={!canAssignManager || !selectedOrgId}
+						placeholder={!selectedOrgId ? 'Сначала выберите организацию' : 'Поиск менеджера...'}
 						error={errors.manager_id?.message}
 					/>
 

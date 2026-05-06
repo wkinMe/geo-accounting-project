@@ -1,6 +1,3 @@
-// client/src/pages/warehouses/WarehouseHistory.tsx
-import { useQuery } from '@tanstack/react-query';
-import { Table } from '@/components/shared/Table';
 import { warehouseHistoryService } from '@/services/warehouseHistoryService';
 import {
 	WAREHOUSE_HISTORY_TYPE_LABELS,
@@ -10,15 +7,15 @@ import { formatDateToDDMMYYYY } from '@/utils/dateFormatters';
 import type { WarehouseHistoryItemWithDetails } from '@shared/models';
 import type { Column } from '@/components/shared/Table/types';
 import { Link } from 'react-router';
+import { EntityList } from '@/components/shared/EntityList';
 
 interface HistoryEntry {
 	id: number;
-	operation_type_display: string;
+	operation_type: string;
 	operation_type_color: string;
 	old_amount: number;
 	new_amount: number;
-	delta: number;
-	delta_display: string;
+	delta: string;
 	delta_color: string;
 	description: string | null;
 	created_at: string;
@@ -30,11 +27,11 @@ interface HistoryEntry {
 
 const columns: Column<HistoryEntry>[] = [
 	{ key: 'created_at', label: 'Дата и время' },
-	{ key: 'operation_type_display', label: 'Тип операции' },
+	{ key: 'operation_type', label: 'Тип операции' },
 	{ key: 'material_name', label: 'Материал' },
 	{ key: 'old_amount', label: 'Было' },
 	{ key: 'new_amount', label: 'Стало' },
-	{ key: 'delta_display', label: 'Изменение' },
+	{ key: 'delta', label: 'Изменение' },
 	{ key: 'user_name', label: 'Пользователь' },
 	{
 		key: 'agreement_id',
@@ -53,12 +50,11 @@ const columns: Column<HistoryEntry>[] = [
 
 const mapHistoryToTableItem = (item: WarehouseHistoryItemWithDetails): HistoryEntry => ({
 	id: item.id,
-	operation_type_display: WAREHOUSE_HISTORY_TYPE_LABELS[item.operation_type],
+	operation_type: WAREHOUSE_HISTORY_TYPE_LABELS[item.operation_type],
 	operation_type_color: WAREHOUSE_HISTORY_TYPE_COLORS[item.operation_type],
 	old_amount: item.old_amount,
 	new_amount: item.new_amount,
-	delta: item.delta,
-	delta_display: item.delta > 0 ? `+${item.delta}` : String(item.delta),
+	delta: item.delta > 0 ? `+${item.delta}` : String(item.delta),
 	delta_color:
 		item.delta > 0 ? 'text-green-600' : item.delta < 0 ? 'text-red-600' : 'text-gray-500',
 	description: item.description,
@@ -73,28 +69,32 @@ const mapHistoryToTableItem = (item: WarehouseHistoryItemWithDetails): HistoryEn
 });
 
 export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
-	const { data: history, isLoading } = useQuery({
-		queryKey: ['warehouseHistory', warehouseId],
-		queryFn: () => warehouseHistoryService.getByWarehouseId(warehouseId),
-		enabled: !!warehouseId,
-	});
-
-	console.log(history);
-
-	const elements = history?.map(mapHistoryToTableItem) || [];
-
 	return (
 		<div className="mt-12">
-			<div className="flex p-3 rounded-t-md border-b-0 border-2 border-gray-100 justify-between items-center bg-white">
+			<div className="flex p-3 rounded-t-md border-b-0 border border-gray-100 justify-between items-center bg-white">
 				<h2 className="text-xl font-semibold text-gray-900">История изменений</h2>
 			</div>
 
-			<Table
+			<EntityList
 				roundedT={false}
-				itemName="Запись истории"
-				columns={columns}
-				elements={elements}
-				isCreateDisabled={true}
+				config={{
+					entityName: 'warehouseHistory',
+					itemName: 'Запись истории',
+					service: {
+						findAll: (page, limit, sortBy, sortOrder) =>
+							warehouseHistoryService.getByWarehouseId(warehouseId, page, limit, sortBy, sortOrder),
+						search: (query, page, limit, sortBy, sortOrder) =>
+							warehouseHistoryService.search(warehouseId, query, page, limit, sortBy, sortOrder),
+						delete: async () => {},
+					},
+					columns,
+					mapToTableItem: mapHistoryToTableItem,
+					actions: [], // Нет действий
+					canCreate: false,
+					initialSortBy: 'created_at',
+					initialSortOrder: 'DESC',
+					defaultLimit: 100,
+				}}
 			/>
 		</div>
 	);

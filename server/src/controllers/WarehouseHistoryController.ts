@@ -1,4 +1,3 @@
-// controllers/WarehouseHistoryController.ts
 import { Request, Response } from "express";
 import { WarehouseHistoryService } from "../services/WarehouseHistoryService";
 import { WarehouseHistoryRepository } from "../repositories/WarehouseHistoryRepository";
@@ -24,69 +23,29 @@ export class WarehouseHistoryController {
   getByWarehouseId = async (req: Request, res: Response) => {
     try {
       const warehouseId = this.parseId(req.params.warehouseId);
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      const offset = req.query.offset
-        ? parseInt(req.query.offset as string)
-        : 0;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
 
-      const history = await this.warehouseHistoryService.getHistoryByWarehouse(
+      const result = await this.warehouseHistoryService.getHistory(
         warehouseId,
         limit,
         offset,
+        sortBy,
+        sortOrder,
       );
 
       res.json({
         success: true,
-        data: history,
-        count: history.length,
-      });
-    } catch (error) {
-      this.handleError(error, res);
-    }
-  };
-
-  getByAgreementId = async (req: Request, res: Response) => {
-    try {
-      const agreementId = this.parseId(req.params.agreementId);
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      const offset = req.query.offset
-        ? parseInt(req.query.offset as string)
-        : 0;
-
-      const history = await this.warehouseHistoryService.getHistoryByAgreement(
-        agreementId,
-        limit,
-        offset,
-      );
-
-      res.json({
-        success: true,
-        data: history,
-        count: history.length,
-      });
-    } catch (error) {
-      this.handleError(error, res);
-    }
-  };
-
-  getByMaterialId = async (req: Request, res: Response) => {
-    try {
-      const materialId = this.parseId(req.params.materialId);
-      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
-      const offset = req.query.offset
-        ? parseInt(req.query.offset as string)
-        : 0;
-
-      const history = await this.warehouseHistoryService.getHistoryByMaterial(
-        materialId,
-        limit,
-        offset,
-      );
-
-      res.json({
-        success: true,
-        data: history,
-        count: history.length,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -130,4 +89,46 @@ export class WarehouseHistoryController {
         .json({ success: false, error: "Внутренняя ошибка сервера" });
     }
   }
+
+  search = async (req: Request, res: Response) => {
+    try {
+      const warehouseId = this.parseId(req.params.warehouseId);
+      const { q } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "Параметр поиска 'q' обязателен",
+        });
+      }
+
+      const result = await this.warehouseHistoryService.search(
+        warehouseId,
+        q,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
+
+      res.json({
+        success: true,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
+        query: q,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
 }

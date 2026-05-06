@@ -79,13 +79,14 @@ export function AgreementsList() {
 	};
 
 	// Функция для получения текста подтверждения удаления
-	const getDeleteConfirmationBody = (item: TableAgreement, agreementStatus: string) => {
+	const getDeleteConfirmationBody = (agreementStatus: string) => {
 		const isIrreversible = IRREVERSIBLE_STATUSES.includes(agreementStatus as any);
 		const isSuperAdmin = canDeleteBase();
 
 		if (isIrreversible && isSuperAdmin) {
 			return (
-				<div className="space-y-3">
+				<div className="space-y-4">
+					{' '}
 					<div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
 						<span className="text-red-600 dark:text-red-400 text-lg">⚠️</span>
 						<span className="text-red-700 dark:text-red-300 font-medium">
@@ -110,10 +111,6 @@ export function AgreementsList() {
 		return (
 			<div className="space-y-2">
 				<p>Вы уверены, что хотите удалить договор?</p>
-				<p className="text-sm text-gray-600 dark:text-gray-400">
-					При удалении договора будут также удалены все связанные записи в истории перемещения
-					материалов.
-				</p>
 			</div>
 		);
 	};
@@ -151,7 +148,7 @@ export function AgreementsList() {
 			},
 			icon: <FaRegTrashAlt />,
 			needConfirmation: true,
-			confirmationBody: (item: TableAgreement) => getDeleteConfirmationBody(item, item.status),
+			confirmationBody: (item: TableAgreement) => getDeleteConfirmationBody(item.status),
 			hidden: (item: TableAgreement) => !(item as any)._canDelete,
 		},
 	];

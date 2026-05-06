@@ -1,4 +1,3 @@
-// controllers/InventoryController.ts
 import { Request, Response } from "express";
 import { InventoryService } from "../services/InventoryService";
 import { InventoryRepository } from "../repositories/InventoryRepository";
@@ -33,20 +32,29 @@ export class InventoryController {
   getWarehouseStock = async (req: Request, res: Response) => {
     try {
       const warehouseId = this.parseId(req.params.warehouseId);
-      const stock = await this.inventoryService.getWarehouseStock(warehouseId);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+
+      const result = await this.inventoryService.getWarehouseStock(
+        warehouseId,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
 
       res.json({
         success: true,
-        data: stock.map((item) => ({
-          id: item.id,
-          warehouse_id: item.warehouse_id,
-          material_id: item.material_id,
-          amount: item.amount,
-          created_at: item.created_at,
-          updated_at: item.updated_at,
-          material: item.material,
-        })),
-        count: stock.length,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -142,15 +150,7 @@ export class InventoryController {
 
       res.status(201).json({
         success: true,
-        data: {
-          id: result.id,
-          warehouse_id: result.warehouse_id,
-          material_id: result.material_id,
-          amount: result.amount,
-          created_at: result.created_at,
-          updated_at: result.updated_at,
-          material: result.material,
-        },
+        data: result,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -182,15 +182,7 @@ export class InventoryController {
 
       res.json({
         success: true,
-        data: {
-          id: result.id,
-          warehouse_id: result.warehouse_id,
-          material_id: result.material_id,
-          amount: result.amount,
-          created_at: result.created_at,
-          updated_at: result.updated_at,
-          material: result.material,
-        },
+        data: result,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -230,15 +222,7 @@ export class InventoryController {
 
       res.json({
         success: true,
-        data: {
-          id: result.id,
-          warehouse_id: result.warehouse_id,
-          material_id: result.material_id,
-          amount: result.amount,
-          created_at: result.created_at,
-          updated_at: result.updated_at,
-          material: result.material,
-        },
+        data: result,
       });
     } catch (error) {
       this.handleError(error, res);
@@ -294,6 +278,48 @@ export class InventoryController {
     }
     return id;
   }
+
+  searchMaterials = async (req: Request, res: Response) => {
+    try {
+      const warehouseId = this.parseId(req.params.warehouseId);
+      const { q } = req.query;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({
+          success: false,
+          error: "Параметр поиска 'q' обязателен",
+        });
+      }
+
+      const result = await this.inventoryService.searchMaterials(
+        warehouseId,
+        q,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
+
+      res.json({
+        success: true,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
+        query: q,
+      });
+    } catch (error) {
+      this.handleError(error, res);
+    }
+  };
 
   private handleError(error: unknown, res: Response): void {
     console.error("InventoryController error:", error);

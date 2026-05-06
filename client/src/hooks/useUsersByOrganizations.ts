@@ -18,7 +18,7 @@ export function useUsersByOrganization(organizationId: number | null, searchQuer
 	});
 
 	return {
-		data: searchQuery ? searchedUsers : users,
+		data: searchQuery ? searchedUsers?.data : users,
 		isLoading: searchQuery ? isSearching : isLoadingAll,
 	};
 }

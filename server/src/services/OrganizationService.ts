@@ -8,8 +8,18 @@ import { ValidationError, NotFoundError } from "@shared/service";
 export class OrganizationService {
   constructor(private organizationRepo: OrganizationRepository) {}
 
-  async findAll(): Promise<Organization[]> {
-    return await this.organizationRepo.findAll();
+  async findAll(
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Organization[]; total: number }> {
+    return await this.organizationRepo.findAll(
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async findById(id: number): Promise<Organization> {
@@ -75,11 +85,28 @@ export class OrganizationService {
     await this.organizationRepo.delete(id);
   }
 
-  async search(query: string): Promise<Organization[]> {
+  async search(
+    query: string,
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Organization[]; total: number }> {
     if (!query || query.trim().length === 0) {
-      return await this.findAll();
+      return await this.organizationRepo.findAll(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+      );
     }
-    return await this.organizationRepo.search(query.trim());
+    return await this.organizationRepo.search(
+      query.trim(),
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async canAssignAdminRole(organizationId: number): Promise<boolean> {

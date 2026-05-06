@@ -1,4 +1,3 @@
-// client/src/services/inventoryService.ts
 import { instance } from '@/api/instance';
 import type { InventoryItem, Material } from '@shared/models';
 
@@ -11,14 +10,45 @@ export interface InventoryItemWithMaterial extends InventoryItem {
 	material: Material;
 }
 
+export interface InventoryResponse {
+	data: InventoryItemWithMaterial[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
+
 class InventoryService {
 	private readonly baseUrl = '/inventory';
 
-	async getWarehouseStock(warehouseId: number): Promise<InventoryItemWithMaterial[]> {
-		const response = await instance.get<{ success: boolean; data: InventoryItemWithMaterial[] }>(
-			`${this.baseUrl}/warehouse/${warehouseId}`
-		);
-		return response.data.data;
+	async getWarehouseStock(
+		warehouseId: number,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<InventoryResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: InventoryItemWithMaterial[];
+			pagination: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+			};
+		}>(`${this.baseUrl}/warehouse/${warehouseId}`, { params });
+
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
 	async getMaterialDistribution(materialId: number): Promise<{
@@ -105,12 +135,33 @@ class InventoryService {
 		return response.data.data.is_available;
 	}
 
-	async searchMaterials(warehouseId: number, query: string): Promise<InventoryItemWithMaterial[]> {
-		const response = await instance.get<{ success: boolean; data: InventoryItemWithMaterial[] }>(
-			`${this.baseUrl}/warehouse/${warehouseId}/materials/search`,
-			{ params: { q: query } }
-		);
-		return response.data.data;
+	async searchMaterialsPaginated(
+		warehouseId: number,
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC'
+	): Promise<InventoryResponse> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: InventoryItemWithMaterial[];
+			pagination: {
+				page: number;
+				limit: number;
+				total: number;
+				totalPages: number;
+			};
+		}>(`${this.baseUrl}/warehouse/${warehouseId}/materials/search`, { params });
+
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 }
 

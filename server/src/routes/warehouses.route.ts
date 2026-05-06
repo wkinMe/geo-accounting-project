@@ -1,4 +1,4 @@
-// routes/warehouses.route.ts
+// server/src/routes/warehouses.route.ts
 import { Router } from "express";
 import { WarehouseController } from "../controllers/WarehouseController";
 import { authMiddleware } from "../middleware/auth-middleware";
@@ -8,18 +8,19 @@ import { USER_ROLES } from "@shared/constants";
 const router = Router();
 const warehouseController = new WarehouseController();
 
-// GET /api/warehouses - получить все склады (с фильтром по организации)
-router.get("/", authMiddleware, warehouseController.getAll);
+router.get("/search", authMiddleware, warehouseController.search);
 
-// GET /api/warehouses/:id - получить склад по ID
-router.get("/:id", authMiddleware, warehouseController.getById);
-
-// GET /api/warehouses/manager/:managerId - получить склады по менеджеру
 router.get(
   "/manager/:managerId",
   authMiddleware,
   warehouseController.findByManagerId,
 );
+
+// GET /api/warehouses - получить все склады
+router.get("/", authMiddleware, warehouseController.getAll);
+
+// GET /api/warehouses/:id - получить склад по ID (ДОЛЖЕН БЫТЬ ПОСЛЕДНИМ)
+router.get("/:id", authMiddleware, warehouseController.getById);
 
 // POST /api/warehouses - создать новый склад
 router.post(
@@ -56,8 +57,5 @@ router.delete(
   roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
   warehouseController.delete,
 );
-
-// GET /api/warehouses/search - поиск складов
-router.get("/search", authMiddleware, warehouseController.search);
 
 export { router as warehousesRouter };

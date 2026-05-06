@@ -13,12 +13,12 @@ export function useMaterialsByWarehouse(warehouseId: number | null, searchQuery:
 	// Поиск материалов (при введённом запросе)
 	const { data: searchedMaterials, isLoading: isSearching } = useQuery({
 		queryKey: ['warehouseStock', warehouseId, 'search', searchQuery],
-		queryFn: () => inventoryService.searchMaterials(warehouseId!, searchQuery),
+		queryFn: () => inventoryService.searchMaterialsPaginated(warehouseId!, searchQuery, Infinity),
 		enabled: searchQuery.length > 0 && !!warehouseId,
 	});
 
 	// Если есть поисковый запрос - показываем результаты поиска, иначе все материалы
-	const data = searchQuery ? searchedMaterials : allMaterials;
+	const data = searchQuery ? searchedMaterials?.data : allMaterials?.data;
 
 	return {
 		data: data || [],

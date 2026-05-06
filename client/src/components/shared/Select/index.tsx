@@ -54,6 +54,7 @@ export default function CustomSelect({
 			>
 				<Select.Trigger
 					className={`
+						cursor-pointer
 						box-border
 						flex items-center justify-between
 						gap-3
@@ -86,7 +87,7 @@ export default function CustomSelect({
 				</Select.Trigger>
 
 				<Select.Portal>
-					<Select.Positioner className="outline-none select-none z-50" sideOffset={8}>
+					<Select.Positioner className="outline-none select-none z-1000" sideOffset={8}>
 						<Select.Popup
 							className="
 								box-border
@@ -133,6 +134,7 @@ export default function CustomSelect({
 										key={value}
 										value={value}
 										className="
+											cursor-pointer
 											box-border
 											outline-none
 											text-sm leading-4
@@ -140,7 +142,6 @@ export default function CustomSelect({
 											pl-2.5 pr-4
 											grid grid-cols-[0.75rem_1fr] gap-2 items-center
 											select-none
-											cursor-default
 											data-highlighted:z-0
 											data-highlighted:relative
 											data-highlighted:text-gray-50 dark:data-highlighted:text-gray-900

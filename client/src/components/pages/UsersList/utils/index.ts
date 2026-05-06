@@ -2,7 +2,6 @@
 import type { UserWithOrganization } from '@shared/models';
 
 export const mapUserToTableItem = (user: UserWithOrganization) => {
-	// Функция для перевода роли на русский язык
 	const getRoleDisplay = (role: string) => {
 		const roles: Record<string, string> = {
 			super_admin: 'Главный администратор',
@@ -20,7 +19,5 @@ export const mapUserToTableItem = (user: UserWithOrganization) => {
 		role_display: getRoleDisplay(user.role),
 		organization: user.organization?.name || '—',
 		organization_id: user.organization?.id,
-		// created_at: new Date(user.created_at).toLocaleDateString('ru-RU'),
-		// updated_at: new Date(user.updated_at).toLocaleDateString('ru-RU'),
 	};
 };

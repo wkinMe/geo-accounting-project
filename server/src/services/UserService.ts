@@ -1,4 +1,3 @@
-// services/UserService.ts
 import bcrypt from "bcrypt";
 import { User } from "../domain/entities/User";
 import { RefreshToken } from "../domain/entities/RefreshToken";
@@ -13,6 +12,7 @@ import {
   NotFoundError,
   ForbiddenError,
 } from "@shared/service";
+import { UserWithOrganization } from "@shared/models";
 
 export class UserService {
   private tokenService: TokenService;
@@ -25,11 +25,23 @@ export class UserService {
     this.tokenService = new TokenService();
   }
 
-  async findAll(): Promise<User[]> {
-    return await this.userRepo.findAll();
+  async findAll(
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+    organization_id?: number,
+  ): Promise<{ data: UserWithOrganization[]; total: number }> {
+    return await this.userRepo.findAll(
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      organization_id,
+    );
   }
 
-  async findById(id: number): Promise<User> {
+  async findById(id: number): Promise<UserWithOrganization> {
     const user = await this.userRepo.findById(id);
     if (!user) {
       throw new NotFoundError(
@@ -42,11 +54,13 @@ export class UserService {
     return user;
   }
 
-  async findByOrganizationId(organizationId: number): Promise<User[]> {
+  async findByOrganizationId(
+    organizationId: number,
+  ): Promise<UserWithOrganization[]> {
     return await this.userRepo.findByOrganizationId(organizationId);
   }
 
-  async findAdmins(organizationId?: number): Promise<User[]> {
+  async findAdmins(organizationId?: number): Promise<UserWithOrganization[]> {
     if (organizationId) {
       const users = await this.userRepo.findByOrganizationId(organizationId);
       return users.filter(
@@ -58,14 +72,18 @@ export class UserService {
     return [...superAdmins, ...admins];
   }
 
-  async findSuperAdmins(): Promise<User[]> {
+  async findSuperAdmins(): Promise<UserWithOrganization[]> {
     return await this.userRepo.findByRole(USER_ROLES.SUPER_ADMIN);
   }
 
   async register(
     dto: CreateUserDTO,
     requesterRole?: string,
-  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  ): Promise<{
+    user: UserWithOrganization;
+    accessToken: string;
+    refreshToken: string;
+  }> {
     this.validateCreateDTO(dto);
 
     const existing = await this.userRepo.findByName(dto.name);
@@ -130,7 +148,11 @@ export class UserService {
   async login(
     name: string,
     password: string,
-  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  ): Promise<{
+    user: UserWithOrganization;
+    accessToken: string;
+    refreshToken: string;
+  }> {
     if (!name || !password) {
       throw new ValidationError(
         "Имя пользователя и пароль обязательны",
@@ -189,7 +211,11 @@ export class UserService {
 
   async refreshToken(
     refreshToken: string,
-  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  ): Promise<{
+    user: UserWithOrganization;
+    accessToken: string;
+    refreshToken: string;
+  }> {
     if (!refreshToken) {
       throw new ValidationError("Refresh токен обязателен", "refreshToken");
     }
@@ -229,7 +255,6 @@ export class UserService {
         refreshToken: tokens.refreshToken,
       };
     } catch (error) {
-      // Если refresh token невалиден - удаляем его из БД
       await this.refreshTokenRepo.delete(refreshToken);
       throw error;
     }
@@ -240,7 +265,7 @@ export class UserService {
     dto: UpdateUserDTO,
     requesterRole?: string,
     requesterId?: number,
-  ): Promise<User> {
+  ): Promise<UserWithOrganization> {
     const existingUser = await this.findById(id);
     this.validateUpdateDTO(dto);
 
@@ -284,23 +309,32 @@ export class UserService {
       }
     }
 
+    const userToUpdate = User.create(
+      existingUser.name,
+      existingUser.password,
+      existingUser.role,
+      existingUser.organization_id,
+    );
+
     if (dto.name !== undefined) {
-      existingUser.updateName(dto.name);
+      userToUpdate.updateName(dto.name);
     }
 
     if (dto.organization_id !== undefined) {
-      existingUser.updateOrganization(dto.organization_id);
+      userToUpdate.updateOrganization(dto.organization_id);
     }
 
     if (dto.password !== undefined) {
-      existingUser.updatePassword(dto.password);
+      userToUpdate.updatePassword(dto.password);
     }
 
     if (dto.role !== undefined) {
-      existingUser.updateRole(dto.role as any);
+      userToUpdate.updateRole(dto.role as any);
     }
 
-    return await this.userRepo.update(id, existingUser);
+    await this.userRepo.update(id, userToUpdate);
+
+    return await this.findById(id);
   }
 
   async delete(
@@ -355,50 +389,31 @@ export class UserService {
     await this.refreshTokenRepo.deleteByUserId(id);
   }
 
-  async search(query: string, organization_id?: number): Promise<User[]> {
-    if (!query || query.trim().length === 0) {
-      if (organization_id) {
-        return await this.findByOrganizationId(organization_id);
-      }
-      return await this.findAll();
-    }
-    return await this.userRepo.search(query.trim(), organization_id);
-  }
-
-  async getAvailableManagers(organizationId?: number): Promise<User[]> {
-    const users = organizationId
-      ? await this.userRepo.findByOrganizationId(organizationId)
-      : await this.findAll();
-
-    return users.filter(
-      (u) =>
-        u.role === USER_ROLES.MANAGER ||
-        u.role === USER_ROLES.ADMIN ||
-        u.role === USER_ROLES.SUPER_ADMIN,
-    );
-  }
-
-  async searchAvailableManagers(
+  async search(
     query: string,
-    organizationId?: number,
-  ): Promise<User[]> {
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+    organization_id?: number,
+  ): Promise<{ data: UserWithOrganization[]; total: number }> {
     if (!query || query.trim().length === 0) {
-      return [];
+      return await this.userRepo.findAll(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
     }
-
-    let users = await this.search(query);
-    users = users.filter(
-      (u) =>
-        u.role === USER_ROLES.MANAGER ||
-        u.role === USER_ROLES.ADMIN ||
-        u.role === USER_ROLES.SUPER_ADMIN,
+    return await this.userRepo.search(
+      query.trim(),
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+      organization_id,
     );
-
-    if (organizationId) {
-      users = users.filter((u) => u.organization_id === organizationId);
-    }
-
-    return users;
   }
 
   private validateCreateDTO(dto: CreateUserDTO): void {
@@ -440,7 +455,7 @@ export class UserService {
   }
 
   private validateRoleChange(
-    targetUser: User,
+    targetUser: UserWithOrganization,
     newRole: string,
     requesterRole?: string,
   ): void {

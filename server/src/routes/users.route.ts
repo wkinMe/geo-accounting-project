@@ -55,23 +55,23 @@ usersRouter.get(
   },
 );
 
-usersRouter.get(
-  "/available-managers",
-  authMiddleware,
-  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
-  (req: Request, res: Response) => {
-    userController.getAvailableManagers(req, res);
-  },
-);
+// usersRouter.get(
+//   "/available-managers",
+//   authMiddleware,
+//   roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+//   (req: Request, res: Response) => {
+//     userController.getAvailableManagers(req, res);
+//   },
+// );
 
-usersRouter.get(
-  "/available-managers/search",
-  authMiddleware,
-  roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
-  (req: Request, res: Response) => {
-    userController.searchAvailableManagers(req, res);
-  },
-);
+// usersRouter.get(
+//   "/available-managers/search",
+//   authMiddleware,
+//   roleMiddleware([USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]),
+//   (req: Request, res: Response) => {
+//     userController.searchAvailableManagers(req, res);
+//   },
+// );
 
 usersRouter.get(
   "/organization/:id",

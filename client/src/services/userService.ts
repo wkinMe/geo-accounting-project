@@ -1,4 +1,3 @@
-// client/src/services/userService.ts
 import { instance } from '@/api/instance';
 import type {
 	AuthResponse,
@@ -7,12 +6,21 @@ import type {
 	UpdateUserDTO,
 	UserDataDTO,
 } from '@shared/dto';
-import type { User, UserWithOrganization } from '@shared/models';
+import type { UserWithOrganization } from '@shared/models';
+
+export interface UserListResponse {
+	data: UserWithOrganization[];
+	pagination: {
+		page: number;
+		limit: number;
+		total: number;
+		totalPages: number;
+	};
+}
 
 class UserService {
 	private readonly baseUrl = '/users';
 
-	// client/src/services/userService.ts
 	async login(data: LoginDTO): Promise<AuthResponse> {
 		localStorage.removeItem('token');
 
@@ -71,18 +79,38 @@ class UserService {
 		return response.data.data;
 	}
 
-	async findAll(): Promise<User[]> {
-		const response = await instance.get<{ success: boolean; data: User[] }>(`${this.baseUrl}/`);
+	async findAll(
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC',
+		organization_id?: number
+	): Promise<UserListResponse> {
+		const params: Record<string, any> = { page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+		if (organization_id) params.organization_id = organization_id;
+
+		const response = await instance.get<{
+			success: boolean;
+			data: UserWithOrganization[];
+			pagination: any;
+		}>(`${this.baseUrl}/`, { params });
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
+	}
+
+	async findById(id: number): Promise<UserWithOrganization> {
+		const response = await instance.get<{ success: boolean; data: UserWithOrganization }>(
+			`${this.baseUrl}/${id}`
+		);
 		return response.data.data;
 	}
 
-	async findById(id: number): Promise<User> {
-		const response = await instance.get<{ success: boolean; data: User }>(`${this.baseUrl}/${id}`);
-		return response.data.data;
-	}
-
-	async update(id: number, data: UpdateUserDTO): Promise<User> {
-		const response = await instance.put<{ success: boolean; data: User }>(
+	async update(id: number, data: UpdateUserDTO): Promise<UserWithOrganization> {
+		const response = await instance.put<{ success: boolean; data: UserWithOrganization }>(
 			`${this.baseUrl}/${id}`,
 			data
 		);
@@ -98,20 +126,33 @@ class UserService {
 		}
 	}
 
-	async search(query: string, organization_id?: number): Promise<User[]> {
+	async search(
+		query: string,
+		page: number = 1,
+		limit: number = 20,
+		sortBy?: string,
+		sortOrder?: 'ASC' | 'DESC',
+		organization_id?: number
+	): Promise<UserListResponse> {
+		const params: Record<string, any> = { q: query, page, limit };
+		if (sortBy) params.sortBy = sortBy;
+		if (sortOrder) params.sortOrder = sortOrder;
+		if (organization_id) params.organization_id = organization_id;
 
-		const response = await instance.get<{ success: boolean; data: User[] }>(
-			`${this.baseUrl}/search`,
-			{
-				params: { q: query, organization_id },
-			}
-		);
-		return response.data.data;
+		const response = await instance.get<{
+			success: boolean;
+			data: UserWithOrganization[];
+			pagination: any;
+		}>(`${this.baseUrl}/search`, { params });
+		return {
+			data: response.data.data,
+			pagination: response.data.pagination,
+		};
 	}
 
-	async getAdmins(organization_id?: number): Promise<User[]> {
+	async getAdmins(organization_id?: number): Promise<UserWithOrganization[]> {
 		const params = organization_id ? { organization_id } : {};
-		const response = await instance.get<{ success: boolean; data: User[] }>(
+		const response = await instance.get<{ success: boolean; data: UserWithOrganization[] }>(
 			`${this.baseUrl}/admins`,
 			{ params }
 		);
@@ -125,31 +166,9 @@ class UserService {
 		return response.data.data;
 	}
 
-	async getAvailableManagers(organization_id?: number): Promise<User[]> {
-		const params = organization_id ? { organization_id } : {};
-		const response = await instance.get<{ success: boolean; data: User[] }>(
-			`${this.baseUrl}/available-managers`,
-			{ params }
-		);
-		return response.data.data;
-	}
-
 	async getSuperAdmins(): Promise<UserWithOrganization[]> {
 		const response = await instance.get<{ success: boolean; data: UserWithOrganization[] }>(
 			`${this.baseUrl}/super-admins`
-		);
-		return response.data.data;
-	}
-
-	async searchAvailableManagers(
-		query: string,
-		organization_id?: number
-	): Promise<UserWithOrganization[]> {
-		const response = await instance.get<{ success: boolean; data: UserWithOrganization[] }>(
-			`${this.baseUrl}/available-managers/search`,
-			{
-				params: { q: query, organization_id },
-			}
 		);
 		return response.data.data;
 	}

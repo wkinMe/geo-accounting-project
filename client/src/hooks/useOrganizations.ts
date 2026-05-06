@@ -32,7 +32,7 @@ export function useOrganizations(searchQuery: string, fixedOrganizationId?: numb
 	}
 
 	return {
-		data: searchQuery ? searchedOrgs : allOrgs,
+		data: searchQuery ? searchedOrgs?.data : allOrgs?.data,
 		isLoading: searchQuery ? isSearching : isLoadingAll,
 	};
 }

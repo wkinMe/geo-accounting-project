@@ -25,15 +25,32 @@ export class WarehouseController {
 
   getAll = async (req: Request, res: Response) => {
     try {
-      let organization_id = Number(req.query.organization_id);
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+      let organization_id = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
+        : undefined;
 
-      const warehouses =
-        await this.warehouseService.findAllWithDetails(organization_id);
+      const result = await this.warehouseService.findAllWithDetails(
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
 
       res.json({
         success: true,
-        data: warehouses,
-        count: warehouses.length,
+        data: result.data,
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
       });
     } catch (error) {
       this.handleError(error, res);
@@ -67,8 +84,6 @@ export class WarehouseController {
     try {
       const dto: CreateWarehouseDTO = req.body;
       const warehouse = await this.warehouseService.create(dto);
-
-      // Получаем созданный склад с деталями
       const warehouseWithDetails =
         await this.warehouseService.findByIdWithDetails(warehouse.id!);
 
@@ -86,7 +101,6 @@ export class WarehouseController {
       const id = this.parseId(req.params.id);
       const dto: UpdateWarehouseDTO = req.body;
       await this.warehouseService.update(id, dto);
-
       const warehouseWithDetails =
         await this.warehouseService.findByIdWithDetails(id);
 
@@ -153,7 +167,14 @@ export class WarehouseController {
   search = async (req: Request, res: Response) => {
     try {
       const { q } = req.query;
-      const user = (req as any).user;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const offset = (page - 1) * limit;
+      const sortBy = req.query.sortBy as string | undefined;
+      const sortOrder = req.query.sortOrder as "ASC" | "DESC" | undefined;
+      const organization_id = req.query.organization_id
+        ? parseInt(req.query.organization_id as string)
+        : undefined;
 
       if (!q || typeof q !== "string") {
         return res.status(400).json({
@@ -162,23 +183,24 @@ export class WarehouseController {
         });
       }
 
-      let organization_id: number | undefined;
-
-      if (
-        user &&
-        (user.role === USER_ROLES.ADMIN ||
-          user.role === USER_ROLES.MANAGER ||
-          user.role === USER_ROLES.USER)
-      ) {
-        organization_id = user.organization_id;
-      }
-
-      const warehouses = await this.warehouseService.search(q, organization_id);
+      const result = await this.warehouseService.search(
+        q,
+        limit,
+        offset,
+        sortBy,
+        sortOrder,
+        organization_id,
+      );
 
       res.json({
         success: true,
-        data: warehouses.map((w) => w.toJSON()),
-        count: warehouses.length,
+        data: result.data, // Теперь data уже содержит organization и manager
+        pagination: {
+          page,
+          limit,
+          total: result.total,
+          totalPages: Math.ceil(result.total / limit),
+        },
         query: q,
       });
     } catch (error) {

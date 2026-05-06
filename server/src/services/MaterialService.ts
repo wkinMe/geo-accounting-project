@@ -11,8 +11,13 @@ export class MaterialService {
     private imageRepo: MaterialImageRepository,
   ) {}
 
-  async findAll(): Promise<Material[]> {
-    return await this.materialRepo.findAll();
+  async findAll(
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Material[]; total: number }> {
+    return await this.materialRepo.findAll(limit, offset, sortBy, sortOrder);
   }
 
   async findById(id: number): Promise<Material> {
@@ -104,12 +109,23 @@ export class MaterialService {
     await this.materialRepo.delete(id);
   }
 
-  async search(query: string): Promise<Material[]> {
+  async search(
+    query: string,
+    limit?: number,
+    offset?: number,
+    sortBy?: string,
+    sortOrder?: "ASC" | "DESC",
+  ): Promise<{ data: Material[]; total: number }> {
     if (!query || query.trim().length === 0) {
-      return await this.findAll();
+      return await this.materialRepo.findAll(limit, offset, sortBy, sortOrder);
     }
-
-    return await this.materialRepo.search(query.trim());
+    return await this.materialRepo.search(
+      query.trim(),
+      limit,
+      offset,
+      sortBy,
+      sortOrder,
+    );
   }
 
   async getImage(materialId: number): Promise<Buffer | null> {
