@@ -2,12 +2,20 @@
 import { useQuery } from '@tanstack/react-query';
 import { warehouseService } from '@/services/warehouseService';
 
+const MAX_LIMIT = 1000;
+
 export function useWarehousesByOrganization(organizationId: number | null, searchQuery: string) {
 	// Получаем все склады (с фильтром по организации или по менеджеру)
 	const { data: warehouses, isLoading: isLoadingAll } = useQuery({
 		queryKey: ['warehouses', 'organization', organizationId],
 		queryFn: async () => {
-			return await warehouseService.findAll(organizationId || undefined);
+			return await warehouseService.findAll(
+				1,
+				MAX_LIMIT,
+				undefined,
+				undefined,
+				organizationId || undefined
+			);
 		},
 		enabled: !!organizationId,
 	});
@@ -15,8 +23,14 @@ export function useWarehousesByOrganization(organizationId: number | null, searc
 	const { data: searchedWarehouses, isLoading: isSearching } = useQuery({
 		queryKey: ['warehouses', 'search', searchQuery, organizationId],
 		queryFn: async () => {
-			// Обычный поиск по организации
-			return await warehouseService.search(searchQuery, organizationId || undefined);
+			return await warehouseService.search(
+				searchQuery,
+				1,
+				MAX_LIMIT,
+				undefined,
+				undefined,
+				organizationId || undefined
+			);
 		},
 		enabled: searchQuery.length > 0 && !!organizationId,
 	});

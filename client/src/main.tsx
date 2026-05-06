@@ -13,7 +13,6 @@ import { WarehousesList } from './components/pages/WarehousesList';
 import { UsersList } from './components/pages/UsersList';
 import { OrganizationsList } from './components/pages/OrganizationsList';
 import { ReportsList } from './components/pages/ReportsList';
-import { Report } from './components/pages/Report';
 import { Warehouse } from './components/pages/Warehouse';
 import { AgreementsList } from './components/pages/AgreementsList';
 import { AgreementForm } from './components/pages/Agreement/components';
@@ -22,6 +21,7 @@ import { Register } from './components/pages/Register';
 import { USER_ROLES } from '@shared/constants';
 import 'leaflet/dist/leaflet.css';
 import { Material } from './components/pages/Material';
+import { TopWarehouses } from './components/pages/TopWarehouses';
 
 const queryClient = new QueryClient();
 
@@ -75,6 +75,7 @@ createRoot(document.getElementById('root')!).render(
 								}
 							/>
 							<Route path=":id" element={<Material />} />
+							<Route path="top-warehouses" element={<TopWarehouses />} />
 						</Route>
 
 						{/* Договоры - доступны менеджерам, админам и суперадминам */}
@@ -150,7 +151,6 @@ createRoot(document.getElementById('root')!).render(
 							}
 						>
 							<Route index element={<ReportsList />} />
-							<Route path=":id" element={<Report />} />
 						</Route>
 					</Route>
 				</Routes>
