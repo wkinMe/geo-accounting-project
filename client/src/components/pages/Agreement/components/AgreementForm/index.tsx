@@ -44,7 +44,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const currentStatus = form.watch('status') as AgreementStatus;
 	const initialStatus = agreementId ? store.status : null;
 
-	// Используем хук для прав
 	const { canEdit: canEditAgreement } = useAgreementPermissions({
 		isViewMode: false,
 		isCreateMode: false,
@@ -192,8 +191,16 @@ export function AgreementForm({ mode = 'create' }: Props) {
 						)}
 					</div>
 
-					<PartySection type="supplier" canEdit={canEditAgreement} isViewMode={isViewMode} />
-					<PartySection type="customer" canEdit={canEditAgreement} isViewMode={isViewMode} />
+					<PartySection
+						type="supplier"
+						canEdit={!isViewMode && canEditAgreement}
+						isViewMode={isViewMode}
+					/>
+					<PartySection
+						type="customer"
+						canEdit={!isViewMode && canEditAgreement}
+						isViewMode={isViewMode}
+					/>
 
 					<div className="max-w-md">
 						<StatusSelect

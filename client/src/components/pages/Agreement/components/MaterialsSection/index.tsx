@@ -168,7 +168,9 @@ export function MaterialsSection({ canEdit = false, isViewMode = true }: Materia
 			) : (
 				errors.materials &&
 				isSubmitted && (
-					<p className="text-sm text-red-600 dark:text-red-400 mt-2">{errors.materials.message}</p>
+					<div className="my-1 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+						❌ {errors.materials.message}
+					</div>
 				)
 			)}
 
