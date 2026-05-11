@@ -47,7 +47,6 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 		await queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
 	};
 
-	// Конфигурация попапа при наведении
 	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
 		delay: 200,
 		renderContent: (item) => <MaterialImagePopup materialId={item.material_id} />,
@@ -55,7 +54,7 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 
 	const actions: Action<TableMaterial>[] = [
 		{
-			name: "Просмотр материала",
+			name: 'Просмотр материала',
 			action: (item) => navigate(`/materials/${item.material_id}`),
 			icon: <FaRegEye />,
 		},
@@ -91,7 +90,7 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 			<EntityList
 				roundedT={false}
 				config={{
-					entityName: 'warehouseMaterials',
+					entityName: `warehouseMaterials_${id}`, // Добавляем id в entityName
 					itemName: 'материал',
 					service: {
 						findAll: (page, limit, sortBy, sortOrder) =>

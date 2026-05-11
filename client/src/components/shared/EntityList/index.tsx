@@ -6,6 +6,40 @@ import { useTablePagination } from '@/hooks/useTablePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import type { EntityConfig } from './types';
 
+// Компонент скелетона для таблицы
+const TableSkeleton = ({
+	columnsCount,
+	rowsCount = 5,
+}: {
+	columnsCount: number;
+	rowsCount?: number;
+}) => (
+	<div className="overflow-x-auto border border-gray-200 bg-white dark:border-gray-800 rounded-t-md rounded-b-md">
+		<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
+			<thead className="bg-gray-50 dark:bg-gray-900">
+				<tr>
+					{Array.from({ length: columnsCount }).map((_, idx) => (
+						<th key={idx} className="px-6 py-3">
+							<div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-20"></div>
+						</th>
+					))}
+				</tr>
+			</thead>
+			<tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-800">
+				{Array.from({ length: rowsCount }).map((_, rowIdx) => (
+					<tr key={rowIdx}>
+						{Array.from({ length: columnsCount }).map((_, colIdx) => (
+							<td key={colIdx} className="px-6 py-4">
+								<div className="h-4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse w-full"></div>
+							</td>
+						))}
+					</tr>
+				))}
+			</tbody>
+		</table>
+	</div>
+);
+
 export function EntityList<T, TableItem extends { id: number }>({
 	config,
 	roundedT = true,
@@ -29,7 +63,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 		defaultLimit = 20,
 		renderModal,
 		getIdField = (item: TableItem) => item.id,
-		onRowClick, // Добавляем onRowClick
+		onRowClick,
 	} = config;
 
 	const queryClient = useQueryClient();
@@ -171,32 +205,48 @@ export function EntityList<T, TableItem extends { id: number }>({
 		};
 	});
 
+	// Определяем количество колонок для скелетона (включая колонку действий)
+	const columnsCount = columns.length + (actions && actions.length > 0 ? 1 : 0);
+	const shouldShowSkeleton = isLoadingData && elements.length === 0;
+
 	return (
 		<>
-			<PaginatedTable
-				roundedT={roundedT}
-				roundedB={roundedB}
-				columns={columns}
-				itemName={itemName}
-				elements={elements}
-				total={total}
-				actions={actionsWithPermissions}
-				searchValue={localSearchQuery}
-				sortBy={sortBy}
-				sortOrder={sortOrder}
-				currentPage={page}
-				currentLimit={limit}
-				isLoading={isLoadingData}
-				isFetching={isFetchingData}
-				hoverPopupConfig={hoverPopupConfig}
-				isCreateDisabled={!canCreate}
-				onRowClick={onRowClick} // Передаём onRowClick в PaginatedTable
-				onSearch={onSearch}
-				onCreate={canCreate ? openCreateModal : undefined}
-				onPageChange={handlePageChange}
-				onLimitChange={handleLimitChange}
-				onSort={handleSort}
-			/>
+			{shouldShowSkeleton ? (
+				<div className="space-y-4">
+					<div className="flex items-center p-3 gap-3">
+						<div className="flex-1 h-10 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
+						{canCreate && (
+							<div className="w-32 h-10 bg-gray-100 dark:bg-gray-800 rounded animate-pulse"></div>
+						)}
+					</div>
+					<TableSkeleton columnsCount={columnsCount} rowsCount={5} />
+				</div>
+			) : (
+				<PaginatedTable
+					roundedT={roundedT}
+					roundedB={roundedB}
+					columns={columns}
+					itemName={itemName}
+					elements={elements}
+					total={total}
+					actions={actionsWithPermissions}
+					searchValue={localSearchQuery}
+					sortBy={sortBy}
+					sortOrder={sortOrder}
+					currentPage={page}
+					currentLimit={limit}
+					isLoading={isLoadingData}
+					isFetching={isFetchingData}
+					hoverPopupConfig={hoverPopupConfig}
+					isCreateDisabled={!canCreate}
+					onRowClick={onRowClick}
+					onSearch={onSearch}
+					onCreate={canCreate ? openCreateModal : undefined}
+					onPageChange={handlePageChange}
+					onLimitChange={handleLimitChange}
+					onSort={handleSort}
+				/>
+			)}
 
 			{renderModal &&
 				renderModal({

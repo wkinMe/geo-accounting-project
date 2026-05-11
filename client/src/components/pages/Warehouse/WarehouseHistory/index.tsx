@@ -1,3 +1,4 @@
+// client/src/pages/warehouses/WarehouseHistory.tsx
 import { warehouseHistoryService } from '@/services/warehouseHistoryService';
 import {
 	WAREHOUSE_HISTORY_TYPE_LABELS,
@@ -78,7 +79,7 @@ export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
 			<EntityList
 				roundedT={false}
 				config={{
-					entityName: 'warehouseHistory',
+					entityName: `warehouseHistory_${warehouseId}`, // Добавляем warehouseId в entityName
 					itemName: 'Запись истории',
 					service: {
 						findAll: (page, limit, sortBy, sortOrder) =>

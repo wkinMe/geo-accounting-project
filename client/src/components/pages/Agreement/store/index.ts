@@ -66,7 +66,9 @@ export const useAgreementFormStore = create<AgreementFormStore>((set, get) => ({
 
 	setSupplierOrg: (id) => set({ supplierOrg: id, supplierWarehouse: null, supplierManager: null }),
 	setSupplierManager: (id) => set({ supplierManager: id }),
-	setSupplierWarehouse: (id) => set({ supplierWarehouse: id }),
+	setSupplierWarehouse: (id) => {
+		set({ supplierWarehouse: id, materials: [] });
+	},
 
 	setCustomerOrg: (id) => {
 		set({ customerOrg: id, customerWarehouse: null, customerManager: null });
