@@ -18,10 +18,6 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-interface ErrorResponse {
-	message: string;
-}
-
 export function Auth() {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -64,12 +60,12 @@ export function Auth() {
 			queryClient.invalidateQueries({ queryKey: ['profile'] });
 			navigate(from, { replace: true });
 		},
-		onError: (error: AxiosError<ErrorResponse>) => {
-			const message = error.response?.data?.message;
-			if (message === 'Invalid name or password') {
+		onError: (error: AxiosError<{success: boolean, error: string, operation: string}>) => {
+			const message = error.response?.data?.error;
+			if (message) {
 				setError('root', {
 					type: 'manual',
-					message: 'Неверное имя пользователя или пароль',
+					message,
 				});
 			} else {
 				setError('root', {

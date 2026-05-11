@@ -79,7 +79,6 @@ export function PaginatedTable<T extends { id: number }>({
 		onLimitChange(newLimit);
 	};
 
-	// Скролл к началу таблицы при изменении страницы или лимита
 	useLayoutEffect(() => {
 		if (tableContainerRef.current) {
 			tableContainerRef.current.scrollIntoView({
@@ -146,7 +145,7 @@ export function PaginatedTable<T extends { id: number }>({
 					sortBy={sortBy}
 					sortOrder={sortOrder}
 					hoverPopupConfig={hoverPopupConfig}
-					onRowClick={onRowClick} 
+					onRowClick={onRowClick}
 				/>
 			</div>
 

@@ -1,12 +1,14 @@
 // client/src/pages/warehouses/WarehouseMaterials.tsx
 import { inventoryService } from '@/services/inventoryService';
 import type { InventoryItemWithMaterial } from '@/services/inventoryService';
-import { FaRegTrashAlt } from 'react-icons/fa';
+import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
-import type { Action, Column } from '@/components/shared/Table/types';
+import type { Action, Column, HoverPopupConfig } from '@/components/shared/Table/types';
 import { EntityList } from '@/components/shared/EntityList';
 import { WarehouseMaterialModal } from './WarehouseMaterialModal';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router';
+import { MaterialImagePopup } from '../../MaterialsList/components/MaterialsImagePopup';
 
 type TableMaterial = {
 	id: number;
@@ -37,6 +39,7 @@ interface Props {
 
 export function WarehouseMaterials({ id, canManage = false }: Props) {
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
 
 	const handleRemoveMaterial = async (materialId: number, amount: number) => {
 		await inventoryService.removeMaterial(id, materialId, amount);
@@ -44,7 +47,18 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 		await queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
 	};
 
+	// Конфигурация попапа при наведении
+	const hoverPopupConfig: HoverPopupConfig<TableMaterial> = {
+		delay: 200,
+		renderContent: (item) => <MaterialImagePopup materialId={item.material_id} />,
+	};
+
 	const actions: Action<TableMaterial>[] = [
+		{
+			name: "Просмотр материала",
+			action: (item) => navigate(`/materials/${item.material_id}`),
+			icon: <FaRegEye />,
+		},
 		{
 			name: 'Редактировать количество',
 			icon: <MdEdit />,
@@ -98,12 +112,14 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 					},
 					columns,
 					mapToTableItem: mapInventoryToTableItem,
+					onRowClick: actions[0].action,
 					actions,
+					hoverPopupConfig,
 					canCreate: canManage,
 					initialSortBy: 'material_name',
 					initialSortOrder: 'ASC',
 					defaultLimit: 20,
-					getIdField: (item) => item.material_id, // используем material_id вместо id
+					getIdField: (item) => item.material_id,
 					renderModal: ({ open, setOpen, selectedItem, onSubmit }) => (
 						<WarehouseMaterialModal
 							open={open}
