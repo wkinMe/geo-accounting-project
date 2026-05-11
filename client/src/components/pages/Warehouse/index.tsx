@@ -43,7 +43,7 @@ export function Warehouse() {
 		<>
 			<WarehouseInfo id={id} canEdit={canEditWarehouse} canDelete={canDeleteWarehouse} />
 			<WarehouseMaterials id={id} canManage={canManageMaterials} />
-			{!isUser && <WarehouseHistory warehouseId={id} />}
+			{isCurrentUserOrg && !isUser && <WarehouseHistory warehouseId={id} />}
 		</>
 	);
 }
