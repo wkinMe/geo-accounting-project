@@ -14,8 +14,8 @@ const organizationRepository = new OrganizationRepository(pool);
 const organizationService = new OrganizationService(organizationRepository);
 const organizationController = new OrganizationController(organizationService);
 
-router.get("/", authMiddleware, organizationController.getAll);
-router.get("/search", authMiddleware, organizationController.search);
+router.get("/", organizationController.getAll);
+router.get("/search", organizationController.search);
 router.get("/:id", authMiddleware, organizationController.getById);
 router.post(
   "/",

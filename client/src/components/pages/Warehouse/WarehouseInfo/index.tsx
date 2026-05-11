@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/shared/Button';
-import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils/dateFormatters';
+import { formatDateToDDMMYYYY } from '@/utils/dateFormatters';
 import { Link } from 'react-router';
 import { WarehouseModal } from '../../WarehousesList/WarehouseModal';
 
@@ -113,10 +113,6 @@ export function WarehouseInfo({ id, canEdit = false, canDelete = false }: Props)
 							<tr className="border-b border-gray-200">
 								<td className="py-3 font-medium text-gray-600">Дата создания: </td>
 								<td className="py-3">{formatDateToDDMMYYYY(warehouse.created_at)}</td>
-							</tr>
-							<tr className="border-b border-gray-200">
-								<td className="py-3 font-medium text-gray-600">Последнее обновление: </td>
-								<td className="py-3">{getDaysAgoText(warehouse.updated_at)}</td>
 							</tr>
 						</tbody>
 					</table>

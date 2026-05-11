@@ -94,7 +94,7 @@ export function Register() {
 		}
 	};
 
-	const orgList = orgSearchQuery && searchedOrgs ? searchedOrgs : organizations || [];
+	const orgList = orgSearchQuery && searchedOrgs?.data ? searchedOrgs.data : organizations?.data || [];
 
 	return (
 		<div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">

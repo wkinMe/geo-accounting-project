@@ -45,10 +45,14 @@ export const STATUS_TRANSITIONS: StatusTransitionConfig = {
       AGREEMENT_STATUS.ACTIVE,
       AGREEMENT_STATUS.IN_PROGRESS,
       AGREEMENT_STATUS.COMPLETED,
+      AGREEMENT_STATUS.CANCELLED,
+      AGREEMENT_STATUS.EXPIRED,
     ],
     [AGREEMENT_STATUS.IN_PROGRESS]: [
       AGREEMENT_STATUS.IN_PROGRESS,
       AGREEMENT_STATUS.COMPLETED,
+      AGREEMENT_STATUS.CANCELLED,
+      AGREEMENT_STATUS.EXPIRED,
     ],
 
     // Конечные статусы - только сами себя
@@ -60,7 +64,7 @@ export const STATUS_TRANSITIONS: StatusTransitionConfig = {
 
 export const getTransitions = (
   role: string,
-  currentStatus: string,
+  currentStatus: AgreementStatus,
 ): AgreementStatus[] => {
   return STATUS_TRANSITIONS[role]?.[currentStatus] || [currentStatus];
 };

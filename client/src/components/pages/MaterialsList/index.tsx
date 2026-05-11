@@ -8,7 +8,7 @@ import { EntityList } from '@/components/shared/EntityList';
 import { useNavigate } from 'react-router';
 import { MaterialModal } from './components';
 import { MaterialImagePopup } from './components/MaterialsImagePopup';
-import { useRole, useProfile } from '@/hooks';
+import { useRole } from '@/hooks';
 import { isSuperAdminRole, isAdminRole } from '@/utils';
 
 export type TableMaterial = {

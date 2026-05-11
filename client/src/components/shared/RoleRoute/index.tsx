@@ -17,7 +17,8 @@ export function RoleRoute({
 	deniedRoles = [],
 	fallbackPath = '/',
 }: Props) {
-	const { data: userRole, isLoading } = useProfile().data?.role;
+	const { data: profile, isLoading } = useProfile();
+	const userRole = profile?.role;
 
 	if (isLoading) {
 		return <Spinner fullScreen blur />;
