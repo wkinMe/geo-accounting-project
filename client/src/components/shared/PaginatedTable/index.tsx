@@ -29,6 +29,7 @@ interface PaginatedTableProps<T extends { id: number }> {
 	onPageChange: (page: number) => void;
 	onLimitChange: (limit: number) => void;
 	onSort?: (column: string, order: 'ASC' | 'DESC') => void;
+	onRowClick?: (item: T) => void;
 }
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
@@ -57,6 +58,7 @@ export function PaginatedTable<T extends { id: number }>({
 	onPageChange,
 	onLimitChange,
 	onSort,
+	onRowClick,
 }: PaginatedTableProps<T>) {
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 	const totalPages = Math.ceil(total / currentLimit);
@@ -144,6 +146,7 @@ export function PaginatedTable<T extends { id: number }>({
 					sortBy={sortBy}
 					sortOrder={sortOrder}
 					hoverPopupConfig={hoverPopupConfig}
+					onRowClick={onRowClick} 
 				/>
 			</div>
 

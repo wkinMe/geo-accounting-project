@@ -159,6 +159,7 @@ export function AgreementsList() {
 				searchValue={searchQuery}
 				onSearch={setSearchQuery}
 				debounceMs={300}
+				onRowClick={actions[0].action}
 				itemName="Договор"
 				columns={columns}
 				elements={elements}
