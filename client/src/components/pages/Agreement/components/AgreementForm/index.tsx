@@ -1,9 +1,13 @@
 // client/src/pages/Agreements/AgreementForm/index.tsx
-import { useParams, useLocation } from 'react-router';
+import { useParams, useLocation, useNavigate } from 'react-router';
 import { FormProvider } from 'react-hook-form';
 import { useState, useEffect } from 'react';
 import { useAgreementForm } from '../../hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { agreementService } from '@/services/agreementService';
 import Spinner from '@/components/shared/Spinner';
+import { Button } from '@/components/shared/Button';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { PartySection } from '../PartySection';
 import { MaterialsSection } from '../MaterialsSection';
 import { FormActions } from '../FormActions';
@@ -21,6 +25,8 @@ interface Props {
 export function AgreementForm({ mode = 'create' }: Props) {
 	const { id } = useParams();
 	const location = useLocation();
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const agreementId = id ? Number(id) : undefined;
 
 	const isViewMode = mode === 'view';
@@ -28,7 +34,9 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const isCreateMode = mode === 'create';
 
 	const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+	const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 	const [pendingData, setPendingData] = useState<AgreementFormValues | null>(null);
+	const [deleteError, setDeleteError] = useState<string | null>(null);
 
 	const { form, store, isLoading, isSubmitting, error, handleSubmit, agreementData } =
 		useAgreementForm(agreementId);
@@ -38,8 +46,8 @@ export function AgreementForm({ mode = 'create' }: Props) {
 
 	// Используем хук для прав
 	const { canEdit: canEditAgreement } = useAgreementPermissions({
-		isViewMode,
-		isCreateMode,
+		isViewMode: false,
+		isCreateMode: false,
 		agreementId,
 		initialStatus,
 	});
@@ -66,6 +74,26 @@ export function AgreementForm({ mode = 'create' }: Props) {
 			status: agreementData.status,
 		};
 	})();
+
+	// Мутация для удаления договора
+	const { mutateAsync: deleteMutate, isPending: isDeleting } = useMutation({
+		mutationFn: async () => {
+			if (!agreementId) throw new Error('ID договора не найден');
+			return await agreementService.delete(agreementId);
+		},
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ['agreements'] });
+			navigate('/agreements');
+		},
+		onError: (err: any) => {
+			setDeleteError(err?.response?.data?.error || err?.message || 'Не удалось удалить договор');
+		},
+	});
+
+	const handleDelete = async () => {
+		await deleteMutate();
+		setIsDeleteConfirmOpen(false);
+	};
 
 	// Сброс при монтировании формы создания
 	useEffect(() => {
@@ -130,16 +158,39 @@ export function AgreementForm({ mode = 'create' }: Props) {
 		<>
 			<FormProvider {...form}>
 				<form onSubmit={form.handleSubmit(onSubmit)} className="max-w-7xl mx-auto p-6 space-y-8">
-					<h1 className="text-2xl font-bold">
+					<div className="flex justify-between items-center">
+						<h1 className="text-2xl font-bold">
+							{isViewMode && (
+								<span>
+									Договор №{id}
+									<span className="ml-2 text-2xl text-amber-600 dark:text-amber-400">
+										(просмотр)
+									</span>
+								</span>
+							)}
+							{!isViewMode && agreementId && 'Редактирование договора'}
+							{!isViewMode && !agreementId && 'Создание нового договора'}
+						</h1>
+
+						{/* Кнопки "Изменить" и "Удалить" только в режиме просмотра для супер-админа/админа */}
 						{isViewMode && (
-							<>
-								Договор №{id}
-								<span className="ml-2 text-2xl text-amber-600 dark:text-amber-400">(просмотр)</span>
-							</>
+							<div className="flex gap-4">
+								{canEditAgreement && (
+									<>
+										<Button
+											variant="secondary"
+											onClick={() => navigate(`/agreements/${agreementId}/edit`)}
+										>
+											Изменить
+										</Button>
+										<Button onClick={() => setIsDeleteConfirmOpen(true)} disabled={isDeleting}>
+											Удалить
+										</Button>
+									</>
+								)}
+							</div>
 						)}
-						{!isViewMode && agreementId && 'Редактирование договора'}
-						{!isViewMode && !agreementId && 'Создание нового договора'}
-					</h1>
+					</div>
 
 					<PartySection type="supplier" canEdit={canEditAgreement} isViewMode={isViewMode} />
 					<PartySection type="customer" canEdit={canEditAgreement} isViewMode={isViewMode} />
@@ -184,6 +235,12 @@ export function AgreementForm({ mode = 'create' }: Props) {
 						</div>
 					)}
 
+					{deleteError && (
+						<div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+							<p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+						</div>
+					)}
+
 					{!isViewMode && (
 						<FormActions
 							isEditing={isEditMode}
@@ -203,6 +260,22 @@ export function AgreementForm({ mode = 'create' }: Props) {
 				onConfirm={confirmSubmit}
 				isLoading={isSubmitting}
 			/>
+
+			<ConfirmModal
+				open={isDeleteConfirmOpen}
+				setOpen={setIsDeleteConfirmOpen}
+				actionName="удаление договора"
+				onConfirm={handleDelete}
+				error={deleteError}
+			>
+				<div className="space-y-2">
+					<p>Вы уверены, что хотите удалить договор?</p>
+					<p className="text-sm text-gray-600 dark:text-gray-400">
+						При удалении договора будут также удалены все связанные записи в истории перемещения
+						материалов. Восстановление будет невозможно.
+					</p>
+				</div>
+			</ConfirmModal>
 		</>
 	);
 }

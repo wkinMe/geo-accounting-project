@@ -220,7 +220,12 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 			form.reset();
 			setError(null);
 			setTimeout(() => {
-				navigate('/agreements');
+				window.scrollTo({
+					top: 0,
+					left: 0,
+					behavior: 'smooth',
+				});
+				navigate(`/agreements/${agreement?.id}`);
 			}, 100);
 		},
 		onError: (err) => {
@@ -240,7 +245,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		await mutateAsync(data);
 	});
 
-	// Синхронизация данных из store в форму при создании нового договора
 	useEffect(() => {
 		if (!agreementId) {
 			const supplierOrg = store.supplierOrg;
@@ -279,6 +283,6 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 		isSubmitting,
 		handleSubmit,
 		error,
-		agreementData: agreement, 
+		agreementData: agreement,
 	};
 }
