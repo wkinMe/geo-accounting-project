@@ -29,6 +29,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 		defaultLimit = 20,
 		renderModal,
 		getIdField = (item: TableItem) => item.id,
+		onRowClick, // Добавляем onRowClick
 	} = config;
 
 	const queryClient = useQueryClient();
@@ -53,7 +54,6 @@ export function EntityList<T, TableItem extends { id: number }>({
 		initialSortOrder,
 	});
 
-	// Дебаунс для поиска
 	const debouncedHandleSearch = useDebounce((query: string) => {
 		handleSearch(query);
 	}, 100);
@@ -190,6 +190,7 @@ export function EntityList<T, TableItem extends { id: number }>({
 				isFetching={isFetchingData}
 				hoverPopupConfig={hoverPopupConfig}
 				isCreateDisabled={!canCreate}
+				onRowClick={onRowClick} // Передаём onRowClick в PaginatedTable
 				onSearch={onSearch}
 				onCreate={canCreate ? openCreateModal : undefined}
 				onPageChange={handlePageChange}

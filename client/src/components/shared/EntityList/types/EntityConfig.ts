@@ -45,4 +45,5 @@ export interface EntityConfig<T, TableItem = any> {
 		selectedItem: TableItem | null;
 		onSubmit: (data: any) => Promise<void>;
 	}) => React.ReactNode;
+	onRowClick?: (item: TableItem) => void;
 }

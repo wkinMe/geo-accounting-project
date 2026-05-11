@@ -21,6 +21,7 @@ interface Props<T extends { id: number }> {
 	onSearch?: (query: string) => void;
 	onCreate?: () => void;
 	onSort?: (column: string) => void;
+	onRowClick?: (item: T) => void;
 	sortBy?: string;
 	sortOrder?: 'ASC' | 'DESC';
 	hoverPopupConfig?: HoverPopupConfig<T>;
@@ -40,6 +41,7 @@ export function Table<T extends { id: number }>({
 	onSearch,
 	onCreate,
 	onSort,
+	onRowClick,
 	sortBy,
 	sortOrder,
 	hoverPopupConfig,
@@ -170,6 +172,7 @@ export function Table<T extends { id: number }>({
 										visibleActions={visibleActions}
 										onActionClick={handleActionClick}
 										hoverPopupConfig={hoverPopupConfig}
+										onRowClick={onRowClick} 
 									/>
 								);
 							})}

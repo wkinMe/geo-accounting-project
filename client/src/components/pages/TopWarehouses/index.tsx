@@ -63,7 +63,7 @@ export function TopWarehouses() {
 	});
 
 	// Получение топ складов по выбранному материалу
-	const { data: warehousesData, isLoading: isLoadingWarehouses } = useQuery({
+	const { data: warehousesData } = useQuery({
 		queryKey: ['materialWarehouses', selectedMaterialId],
 		queryFn: async () => {
 			if (!selectedMaterialId) return [];
@@ -195,6 +195,7 @@ export function TopWarehouses() {
 					<Table
 						roundedT={false}
 						itemName="склад"
+						onRowClick={actions[0].action}
 						columns={columns}
 						elements={elements}
 						actions={actions}

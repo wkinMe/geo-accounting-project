@@ -107,6 +107,7 @@ export function WarehousesList() {
 					update: warehouseService.update.bind(warehouseService),
 				},
 				columns,
+				onRowClick: actions[0].action,
 				mapToTableItem: mapWarehouseToTableItem,
 				actions,
 				canCreate: isSuperAdmin || role === 'admin',

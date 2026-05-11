@@ -1,7 +1,7 @@
 // client/src/pages/organizations/OrganizationsList.tsx
 import { organizationService } from '@/services/organizationService';
 import type { Organization } from '@shared/models';
-import { FaRegEye, FaRegTrashAlt } from 'react-icons/fa';
+import { FaRegTrashAlt } from 'react-icons/fa';
 import { MdEdit } from 'react-icons/md';
 import type { Action, Column } from '@/components/shared/Table/types';
 import { EntityList } from '@/components/shared/EntityList';
@@ -37,14 +37,9 @@ export function OrganizationsList() {
 
 	const actions: Action<TableOrganization>[] = [
 		{
-			name: 'Просмотреть',
-			action: () => {},
-			icon: <FaRegEye />,
-		},
-		{
 			name: 'Редактировать',
-			action: () => {},
 			icon: <MdEdit />,
+			hidden: () => !canModify,
 		},
 		{
 			name: 'Удалить',

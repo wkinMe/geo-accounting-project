@@ -79,6 +79,7 @@ export function MaterialsList() {
 				},
 				columns,
 				mapToTableItem: mapMaterialToTableItem,
+				onRowClick: actions[0].action,
 				actions,
 				hoverPopupConfig,
 				canCreate,
