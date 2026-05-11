@@ -126,7 +126,7 @@ export function MaterialsSection({ canEdit = false, isViewMode = true }: Materia
 
 			{materials.length > 0 ? (
 				<div className="overflow-x-auto pb-4 mt-4 bg-white rounded-xl">
-					<table className="min-w-full  divide-y divide-gray-200 dark:divide-gray-800">
+					<table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
 						<thead className="bg-white dark:bg-gray-900">
 							<tr>
 								<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">

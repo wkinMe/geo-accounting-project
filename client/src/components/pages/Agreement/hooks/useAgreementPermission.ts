@@ -1,7 +1,8 @@
 // client/src/pages/Agreements/hooks/useAgreementPermissions.ts
 import { useRole } from '@/hooks';
 import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
-import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
+import { type AgreementStatus } from '@shared/constants';
+import { IRREVERSIBLE_STATUSES } from '@shared/constants/agreementStatuses';
 
 interface UseAgreementPermissionsParams {
 	isViewMode: boolean;
@@ -13,7 +14,6 @@ interface UseAgreementPermissionsParams {
 export function useAgreementPermissions({
 	isViewMode,
 	isCreateMode,
-	agreementId,
 	initialStatus,
 }: UseAgreementPermissionsParams) {
 	const role = useRole();
@@ -23,24 +23,32 @@ export function useAgreementPermissions({
 
 	// Для просмотра - запрещаем редактирование
 	if (isViewMode) {
-		return { canEdit: false };
+		return { canEdit: false, canEditPartyAndMaterials: false };
 	}
 
-	// При создании нового договора - разрешаем
-	if (isCreateMode || !agreementId) {
-		return { canEdit: true };
+	// При создании нового договора - разрешаем всё
+	if (isCreateMode) {
+		return { canEdit: true, canEditPartyAndMaterials: true };
 	}
 
-	// Администратор и суперадминистратор могут редактировать всегда, независимо от статуса
-	if (isSuperAdmin || isAdmin) {
-		return { canEdit: true };
+	// Если договор в необратимом статусе
+	const isIrreversible = initialStatus && IRREVERSIBLE_STATUSES.includes(initialStatus);
+
+	// Если договор уже в обороте (необратимый статус)
+	if (isIrreversible) {
+		// Супер-админ и админ могут редактировать всё
+		if (isSuperAdmin || isAdmin) {
+			return { canEdit: true, canEditPartyAndMaterials: true };
+		}
+		// Менеджер не может редактировать
+		return { canEdit: false, canEditPartyAndMaterials: false };
 	}
 
-	// Менеджер может редактировать только если договор не в необратимом статусе
-	if (isManager && initialStatus && IRREVERSIBLE_STATUSES.includes(initialStatus)) {
-		return { canEdit: false };
+	// Если договор ещё не в обороте (черновик, ожидает подтверждения, отменён, просрочен)
+	// Супер-админ, админ и менеджер могут редактировать
+	if (isSuperAdmin || isAdmin || isManager) {
+		return { canEdit: true, canEditPartyAndMaterials: true };
 	}
 
-	// Менеджер может редактировать (договор в обратимом статусе или менеджер без прав)
-	return { canEdit: isManager };
+	return { canEdit: false, canEditPartyAndMaterials: false };
 }

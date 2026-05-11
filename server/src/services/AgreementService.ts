@@ -220,10 +220,7 @@ export class AgreementService {
         existingAgreement.updateStatus(params.status);
       }
 
-      const updatedAgreement = await this.agreementRepo.update(
-        params.id,
-        existingAgreement,
-      );
+      await this.agreementRepo.update(params.id, existingAgreement);
 
       if (params.materials !== undefined) {
         await this.agreementMaterialRepo.deleteByAgreement(params.id);
@@ -259,28 +256,37 @@ export class AgreementService {
 
       // Обрабатываем переходы статусов
 
-      // 1. Если договор переходит в любой активный статус (включая "Завершён"),
-      //    но НЕ из активного статуса - списываем со склада поставщика
+      // Если договор переходит в любой активный статус (включая "Завершён"),
+      // но не из активного статуса - списываем со склада поставщика
       const isBecomingActive =
         this.isActiveStatus(newStatus) && !this.isActiveStatus(oldStatus);
       if (isBecomingActive) {
         await this.processSupplierWriteOff(params.id);
       }
 
-      // 2. Если договор переходит в статус "Завершён" (из любого статуса) -
-      //    добавляем на склад покупателя
+      // Если договор переходит в статус "Завершён" (из любого статуса) -
+      // добавляем на склад покупателя
       const isBecomingCompleted = newStatus === AGREEMENT_STATUS.COMPLETED;
       if (isBecomingCompleted) {
         await this.processCustomerReceipt(params.id);
       }
 
-      // 3. Если договор выходит из статуса "Завершён" (в любой другой статус) -
-      //    откатываем
+      // Если договор выходит из статуса "Завершён" (в любой другой статус) - откатываем полностью
       const isLeavingCompleted =
         oldStatus === AGREEMENT_STATUS.COMPLETED &&
         newStatus !== AGREEMENT_STATUS.COMPLETED;
       if (isLeavingCompleted) {
-        await this.processAgreementDeactivation(params.id);
+        await this.processAgreementDeactivation(params.id, true);
+      }
+
+      // Если договор переходит в статус "Отменён" или "Просрочен" из любого активного статуса -
+      // откатываем только возврат поставщику
+      const isCancellingOrExpiring =
+        (newStatus === AGREEMENT_STATUS.CANCELLED ||
+          newStatus === AGREEMENT_STATUS.EXPIRED) &&
+        this.isActiveStatus(oldStatus);
+      if (isCancellingOrExpiring) {
+        await this.processAgreementDeactivation(params.id, false);
       }
 
       return await this.findById(params.id);
@@ -493,9 +499,10 @@ export class AgreementService {
     }
   }
 
-  // Откат (если договор выходит из завершённого статуса)
+  // Откат (если договор выходит из завершённого статуса или отменяется/просрочивается)
   private async processAgreementDeactivation(
     agreementId: number,
+    wasCompleted: boolean = false,
   ): Promise<void> {
     const agreement = await this.findById(agreementId);
     const materials = await this.getAgreementMaterials(agreementId);
@@ -503,7 +510,7 @@ export class AgreementService {
     if (materials.length === 0) return;
 
     for (const material of materials) {
-      // Возврат поставщику
+      // Возврат поставщику (всегда нужен, так как материалы были списаны)
       const supplierStock = await this.inventoryService.getStock(
         agreement.supplier_warehouse_id,
         material.material_id,
@@ -530,32 +537,34 @@ export class AgreementService {
         description: `Возврат на склад поставщика по договору №${agreementId}`,
       });
 
-      // Списание у покупателя
-      const customerStock = await this.inventoryService.getStock(
-        agreement.customer_warehouse_id,
-        material.material_id,
-      );
+      // Списание у покупателя - только если договор был завершён
+      if (wasCompleted) {
+        const customerStock = await this.inventoryService.getStock(
+          agreement.customer_warehouse_id,
+          material.material_id,
+        );
 
-      const customerNewAmount = customerStock - material.amount;
+        const customerNewAmount = customerStock - material.amount;
 
-      await this.inventoryService.setAmount({
-        warehouse_id: agreement.customer_warehouse_id,
-        material_id: material.material_id,
-        amount: customerNewAmount,
-        agreement_id: agreementId,
-        description: `Списание со склада покупателя по договору №${agreementId}`,
-      });
+        await this.inventoryService.setAmount({
+          warehouse_id: agreement.customer_warehouse_id,
+          material_id: material.material_id,
+          amount: customerNewAmount,
+          agreement_id: agreementId,
+          description: `Списание со склада покупателя по договору №${agreementId}`,
+        });
 
-      await this.historyService.createEntry({
-        warehouse_id: agreement.customer_warehouse_id,
-        material_id: material.material_id,
-        operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_OUT,
-        old_amount: customerStock,
-        new_amount: customerNewAmount,
-        delta: -material.amount,
-        agreement_id: agreementId,
-        description: `Списание со склада покупателя по договору №${agreementId}`,
-      });
+        await this.historyService.createEntry({
+          warehouse_id: agreement.customer_warehouse_id,
+          material_id: material.material_id,
+          operation_type: WAREHOUSE_HISTORY_TYPES.AGREEMENT_OUT,
+          old_amount: customerStock,
+          new_amount: customerNewAmount,
+          delta: -material.amount,
+          agreement_id: agreementId,
+          description: `Списание со склада покупателя по договору №${agreementId}`,
+        });
+      }
     }
   }
 

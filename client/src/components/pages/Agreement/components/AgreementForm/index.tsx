@@ -15,8 +15,9 @@ import { StatusSelect } from '../StatusSelect';
 import { ConfirmStatusModal } from '../ConfirmStatusModal';
 import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
 import type { AgreementFormValues } from '../../types';
-import { AgreementMap } from '../AgreementMap';
+import { useAgreementBasePermissions } from '@/components/pages/AgreementsList/hooks';
 import { useAgreementPermissions } from '../../hooks/useAgreementPermission';
+import { AgreementMap } from '../AgreementMap';
 
 interface Props {
 	mode?: 'create' | 'edit' | 'view';
@@ -44,12 +45,7 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const currentStatus = form.watch('status') as AgreementStatus;
 	const initialStatus = agreementId ? store.status : null;
 
-	const { canEdit: canEditAgreement } = useAgreementPermissions({
-		isViewMode: false,
-		isCreateMode: false,
-		agreementId,
-		initialStatus,
-	});
+	const { canEdit, canDelete } = useAgreementBasePermissions();
 
 	// Проверяем, пришли ли мы из предзаполненного источника
 	const isFromPreselected = (location.state as any)?.preserveData === true;
@@ -73,6 +69,12 @@ export function AgreementForm({ mode = 'create' }: Props) {
 			status: agreementData.status,
 		};
 	})();
+
+	const { canEdit: canEditAgreement, canEditPartyAndMaterials } = useAgreementPermissions({
+		isViewMode,
+		isCreateMode,
+		initialStatus: initialData?.status,
+	});
 
 	// Мутация для удаления договора
 	const { mutateAsync: deleteMutate, isPending: isDeleting } = useMutation({
@@ -174,18 +176,18 @@ export function AgreementForm({ mode = 'create' }: Props) {
 						{/* Кнопки "Изменить" и "Удалить" только в режиме просмотра для супер-админа/админа */}
 						{isViewMode && (
 							<div className="flex gap-4">
-								{canEditAgreement && (
-									<>
-										<Button
-											variant="secondary"
-											onClick={() => navigate(`/agreements/${agreementId}/edit`)}
-										>
-											Изменить
-										</Button>
-										<Button onClick={() => setIsDeleteConfirmOpen(true)} disabled={isDeleting}>
-											Удалить
-										</Button>
-									</>
+								{canEdit(store.status) && (
+									<Button
+										variant="secondary"
+										onClick={() => navigate(`/agreements/${agreementId}/edit`)}
+									>
+										Изменить
+									</Button>
+								)}
+								{canDelete(store.status) && (
+									<Button onClick={() => setIsDeleteConfirmOpen(true)} disabled={isDeleting}>
+										Удалить
+									</Button>
 								)}
 							</div>
 						)}
@@ -193,12 +195,12 @@ export function AgreementForm({ mode = 'create' }: Props) {
 
 					<PartySection
 						type="supplier"
-						canEdit={!isViewMode && canEditAgreement}
+						canEdit={!isViewMode && canEditPartyAndMaterials}
 						isViewMode={isViewMode}
 					/>
 					<PartySection
 						type="customer"
-						canEdit={!isViewMode && canEditAgreement}
+						canEdit={!isViewMode && canEditPartyAndMaterials}
 						isViewMode={isViewMode}
 					/>
 
@@ -230,7 +232,7 @@ export function AgreementForm({ mode = 'create' }: Props) {
 								form.setValue('customerWarehouse', warehouse.id);
 								form.setValue('customerManager', warehouse.manager_id);
 							}}
-							readOnly={!canEditAgreement}
+							readOnly={!canEdit(initialData?.status)}
 						/>
 					</div>
 

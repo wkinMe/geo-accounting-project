@@ -12,6 +12,8 @@ import type { Action, Column } from '@/components/shared/Table/types';
 import { Table } from '@/components/shared/Table';
 import { useAgreementBasePermissions } from './hooks';
 import { AGREEMENT_STATUS, IRREVERSIBLE_STATUSES } from '@shared/constants/agreementStatuses';
+import { isSuperAdminRole } from '@/utils';
+import { useProfile } from '@/hooks';
 
 const columns: Column<TableAgreement>[] = [
 	{ key: 'id', label: 'ID' },
@@ -34,6 +36,7 @@ export function AgreementsList() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [searchQuery, setSearchQuery] = useState('');
+	const { data: profile } = useProfile();
 
 	const { data: agreements } = useQuery({
 		queryKey: ['agreements'],
@@ -62,26 +65,12 @@ export function AgreementsList() {
 		navigate(`/agreements/${id}/edit`);
 	};
 
-	const { canEdit, canDelete: canDeleteBase } = useAgreementBasePermissions();
-
-	// Функция для проверки, можно ли удалить договор
-	const canDeleteAgreement = (status: string) => {
-		// Если пользователь супер-админ, может удалить любой договор
-		if (canDeleteBase()) return true;
-
-		// Если договор в статусе draft или pending - можно удалить
-		if (status === AGREEMENT_STATUS.DRAFT || status === AGREEMENT_STATUS.PENDING) {
-			return true;
-		}
-
-		// Активные статусы - нельзя удалить обычным пользователям
-		return false;
-	};
+	const { canEdit, canDelete } = useAgreementBasePermissions();
 
 	// Функция для получения текста подтверждения удаления
 	const getDeleteConfirmationBody = (agreementStatus: string) => {
 		const isIrreversible = IRREVERSIBLE_STATUSES.includes(agreementStatus as any);
-		const isSuperAdmin = canDeleteBase();
+		const isSuperAdmin = isSuperAdminRole(profile?.role);
 
 		if (isIrreversible && isSuperAdmin) {
 			return (
@@ -123,11 +112,11 @@ export function AgreementsList() {
 
 		return items.map((item) => ({
 			...item,
-			_canEdit: canEdit(),
-			_canDelete: canDeleteAgreement(item.status),
+			_canEdit: canEdit(item.status),
+			_canDelete: canDelete(item.status),
 			_status: item.status,
 		}));
-	}, [searchQuery, searchedAgreements, agreements, canEdit, canDeleteAgreement]);
+	}, [searchQuery, searchedAgreements, agreements, canEdit, canDelete]);
 
 	const actions: Action<TableAgreement>[] = [
 		{

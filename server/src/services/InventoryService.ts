@@ -294,10 +294,6 @@ export class InventoryService {
       warehouse_id,
       material_id,
       amount,
-      user_id,
-      agreement_id,
-      description,
-      operationType, // добавляем operationType
     } = params;
 
     if (amount < 0) {

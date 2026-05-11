@@ -208,24 +208,30 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				return await agreementService.create(createData, materials);
 			}
 		},
-		onSuccess: () => {
+		onSuccess: (result) => {
 			queryClient.invalidateQueries({ queryKey: ['agreements'] });
+
 			if (isEditing) {
 				queryClient.invalidateQueries({ queryKey: ['agreement', agreementId] });
 				queryClient.invalidateQueries({
 					queryKey: ['warehouseStock', agreement?.supplier_warehouse_id],
 				});
 			}
+
 			store.resetForm();
 			form.reset();
 			setError(null);
+
 			setTimeout(() => {
 				window.scrollTo({
 					top: 0,
 					left: 0,
 					behavior: 'smooth',
 				});
-				navigate(`/agreements/${agreement?.id}`);
+
+				// При создании используем ID из ответа, при редактировании — существующий ID
+				const targetId = isEditing ? agreementId : result.id;
+				navigate(`/agreements/${targetId}`);
 			}, 100);
 		},
 		onError: (err) => {
