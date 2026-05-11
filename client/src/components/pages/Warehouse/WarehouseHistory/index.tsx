@@ -89,7 +89,7 @@ export function WarehouseHistory({ warehouseId }: { warehouseId: number }) {
 					},
 					columns,
 					mapToTableItem: mapHistoryToTableItem,
-					actions: [], // Нет действий
+					actions: [],
 					canCreate: false,
 					initialSortBy: 'created_at',
 					initialSortOrder: 'DESC',
