@@ -1,8 +1,6 @@
 // client/src/pages/materials/components/MaterialInfo.tsx
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { formatDateToDDMMYYYY, getDaysAgoText } from '@/utils';
-import type { Material } from '@shared/models';
 import { MaterialImage } from './components/MaterialImage';
 import type { TableMaterial } from '@/components/pages/MaterialsList';
 
@@ -14,8 +12,6 @@ export function MaterialInfo({
 	id,
 	name,
 	unit,
-	createdAt,
-	updatedAt,
 	className = '',
 }: MaterialInfoProps) {
 	const queryClient = useQueryClient();

@@ -18,11 +18,11 @@ export const useMaterial = (id: number) => {
 		isPending: isMaterial3dObjectPending,
 		error: material3dObjectError,
 	} = useQuery({
-		queryKey: ['material3dObject', materialData?.data?.id],
+		queryKey: ['material3dObject', materialData?.id],
 		//@ts-expect-error тут ошибка вылазит по поводу .data, но в enabled стоит проверка, так что не надо тут ругаться
 		queryFn: () => material3dService.findByMaterialId(materialData.data.id),
 		retry: false,
-		enabled: !!materialData?.data?.id,
+		enabled: !!materialData?.id,
 	});
 
 	return {
