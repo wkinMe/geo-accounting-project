@@ -75,7 +75,14 @@ createRoot(document.getElementById('root')!).render(
 								}
 							/>
 							<Route path=":id" element={<Material />} />
-							<Route path="top-warehouses" element={<TopWarehouses />} />
+							<Route
+								path="top-warehouses"
+								element={
+									<RoleRoute deniedRoles={[USER_ROLES.USER]} fallbackPath="/map">
+										<TopWarehouses />
+									</RoleRoute>
+								}
+							></Route>
 						</Route>
 
 						{/* Договоры - доступны менеджерам, админам и суперадминам */}
@@ -83,10 +90,7 @@ createRoot(document.getElementById('root')!).render(
 							<Route
 								index
 								element={
-									<RoleRoute
-										allowedRoles={[USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SUPER_ADMIN]}
-										fallbackPath="/map"
-									>
+									<RoleRoute deniedRoles={[USER_ROLES.USER]} fallbackPath="/map">
 										<AgreementsList />
 									</RoleRoute>
 								}

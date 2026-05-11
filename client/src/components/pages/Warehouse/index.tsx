@@ -4,7 +4,7 @@ import { WarehouseInfo } from './WarehouseInfo';
 import { WarehouseMaterials } from './WarehouseMaterials';
 import { useQuery } from '@tanstack/react-query';
 import { warehouseService } from '@/services';
-import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
+import { isAdminRole, isManagerRole, isSuperAdminRole, isUserRole } from '@/utils';
 import { WarehouseHistory } from './WarehouseHistory';
 import { useProfile } from '@/hooks';
 
@@ -20,6 +20,7 @@ export function Warehouse() {
 	});
 
 	const role = profile?.role;
+	const isUser = isUserRole(role);
 	const userId = profile?.id;
 	const orgId = profile?.organization_id;
 
@@ -42,7 +43,7 @@ export function Warehouse() {
 		<>
 			<WarehouseInfo id={id} canEdit={canEditWarehouse} canDelete={canDeleteWarehouse} />
 			<WarehouseMaterials id={id} canManage={canManageMaterials} />
-			<WarehouseHistory warehouseId={id} />
+			{!isUser && <WarehouseHistory warehouseId={id} />}
 		</>
 	);
 }

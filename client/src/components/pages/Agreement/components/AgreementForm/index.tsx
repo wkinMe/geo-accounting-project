@@ -1,9 +1,8 @@
 // client/src/pages/Agreements/AgreementForm/index.tsx
 import { useParams, useLocation } from 'react-router';
 import { FormProvider } from 'react-hook-form';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useAgreementForm } from '../../hooks';
-import { useRole } from '@/hooks';
 import Spinner from '@/components/shared/Spinner';
 import { PartySection } from '../PartySection';
 import { MaterialsSection } from '../MaterialsSection';
@@ -13,7 +12,7 @@ import { ConfirmStatusModal } from '../ConfirmStatusModal';
 import { IRREVERSIBLE_STATUSES, type AgreementStatus } from '@shared/constants/agreementStatuses';
 import type { AgreementFormValues } from '../../types';
 import { AgreementMap } from '../AgreementMap';
-import { isAdminRole, isManagerRole, isSuperAdminRole } from '@/utils';
+import { useAgreementPermissions } from '../../hooks/useAgreementPermission';
 
 interface Props {
 	mode?: 'create' | 'edit' | 'view';
@@ -37,29 +36,20 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	const currentStatus = form.watch('status') as AgreementStatus;
 	const initialStatus = agreementId ? store.status : null;
 
-	const role = useRole();
-	const isSuperAdmin = isSuperAdminRole(role);
-	const isAdmin = isAdminRole(role);
-	const isManager = isManagerRole(role);
+	// Используем хук для прав
+	const { canEdit: canEditAgreement } = useAgreementPermissions({
+		isViewMode,
+		isCreateMode,
+		agreementId,
+		initialStatus,
+	});
 
-	// Проверяем, пришли ли мы из предзаполненного источника (TopWarehouses, MapPage)
+	// Проверяем, пришли ли мы из предзаполненного источника
 	const isFromPreselected = (location.state as any)?.preserveData === true;
 
-	const canEditAgreement = useMemo(() => {
-		if (isViewMode) return false;
-
-		if (isCreateMode || !agreementId) return true;
-
-		if (initialStatus && IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus)) {
-			return false;
-		}
-
-		return isSuperAdmin || isAdmin || isManager;
-	}, [isViewMode, isCreateMode, agreementId, initialStatus, isSuperAdmin, isAdmin, isManager]);
-
-	const initialData = useMemo(() => {
+	// Подготовка initialData для FormActions
+	const initialData = (() => {
 		if (!isEditMode || !agreementData) return null;
-
 		return {
 			supplierOrg: agreementData.supplier?.organization_id || null,
 			supplierManager: agreementData.supplier?.id || null,
@@ -75,17 +65,13 @@ export function AgreementForm({ mode = 'create' }: Props) {
 				})) || [],
 			status: agreementData.status,
 		};
-	}, [isEditMode, agreementData]);
+	})();
 
 	// Сброс при монтировании формы создания
 	useEffect(() => {
-		// Только для режима создания нового договора
 		if (!isCreateMode) return;
-
-		// Если пришли из предзаполненного источника (TopWarehouses/MapPage) - не сбрасываем
 		if (isFromPreselected) return;
 
-		// В остальных случаях (простое создание) - сбрасываем всё
 		form.reset({
 			supplierOrg: undefined,
 			supplierManager: undefined,

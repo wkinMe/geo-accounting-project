@@ -6,7 +6,7 @@ import { Map, MARKER_COLORS, type MapMarker, type SearchableItem } from '@/compo
 import { warehouseService } from '@/services/warehouseService';
 import { organizationService } from '@/services/organizationService';
 import { useProfile } from '@/hooks';
-import { atLeastManager } from '@/utils';
+import { atLeastManager, isUserRole } from '@/utils';
 import type { Map as LeafletMap } from 'leaflet';
 import { CreateAgreementModal } from './components/CreateAgreementModal';
 import { useAgreementFormStore } from '@/components/pages/Agreement/store';
@@ -38,8 +38,6 @@ export function MapPage() {
 	} = useAgreementFormStore();
 
 	const { data: profile, isLoading: isLoadingProfile } = useProfile();
-
-	// В MapPage.tsx
 	const { data: warehousesResponse, isLoading: isLoadingWarehouses } = useQuery({
 		queryKey: ['warehouses', 'map'],
 		queryFn: async () => {
@@ -69,6 +67,7 @@ export function MapPage() {
 		enabled: !!profile,
 	});
 
+	const isUser = isUserRole(profile?.role);
 	const warehouses = warehousesResponse?.data || [];
 	const organizations = organizationsResponse?.data || [];
 
@@ -192,7 +191,9 @@ export function MapPage() {
 			onDetailsClick: () => {
 				window.open(`/warehouses/${warehouse.id}`, '_blank');
 			},
-			onCreateAgreement: () => handleCreateAgreement(warehouse.id, warehouse.name),
+			...(isUser
+				? {}
+				: { onCreateAgreement: () => handleCreateAgreement(warehouse.id, warehouse.name) }),
 		}));
 
 	const allMarkers = [...organizationsMarkers, ...warehousesMarkers];

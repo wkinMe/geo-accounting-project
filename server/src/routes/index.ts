@@ -7,6 +7,7 @@ import { inventoryRouter } from "./inventory.route";
 import { agreementsRouter } from "./agreements.route";
 import { warehouseHistoryRouter } from "./warehouseHistory.route";
 import usersRouter from "./users.route";
+import { material3DRouter } from "./material3d.route";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use("/warehouses", warehousesRouter);
 router.use("/inventory", inventoryRouter);
 router.use("/agreements", agreementsRouter);
 router.use("/warehouse-history", warehouseHistoryRouter);
+router.use("/materials3d", material3DRouter);
 
 export default router;
