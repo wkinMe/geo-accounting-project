@@ -43,7 +43,6 @@ export function AgreementForm({ mode = 'create' }: Props) {
 		useAgreementForm(agreementId);
 
 	const currentStatus = form.watch('status') as AgreementStatus;
-	const initialStatus = agreementId ? store.status : null;
 
 	const { canEdit, canDelete } = useAgreementBasePermissions();
 
@@ -121,15 +120,31 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	}, [isCreateMode, isFromPreselected]);
 
 	const onSubmit = async (data: AgreementFormValues) => {
+		console.log('=== onSubmit called ===');
+		console.log('initialStatus:', initialData?.status);
+		console.log('data.status:', data.status);
+		console.log(
+			'IRREVERSIBLE_STATUSES includes initialStatus:',
+			IRREVERSIBLE_STATUSES.includes(initialData?.status as AgreementStatus)
+		);
+		console.log(
+			'IRREVERSIBLE_STATUSES includes data.status:',
+			IRREVERSIBLE_STATUSES.includes(data.status as AgreementStatus)
+		);
+
 		const isChangingToIrreversible =
-			initialStatus &&
-			!IRREVERSIBLE_STATUSES.includes(initialStatus as AgreementStatus) &&
+			initialData?.status &&
+			!IRREVERSIBLE_STATUSES.includes(initialData.status as AgreementStatus) &&
 			IRREVERSIBLE_STATUSES.includes(data.status as AgreementStatus);
 
+		console.log('isChangingToIrreversible:', isChangingToIrreversible);
+
 		if (isChangingToIrreversible) {
+			console.log('Opening confirm modal');
 			setPendingData(data);
 			setIsConfirmModalOpen(true);
 		} else {
+			console.log('Calling handleSubmit directly');
 			await handleSubmit();
 		}
 	};
@@ -264,7 +279,7 @@ export function AgreementForm({ mode = 'create' }: Props) {
 			<ConfirmStatusModal
 				open={isConfirmModalOpen}
 				setOpen={setIsConfirmModalOpen}
-				oldStatus={initialStatus}
+				oldStatus={initialData?.status}
 				newStatus={pendingData?.status || currentStatus}
 				onConfirm={confirmSubmit}
 				isLoading={isSubmitting}
