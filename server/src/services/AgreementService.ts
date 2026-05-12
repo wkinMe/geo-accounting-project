@@ -273,7 +273,8 @@ export class AgreementService {
       // Если договор переходит из "Завершён" в любой активный, т.е. материалы ещё заморожены у поставщика, но надо списать у покупателя обратно
       const isLeavingCompletedToActive =
         ACTIVE_STATUSES.includes(newStatus) &&
-        newStatus !== AGREEMENT_STATUS.COMPLETED;
+        newStatus !== AGREEMENT_STATUS.COMPLETED &&
+        oldStatus === AGREEMENT_STATUS.COMPLETED;
       if (isLeavingCompletedToActive) {
         this.processCustomerWriteOff(params.id);
       }
