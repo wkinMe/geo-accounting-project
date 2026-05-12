@@ -218,17 +218,17 @@ export function useAgreementForm(agreementId?: number): UseAgreementFormReturn {
 				});
 			}
 
-			store.resetForm();
-			form.reset();
+			window.scrollTo({
+				top: 0,
+				left: 0,
+				behavior: 'smooth',
+			});
+
+			// store.resetForm();
+			// form.reset();
 			setError(null);
 
 			setTimeout(() => {
-				window.scrollTo({
-					top: 0,
-					left: 0,
-					behavior: 'smooth',
-				});
-
 				// При создании используем ID из ответа, при редактировании — существующий ID
 				const targetId = isEditing ? agreementId : result.id;
 				navigate(`/agreements/${targetId}`);

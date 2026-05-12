@@ -2,7 +2,7 @@
 import { useProfile } from '@/hooks';
 import { atLeastAdmin, isManagerRole, isSuperAdminRole, isUserRole } from '@/utils';
 import { AGREEMENT_STATUS, USER_ROLES, type AgreementStatus } from '@shared/constants';
-import { FINISH_STATUSES } from '@shared/constants/agreementStatuses';
+import { FINISH_STATUSES, PREACTIVE_STATUSES } from '@shared/constants/agreementStatuses';
 
 export const useAgreementBasePermissions = () => {
 	const { data: currentUser } = useProfile();
@@ -29,7 +29,7 @@ export const useAgreementBasePermissions = () => {
 		if (atLeastAdmin(currentUser.role)) return true;
 
 		// Менеджер может удалить только если договор в статусе черновика
-		if (currentUser.role === USER_ROLES.MANAGER && status === AGREEMENT_STATUS.DRAFT) {
+		if (currentUser.role === USER_ROLES.MANAGER && PREACTIVE_STATUSES.includes(status)) {
 			return true;
 		}
 
