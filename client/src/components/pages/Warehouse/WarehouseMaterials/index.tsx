@@ -127,8 +127,8 @@ export function WarehouseMaterials({ id, canManage = false }: Props) {
 							selectedItem={selectedItem}
 							onSubmit={onSubmit}
 							onSuccess={() => {
-								queryClient.invalidateQueries({ queryKey: ['warehouseMaterials', id] });
-								queryClient.invalidateQueries({ queryKey: ['warehouseHistory', id] });
+								queryClient.invalidateQueries({ queryKey: [`warehouseMaterials_${id}`] });
+								queryClient.invalidateQueries({ queryKey: [`warehouseHistory_${id}`] });
 							}}
 						/>
 					),

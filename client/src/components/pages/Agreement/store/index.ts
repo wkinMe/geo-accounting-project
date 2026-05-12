@@ -109,7 +109,6 @@ export const useAgreementFormStore = create<AgreementFormStore>((set, get) => ({
 	setStatus: (status) => set({ status }),
 
 	resetForm: () => {
-		console.log('RESET');
 		set(initialState);
 	},
 
