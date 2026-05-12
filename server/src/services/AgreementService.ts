@@ -13,6 +13,9 @@ import {
   AGREEMENT_STATUS,
   IRREVERSIBLE_STATUSES,
   AgreementStatus,
+  ACTIVE_STATUSES,
+  PREACTIVE_STATUSES,
+  REJECTED_STATUSES,
 } from "@shared/constants";
 import { WAREHOUSE_HISTORY_TYPES } from "@shared/constants/warehouseHistoryTypes";
 import { UserDataDTO } from "@shared/dto";
@@ -63,17 +66,6 @@ export class AgreementService {
 
   private isActiveStatus(status: AgreementStatus): boolean {
     return IRREVERSIBLE_STATUSES.includes(status);
-  }
-
-  private isStatusCompleted(status: AgreementStatus): boolean {
-    return status === AGREEMENT_STATUS.COMPLETED;
-  }
-
-  private isTransitionToActive(
-    oldStatus: AgreementStatus,
-    newStatus: AgreementStatus,
-  ): boolean {
-    return !this.isActiveStatus(oldStatus) && this.isActiveStatus(newStatus);
   }
 
   private async validateUserExists(
@@ -254,47 +246,38 @@ export class AgreementService {
         }
       }
 
-      // services/AgreementService.ts - в методе update, блок обработки переходов статусов
-
-      // Обрабатываем переходы статусов
-
-      // 1. Если договор переходит в любой активный статус (включая "Завершён"),
-      //    но не из активного статуса - списываем со склада поставщика
-      const isBecomingActive =
-        this.isActiveStatus(newStatus) && !this.isActiveStatus(oldStatus);
-      if (isBecomingActive) {
-        await this.processSupplierWriteOff(params.id);
+      // Если переход из любой неактивной фазы в активную - в активный
+      const isBecomingActiveIrreversible =
+        ACTIVE_STATUSES.includes(newStatus) &&
+        (PREACTIVE_STATUSES.includes(oldStatus) ||
+          REJECTED_STATUSES.includes(oldStatus));
+      if (isBecomingActiveIrreversible) {
+        this.processSupplierWriteOff(params.id);
       }
 
-      // 2. Если договор переходит в статус "Завершён" (из любого статуса) -
-      //    добавляем на склад покупателя
-      const isBecomingCompleted = newStatus === AGREEMENT_STATUS.COMPLETED;
-      if (isBecomingCompleted) {
-        await this.processCustomerReceipt(params.id);
-      }
-
-      // 3. Если договор выходит из активного статуса (не из завершённого) в неактивный -
-      //    откатываем только возврат поставщику
+      // Если переход из ACTIVE_PHASE - в любую неактивную
       const isLeavingActive =
-        this.isActiveStatus(oldStatus) &&
-        oldStatus !== AGREEMENT_STATUS.COMPLETED &&
-        !this.isActiveStatus(newStatus);
+        ACTIVE_STATUSES.includes(oldStatus) &&
+        (PREACTIVE_STATUSES.includes(newStatus) ||
+          REJECTED_STATUSES.includes(newStatus));
       if (isLeavingActive) {
-        await this.processSupplierRollback(params.id);
+        this.processSupplierRollback(params.id);
       }
 
-      // 4. Если договор выходит из статуса "Завершён" в ЛЮБОЙ другой статус
-      const isLeavingCompleted = oldStatus === AGREEMENT_STATUS.COMPLETED;
-      if (isLeavingCompleted) {
-        // 4a. Если переходим в активный статус (ACTIVE / IN_PROGRESS) - списываем у покупателя
-        if (this.isActiveStatus(newStatus)) {
-          await this.processCustomerWriteOff(params.id);
-        }
-        // 4b. Если переходим в неактивный статус (DRAFT / CANCELLED / EXPIRED) - полный откат
-        else {
-          await this.processAgreementDeactivation(params.id, true);
-        }
+      // Если завершаем договор
+      const isCompleted = newStatus === AGREEMENT_STATUS.COMPLETED;
+      if (isCompleted) {
+        this.processCustomerReceipt(params.id);
       }
+
+      // Если договор переходит из "Завершён" в любой активный, т.е. материалы ещё заморожены у поставщика, но надо списать у покупателя обратно
+      const isLeavingCompletedToActive =
+        ACTIVE_STATUSES.includes(newStatus) &&
+        newStatus !== AGREEMENT_STATUS.COMPLETED;
+      if (isLeavingCompletedToActive) {
+        this.processCustomerWriteOff(params.id);
+      }
+
       return await this.findById(params.id);
     } catch (error) {
       if (

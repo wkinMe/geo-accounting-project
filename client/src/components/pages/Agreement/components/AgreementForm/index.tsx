@@ -120,31 +120,15 @@ export function AgreementForm({ mode = 'create' }: Props) {
 	}, [isCreateMode, isFromPreselected]);
 
 	const onSubmit = async (data: AgreementFormValues) => {
-		console.log('=== onSubmit called ===');
-		console.log('initialStatus:', initialData?.status);
-		console.log('data.status:', data.status);
-		console.log(
-			'IRREVERSIBLE_STATUSES includes initialStatus:',
-			IRREVERSIBLE_STATUSES.includes(initialData?.status as AgreementStatus)
-		);
-		console.log(
-			'IRREVERSIBLE_STATUSES includes data.status:',
-			IRREVERSIBLE_STATUSES.includes(data.status as AgreementStatus)
-		);
-
 		const isChangingToIrreversible =
 			initialData?.status &&
 			!IRREVERSIBLE_STATUSES.includes(initialData.status as AgreementStatus) &&
 			IRREVERSIBLE_STATUSES.includes(data.status as AgreementStatus);
 
-		console.log('isChangingToIrreversible:', isChangingToIrreversible);
-
 		if (isChangingToIrreversible) {
-			console.log('Opening confirm modal');
 			setPendingData(data);
 			setIsConfirmModalOpen(true);
 		} else {
-			console.log('Calling handleSubmit directly');
 			await handleSubmit();
 		}
 	};
