@@ -322,14 +322,16 @@ export class WarehouseHistoryRepository {
     WHERE h.warehouse_id = $1 AND (
       m.name ILIKE $2 OR
       h.agreement_id::text ILIKE $2 OR
-      u.name ILIKE $2
+      u.name ILIKE $2 OR
+      h.description ILIKE $2
     )
     ORDER BY 
       CASE 
         WHEN m.name ILIKE $3 THEN 1
         WHEN h.agreement_id::text ILIKE $3 THEN 2
         WHEN u.name ILIKE $3 THEN 3
-        ELSE 4
+        WHEN h.description ILIKE $3 THEN 4
+        ELSE 5
       END,
       ${orderByClause}
     LIMIT $4 OFFSET $5
@@ -343,7 +345,8 @@ export class WarehouseHistoryRepository {
     WHERE h.warehouse_id = $1 AND (
       m.name ILIKE $2 OR
       h.agreement_id::text ILIKE $2 OR
-      u.name ILIKE $2
+      u.name ILIKE $2 OR
+      h.description ILIKE $2
     )
   `;
 

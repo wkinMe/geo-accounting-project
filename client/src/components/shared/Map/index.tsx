@@ -69,6 +69,7 @@ export function Map({
 					zoom={zoom}
 					style={{ height, width }}
 					className={`rounded-lg shadow-md ${className}`}
+					attributionControl={false}
 				>
 					<TileLayer
 						url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"

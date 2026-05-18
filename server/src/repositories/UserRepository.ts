@@ -36,7 +36,7 @@ export class UserRepository {
       FROM app_users u
       LEFT JOIN organizations o ON u.organization_id = o.id
     `;
-    
+
     const params: any[] = [];
     let paramIndex = 1;
 
@@ -70,14 +70,16 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     }));
 
     return { data, total };
@@ -93,13 +95,13 @@ export class UserRepository {
       LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE u.id = $1
     `;
-    
+
     const result = await this.db.query(query, [id]);
 
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    
+
     return {
       id: row.id,
       name: row.name,
@@ -108,14 +110,16 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     };
   }
 
@@ -129,13 +133,13 @@ export class UserRepository {
       LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE u.name = $1
     `;
-    
+
     const result = await this.db.query(query, [name]);
 
     if (result.rows.length === 0) return null;
 
     const row = result.rows[0];
-    
+
     return {
       id: row.id,
       name: row.name,
@@ -144,18 +148,22 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     };
   }
 
-  async findByOrganizationId(organizationId: number): Promise<UserWithOrganization[]> {
+  async findByOrganizationId(
+    organizationId: number,
+  ): Promise<UserWithOrganization[]> {
     const query = `
       SELECT 
         u.id, u.name, u.organization_id, u.password, u.role, u.created_at, u.updated_at,
@@ -166,7 +174,7 @@ export class UserRepository {
       WHERE u.organization_id = $1
       ORDER BY u.id
     `;
-    
+
     const result = await this.db.query(query, [organizationId]);
 
     return result.rows.map((row) => ({
@@ -177,14 +185,16 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     }));
   }
 
@@ -199,7 +209,7 @@ export class UserRepository {
       WHERE u.role = $1
       ORDER BY u.id
     `;
-    
+
     const result = await this.db.query(query, [role]);
 
     return result.rows.map((row) => ({
@@ -210,18 +220,22 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     }));
   }
 
-  async countSuperAdminsInOrganization(organizationId: number): Promise<number> {
+  async countSuperAdminsInOrganization(
+    organizationId: number,
+  ): Promise<number> {
     const query = `
       SELECT COUNT(*) as count
       FROM app_users
@@ -234,7 +248,9 @@ export class UserRepository {
     return parseInt(result.rows[0]?.count || "0", 10);
   }
 
-  async checkOrganizationHasSuperAdmin(organizationId: number): Promise<boolean> {
+  async checkOrganizationHasSuperAdmin(
+    organizationId: number,
+  ): Promise<boolean> {
     const query = `
       SELECT EXISTS(
         SELECT 1 FROM app_users 
@@ -249,19 +265,16 @@ export class UserRepository {
   }
 
   async save(user: User): Promise<UserWithOrganization> {
-    const salt = await bcrypt.genSalt(8);
-    const hashedPassword = await bcrypt.hash(user.password, salt);
-
     const query = `
-      INSERT INTO app_users (name, organization_id, password, role) 
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, created_at, updated_at
-    `;
+    INSERT INTO app_users (name, organization_id, password, role) 
+    VALUES ($1, $2, $3, $4)
+    RETURNING id, created_at, updated_at
+  `;
 
     const result = await this.db.query(query, [
       user.name,
       user.organization_id,
-      hashedPassword,
+      user.password,
       user.role,
     ]);
 
@@ -362,7 +375,7 @@ export class UserRepository {
       LEFT JOIN organizations o ON u.organization_id = o.id
       WHERE u.name ILIKE $1
     `;
-    
+
     const params: any[] = [searchPattern];
     let paramIndex = 2;
 
@@ -410,14 +423,16 @@ export class UserRepository {
       role: row.role,
       created_at: row.created_at,
       updated_at: row.updated_at,
-      organization: row.org_id ? {
-        id: row.org_id,
-        name: row.org_name,
-        created_at: row.org_created_at,
-        updated_at: row.org_updated_at,
-        latitude: row.org_latitude,
-        longitude: row.org_longitude,
-      } : null,
+      organization: row.org_id
+        ? {
+            id: row.org_id,
+            name: row.org_name,
+            created_at: row.org_created_at,
+            updated_at: row.org_updated_at,
+            latitude: row.org_latitude,
+            longitude: row.org_longitude,
+          }
+        : null,
     }));
 
     return { data, total };

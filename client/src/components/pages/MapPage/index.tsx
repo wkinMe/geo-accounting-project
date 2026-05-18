@@ -6,7 +6,7 @@ import { Map, MARKER_COLORS, type MapMarker, type SearchableItem } from '@/compo
 import { warehouseService } from '@/services/warehouseService';
 import { organizationService } from '@/services/organizationService';
 import { useProfile } from '@/hooks';
-import { atLeastManager, isUserRole } from '@/utils';
+import { atLeastManager, getOrganizationColor, getWarehouseColor, isUserRole } from '@/utils';
 import type { Map as LeafletMap } from 'leaflet';
 import { CreateAgreementModal } from './components/CreateAgreementModal';
 import { useAgreementFormStore } from '@/components/pages/Agreement/store';
@@ -109,21 +109,6 @@ export function MapPage() {
 			})),
 	];
 
-	const getOrganizationColor = (orgId: number) => {
-		return orgId === currentUserOrgId ? MARKER_COLORS.OWN_ORG : MARKER_COLORS.OTHER_ORG;
-	};
-
-	const getWarehouseColor = (warehouse: WarehouseWithManagerAndOrganization) => {
-		const isOwnOrg = warehouse.organization_id === currentUserOrgId;
-		const hasManager = warehouse.manager_id !== null;
-
-		if (isOwnOrg) {
-			return hasManager ? MARKER_COLORS.OWN_WITH_MANAGER : MARKER_COLORS.OWN_NO_MANAGER;
-		} else {
-			return hasManager ? MARKER_COLORS.OTHER_WITH_MANAGER : MARKER_COLORS.OTHER_NO_MANAGER;
-		}
-	};
-
 	const handleCreateAgreement = (warehouseId: number, warehouseName: string) => {
 		setSelectedWarehouse({ id: warehouseId, name: warehouseName });
 		setIsModalOpen(true);
@@ -167,7 +152,7 @@ export function MapPage() {
 			id: org.id,
 			type: 'organization',
 			position: [org.latitude!, org.longitude!],
-			iconColor: getOrganizationColor(org.id),
+			iconColor: getOrganizationColor(currentUserOrgId || 0, org.id),
 			title: org.name,
 			subtitle: 'Головной офис',
 		}));
@@ -184,7 +169,7 @@ export function MapPage() {
 			id: warehouse.id,
 			type: 'warehouse',
 			position: [warehouse.latitude!, warehouse.longitude!],
-			iconColor: getWarehouseColor(warehouse),
+			iconColor: getWarehouseColor(currentUserOrgId || 0, warehouse),
 			title: warehouse.name,
 			subtitle: warehouse.organization?.name,
 			description: `Менеджер: ${warehouse.manager?.name || 'Не назначен'}`,

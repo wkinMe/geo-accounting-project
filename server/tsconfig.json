@@ -41,6 +41,6 @@
     "tests/**/*",
     "types/**/*",
     "../packages/shared/**/*"
-  ],
+, "tests/repositories/AgreementMaterialRepository.test.ts"  ],
   "exclude": ["node_modules", "dist", "../packages/shared/node_modules"]
 }

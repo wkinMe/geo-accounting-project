@@ -3,6 +3,7 @@ export default {
   preset: "ts-jest/presets/js-with-ts",
   testEnvironment: "node",
   roots: ["<rootDir>/src", "<rootDir>/tests", "<rootDir>/../packages/shared"],
+  testRegex: "(/tests/.*\\.test\\.ts$)",
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/$1",
     "^@src/(.*)$": "<rootDir>/src/$1",
@@ -30,7 +31,6 @@ export default {
   },
   transformIgnorePatterns: [
     "/node_modules/",
-    // Не игнорируем shared пакет
     "!/node_modules/@shared",
   ],
 };

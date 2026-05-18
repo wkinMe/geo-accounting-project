@@ -26,7 +26,7 @@ export class UserService {
   }
 
   async findAll(
-    limit?: number,
+  limit?: number,
     offset?: number,
     sortBy?: string,
     sortOrder?: "ASC" | "DESC",
